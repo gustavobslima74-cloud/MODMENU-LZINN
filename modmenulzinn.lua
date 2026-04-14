@@ -31,7 +31,7 @@ local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 
 -- BOTÃO PNG
 local ToggleBtn = Instance.new("ImageButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0,55,0,55)
+ToggleBtn.Size = UDim2.new(0,60,0,60)
 ToggleBtn.Position = UDim2.new(0,20,0.6,0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
 ToggleBtn.Image = "rbxassetid://70505361093133"
@@ -39,10 +39,10 @@ ToggleBtn.ScaleType = Enum.ScaleType.Fit
 ToggleBtn.Draggable = true
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0)
 
--- MENU PRINCIPAL (PRETO)
+-- MAIN
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0,320,0,380)
-Main.Position = UDim2.new(0.5,-160,0.5,-190)
+Main.Size = UDim2.new(0,330,0,420)
+Main.Position = UDim2.new(0.5,-165,0.5,-210)
 Main.BackgroundColor3 = Color3.fromRGB(0,0,0)
 Main.BackgroundTransparency = 0.1
 Main.Visible = false
@@ -51,7 +51,6 @@ Instance.new("UICorner", Main)
 -- BORDA RGB
 local stroke = Instance.new("UIStroke", Main)
 stroke.Thickness = 2
-
 task.spawn(function()
     while true do
         stroke.Color = Color3.fromHSV(tick()%5/5,1,1)
@@ -59,7 +58,7 @@ task.spawn(function()
     end
 end)
 
--- DRAG MOBILE (SUAVE)
+-- DRAG MOBILE
 local dragging = false
 local dragStart, startPos
 
@@ -89,17 +88,32 @@ UIS.InputChanged:Connect(function(input)
     end
 end)
 
+-- CRÉDITOS TOPO
+local Title = Instance.new("TextLabel", Main)
+Title.Size = UDim2.new(1,0,0,30)
+Title.Text = "LQB KIKO | v2.5"
+Title.BackgroundTransparency = 1
+Title.TextScaled = true
+
+task.spawn(function()
+    while true do
+        Title.TextColor3 = Color3.fromHSV(tick()%5/5,1,1)
+        task.wait()
+    end
+end)
+
 -- ABAS
 local Tabs = Instance.new("Frame", Main)
 Tabs.Size = UDim2.new(1,0,0,40)
+Tabs.Position = UDim2.new(0,0,0,30)
 Tabs.BackgroundTransparency = 1
 
 local LayoutTabs = Instance.new("UIListLayout", Tabs)
 LayoutTabs.FillDirection = Enum.FillDirection.Horizontal
 
 local Pages = Instance.new("Frame", Main)
-Pages.Size = UDim2.new(1,0,1,-40)
-Pages.Position = UDim2.new(0,0,0,40)
+Pages.Size = UDim2.new(1,0,1,-70)
+Pages.Position = UDim2.new(0,0,0,70)
 Pages.BackgroundTransparency = 1
 
 local function CreatePage(name)
@@ -109,17 +123,19 @@ local function CreatePage(name)
     btn.BackgroundColor3 = Color3.fromRGB(15,15,15)
     btn.TextColor3 = Color3.new(1,1,1)
 
-    local page = Instance.new("Frame", Pages)
+    local page = Instance.new("ScrollingFrame", Pages)
     page.Size = UDim2.new(1,0,1,0)
+    page.CanvasSize = UDim2.new(0,0,2,0)
+    page.ScrollBarThickness = 4
     page.Visible = false
     page.BackgroundTransparency = 1
 
     local layout = Instance.new("UIListLayout", page)
-    layout.Padding = UDim.new(0,6)
+    layout.Padding = UDim.new(0,8)
 
     btn.MouseButton1Click:Connect(function()
         for _,v in pairs(Pages:GetChildren()) do
-            if v:IsA("Frame") then v.Visible = false end
+            if v:IsA("ScrollingFrame") then v.Visible = false end
         end
         page.Visible = true
     end)
@@ -135,7 +151,7 @@ ESPPage.Visible = true
 -- TOGGLE
 local function Toggle(parent,text,callback)
     local b = Instance.new("TextButton", parent)
-    b.Size = UDim2.new(1,0,0,32)
+    b.Size = UDim2.new(1,0,0,40)
     b.Text = text..": OFF"
     b.BackgroundColor3 = Color3.fromRGB(20,20,20)
     b.TextColor3 = Color3.new(1,1,1)
@@ -148,10 +164,10 @@ local function Toggle(parent,text,callback)
     end)
 end
 
--- SLIDER (COM DECIMAL)
+-- SLIDER (0.05 STEP)
 local function Slider(parent,text,min,max,callback)
     local frame = Instance.new("Frame", parent)
-    frame.Size = UDim2.new(1,0,0,45)
+    frame.Size = UDim2.new(1,0,0,50)
     frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 
     local label = Instance.new("TextLabel", frame)
@@ -161,8 +177,8 @@ local function Slider(parent,text,min,max,callback)
     label.TextColor3 = Color3.new(1,1,1)
 
     local bar = Instance.new("Frame", frame)
-    bar.Size = UDim2.new(1,-10,0,8)
-    bar.Position = UDim2.new(0,5,0,28)
+    bar.Size = UDim2.new(1,-10,0,10)
+    bar.Position = UDim2.new(0,5,0,30)
     bar.BackgroundColor3 = Color3.fromRGB(50,50,50)
 
     local fill = Instance.new("Frame", bar)
@@ -175,9 +191,7 @@ local function Slider(parent,text,min,max,callback)
         if i.UserInputType == Enum.UserInputType.Touch then dragging = true end
     end)
 
-    bar.InputEnded:Connect(function()
-        dragging = false
-    end)
+    bar.InputEnded:Connect(function() dragging = false end)
 
     UIS.InputChanged:Connect(function(i)
         if dragging then
@@ -185,9 +199,10 @@ local function Slider(parent,text,min,max,callback)
             fill.Size = UDim2.new(pos,0,1,0)
 
             local value = min + (max-min)*pos
-            value = math.floor(value*100)/100
+            value = math.floor(value / 0.05 + 0.5) * 0.05
+            value = math.clamp(value,min,max)
 
-            label.Text = text..": "..value
+            label.Text = text..": "..string.format("%.2f", value)
             callback(value)
         end
     end)
@@ -212,46 +227,91 @@ Toggle(PlayerPage,"Pulo Infinito",function(v) Settings.InfiniteJump=v end)
 -- HITBOX TAB
 Toggle(HitboxPage,"Hitbox",function(v) Settings.HitboxEnabled=v end)
 
-local Value = Instance.new("TextLabel", HitboxPage)
-Value.Size = UDim2.new(1,0,0,30)
-Value.Text = "Size: 10"
-Value.TextColor3 = Color3.new(1,1,1)
-Value.BackgroundTransparency = 1
+-- ESP SISTEMA (CORRIGIDO)
+local ESPContainer = {}
 
-local Plus = Instance.new("TextButton", HitboxPage)
-Plus.Size = UDim2.new(0.5,0,0,30)
-Plus.Text = "+"
+local function CreateESP(player)
+    if player == LocalPlayer then return end
 
-local Minus = Instance.new("TextButton", HitboxPage)
-Minus.Size = UDim2.new(0.5,0,0,30)
-Minus.Text = "-"
+    local Box = Drawing.new("Square")
+    Box.Thickness = 2
+    Box.Color = Color3.fromRGB(255,0,0)
+    Box.Filled = false
 
-Plus.MouseButton1Click:Connect(function()
-    Settings.Hitbox = math.clamp(Settings.Hitbox+1,10,50)
-    Value.Text = "Size: "..Settings.Hitbox
+    local Name = Drawing.new("Text")
+    Name.Size = 13
+    Name.Center = true
+    Name.Outline = true
+    Name.Color = Color3.new(1,1,1)
+
+    local Distance = Drawing.new("Text")
+    Distance.Size = 13
+    Distance.Center = true
+    Distance.Outline = true
+    Distance.Color = Color3.fromRGB(0,255,0)
+
+    ESPContainer[player] = {Box=Box,Name=Name,Distance=Distance,Highlight=nil}
+end
+
+for _,p in pairs(Players:GetPlayers()) do CreateESP(p) end
+Players.PlayerAdded:Connect(CreateESP)
+
+-- LOOP
+RunService.RenderStepped:Connect(function()
+    for player, esp in pairs(ESPContainer) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
+            local hrp = player.Character.HumanoidRootPart
+            local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
+
+            if vis then
+                local size = (Camera:WorldToViewportPoint(hrp.Position+Vector3.new(0,3,0)).Y - pos.Y)
+
+                esp.Box.Visible = Settings.Boxes
+                if Settings.Boxes then
+                    esp.Box.Size = Vector2.new(size*1.5,size*2)
+                    esp.Box.Position = Vector2.new(pos.X - esp.Box.Size.X/2,pos.Y - esp.Box.Size.Y/2)
+                end
+
+                esp.Name.Visible = Settings.Names
+                if Settings.Names then
+                    esp.Name.Text = player.DisplayName
+                    esp.Name.Position = Vector2.new(pos.X,pos.Y-size)
+                end
+
+                esp.Distance.Visible = Settings.Distance
+                if Settings.Distance then
+                    local dist = (LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+                    esp.Distance.Text = math.floor(dist).."m"
+                    esp.Distance.Position = Vector2.new(pos.X,pos.Y+size/2)
+                end
+            else
+                esp.Box.Visible = false
+                esp.Name.Visible = false
+                esp.Distance.Visible = false
+            end
+        else
+            esp.Box.Visible = false
+            esp.Name.Visible = false
+            esp.Distance.Visible = false
+        end
+    end
+
+    -- PLAYER
+    if LocalPlayer.Character then
+        local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
+        if hum then
+            if Settings.UseSpeed then hum.WalkSpeed = Settings.Speed end
+            if Settings.UseJump then hum.JumpPower = Settings.JumpPower end
+        end
+    end
 end)
 
-Minus.MouseButton1Click:Connect(function()
-    Settings.Hitbox = math.clamp(Settings.Hitbox-1,10,50)
-    Value.Text = "Size: "..Settings.Hitbox
-end)
-
-Slider(HitboxPage,"Opacidade",0.05,1,function(v)
-    Settings.HitboxTransparency = v
-end)
-
--- ABRIR
-ToggleBtn.MouseButton1Click:Connect(function()
-    Main.Visible = not Main.Visible
-end)
-
--- HITBOX FAKE (CORRIGIDO)
+-- HITBOX FAKE
 local HitboxParts = {}
 
 RunService.RenderStepped:Connect(function()
     for _,p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            
             local hrp = p.Character.HumanoidRootPart
 
             if Settings.HitboxEnabled then
@@ -277,35 +337,16 @@ RunService.RenderStepped:Connect(function()
             end
         end
     end
+end)
 
-    -- PLAYER
-    if LocalPlayer.Character then
-        local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
-        if hum then
-            if Settings.UseSpeed then hum.WalkSpeed = Settings.Speed end
-            if Settings.UseJump then hum.JumpPower = Settings.JumpPower end
-        end
-    end
+-- OPEN
+ToggleBtn.MouseButton1Click:Connect(function()
+    Main.Visible = not Main.Visible
 end)
 
 -- INFINITE JUMP
 UIS.JumpRequest:Connect(function()
     if Settings.InfiniteJump and LocalPlayer.Character then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-    end
-end)
-
--- CRÉDITOS
-local Credit = Instance.new("TextLabel", Main)
-Credit.Size = UDim2.new(1,0,0,20)
-Credit.Position = UDim2.new(0,0,1,-20)
-Credit.Text = "LQB KIKO | v2.4"
-Credit.BackgroundTransparency = 1
-Credit.TextScaled = true
-
-task.spawn(function()
-    while true do
-        Credit.TextColor3 = Color3.fromHSV(tick()%5/5,1,1)
-        task.wait()
     end
 end)
