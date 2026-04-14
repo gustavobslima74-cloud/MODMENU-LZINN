@@ -13,6 +13,8 @@ getgenv().Settings = {
     Names = true,
     Distance = true,
     Highlight = false,
+    Lines = false,
+    TeamColor = false, -- Nova Opção
 
     HitboxEnabled = false,
     Hitbox = 20,
@@ -27,16 +29,24 @@ getgenv().Settings = {
     InfiniteJump = false
 }
 
+local VERSION = "v3.8"
+local CHANGELOG_TEXT = [[
+--- HISTÓRICO DE VERSÕES ---
+v3.8: ESP Team Color (Boxes/Lines/Chams seguem o time).
+v3.7: Texto do Log ajustado (TextWrapped).
+v3.6: Aba INFOS e ESP Lines adicionados.
+v3.5: Botão móvel (fechado) e fixo (aberto).
+v3.4: Animações Tween (Scale/Fade).
+----------------------------]]
+
 --// VARIÁVEIS DE CONTROLE
 local MenuAberto = false
 
---// FUNÇÃO DRAG MELHORADA (COM TRAVA)
+--// FUNÇÃO DRAG
 local function MakeDraggable(gui, isMenu)
     local dragging, dragInput, dragStart, startPos
     gui.InputBegan:Connect(function(input)
-        -- Se for o botão e o menu estiver aberto, não deixa arrastar
         if not isMenu and MenuAberto then return end
-        
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
@@ -70,7 +80,7 @@ ToggleBtn.Position = UDim2.new(0,20,0.6,0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
 ToggleBtn.Image = "rbxassetid://70505361093133"
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0)
-MakeDraggable(ToggleBtn, false) -- Inicia livre
+MakeDraggable(ToggleBtn, false)
 
 -- JANELA
 local Main = Instance.new("Frame", ScreenGui)
@@ -81,7 +91,7 @@ Main.ClipsDescendants = true
 Main.Visible = false
 Main.BackgroundTransparency = 1
 Instance.new("UICorner", Main)
-MakeDraggable(Main, true) -- Menu sempre arrastável
+MakeDraggable(Main, true)
 
 local stroke = Instance.new("UIStroke", Main)
 stroke.Thickness = 2
@@ -95,7 +105,7 @@ end)
 
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,35)
-Title.Text = "LQB KIKO | v3.5"
+Title.Text = "LQB KIKO | " .. VERSION
 Title.BackgroundTransparency = 1
 Title.TextColor3 = Color3.new(1,1,1)
 Title.TextSize = 18
@@ -116,11 +126,12 @@ Pages.BackgroundTransparency = 1
 
 local function CreatePage(name)
     local btn = Instance.new("TextButton", Tabs)
-    btn.Size = UDim2.new(0.33,0,1,0)
+    btn.Size = UDim2.new(0.25,0,1,0)
     btn.Text = name
     btn.BackgroundTransparency = 1
     btn.TextColor3 = Color3.new(1,1,1)
     btn.TextTransparency = 1
+    btn.TextSize = 12
 
     local page = Instance.new("ScrollingFrame", Pages)
     page.Size = UDim2.new(1,0,1,0)
@@ -145,9 +156,23 @@ end
 local ESPPage, eb = CreatePage("ESP")
 local PlayerPage, pb = CreatePage("PLAYER")
 local HitboxPage, hb = CreatePage("HITBOX")
+local InfoPage, ib = CreatePage("INFOS")
 ESPPage.Visible = true
 
--- COMPONENTES UI (MANTIDOS)
+-- ABA INFOS
+local LogLabel = Instance.new("TextLabel", InfoPage)
+LogLabel.Size = UDim2.new(1,-20,0,0)
+LogLabel.AutomaticSize = Enum.AutomaticSize.Y
+LogLabel.BackgroundTransparency = 1
+LogLabel.TextColor3 = Color3.fromRGB(200,200,200)
+LogLabel.TextSize = 13
+LogLabel.Font = Enum.Font.Code
+LogLabel.Text = CHANGELOG_TEXT
+LogLabel.TextXAlignment = Enum.TextXAlignment.Left
+LogLabel.TextYAlignment = Enum.TextYAlignment.Top
+LogLabel.TextWrapped = true
+
+-- COMPONENTES UI
 local function CreateToggle(parent, text, callback)
     local b = Instance.new("TextButton", parent)
     b.Size = UDim2.new(1,-20,0,35)
@@ -187,11 +212,13 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     minus.MouseButton1Click:Connect(function() up(val - step) end); plus.MouseButton1Click:Connect(function() up(val + step) end)
 end
 
--- SETUP ABAS
+-- SETUP
 CreateToggle(ESPPage, "ESP Geral", function(v) Settings.ESP = v end)
+CreateToggle(ESPPage, "Team Color", function(v) Settings.TeamColor = v end) -- Novo
 CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
 CreateToggle(ESPPage, "Names", function(v) Settings.Names = v end)
 CreateToggle(ESPPage, "Distance", function(v) Settings.Distance = v end)
+CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
 CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
 
 CreateToggle(PlayerPage, "Ativar Velocidade", function(v) Settings.UseSpeed = v end)
@@ -208,8 +235,7 @@ CreateStepper(HitboxPage, "Opacidade %", 0, 100, 60, 10, function(v) Settings.Hi
 local function OpenUI()
     MenuAberto = true
     Main.Visible = true
-    Main.Position = UDim2.new(0.5, -150, 0.5, -190) -- Volta pro centro
-    
+    Main.Position = UDim2.new(0.5, -150, 0.5, -190)
     local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     TweenService:Create(Main, tweenInfo, {Size = UDim2.new(0, 300, 0, 380), BackgroundTransparency = 0.1}):Play()
     TweenService:Create(stroke, tweenInfo, {Transparency = 0}):Play()
@@ -217,6 +243,7 @@ local function OpenUI()
     TweenService:Create(eb, tweenInfo, {TextTransparency = 0}):Play()
     TweenService:Create(pb, tweenInfo, {TextTransparency = 0}):Play()
     TweenService:Create(hb, tweenInfo, {TextTransparency = 0}):Play()
+    TweenService:Create(ib, tweenInfo, {TextTransparency = 0}):Play()
 end
 
 local function CloseUI()
@@ -228,26 +255,37 @@ local function CloseUI()
     TweenService:Create(eb, tweenInfo, {TextTransparency = 1}):Play()
     TweenService:Create(pb, tweenInfo, {TextTransparency = 1}):Play()
     TweenService:Create(hb, tweenInfo, {TextTransparency = 1}):Play()
+    TweenService:Create(ib, tweenInfo, {TextTransparency = 1}):Play()
     anim:Play()
     anim.Completed:Connect(function() Main.Visible = false end)
 end
 
--- [LÓGICA ESP E HITBOX - MANTIDAS DA 3.4]
+-- LÓGICA ESP
 local ESPContainer = {}
 local function CreateESP(p)
     if p == LocalPlayer then return end
-    ESPContainer[p] = {Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Highlight = nil}
-    local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Box.Color = Color3.new(1,1,1)
-    e.Name.Size = 16; e.Name.Center = true; e.Name.Outline = true; e.Name.Color = Color3.new(1,1,1)
-    e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true; e.Dist.Color = Color3.new(0,1,0)
+    ESPContainer[p] = {
+        Box = Drawing.new("Square"),
+        Name = Drawing.new("Text"),
+        Dist = Drawing.new("Text"),
+        Line = Drawing.new("Line"),
+        Highlight = nil
+    }
+    local e = ESPContainer[p]
+    e.Box.Thickness = 1.5; e.Box.Filled = false
+    e.Name.Size = 16; e.Name.Center = true; e.Name.Outline = true
+    e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true
+    e.Line.Thickness = 1
 end
+
 local function RemoveESP(p)
     if ESPContainer[p] then
-        ESPContainer[p].Box:Remove(); ESPContainer[p].Name:Remove(); ESPContainer[p].Dist:Remove()
+        ESPContainer[p].Box:Remove(); ESPContainer[p].Name:Remove(); ESPContainer[p].Dist:Remove(); ESPContainer[p].Line:Remove()
         if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end
         ESPContainer[p] = nil
     end
 end
+
 Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP)
 for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
 
@@ -261,23 +299,49 @@ RunService.RenderStepped:Connect(function()
     for p, e in pairs(ESPContainer) do
         if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
             local hrp = p.Character.HumanoidRootPart
+            local head = p.Character:FindFirstChild("Head")
             local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
+            
+            -- DEFINIR COR DO TIME OU PADRÃO
+            local drawColor = Color3.new(1,1,1)
+            if Settings.TeamColor and p.TeamColor then
+                drawColor = p.TeamColor.Color
+            end
+
             if vis then
                 if Settings.Boxes then
                     local sizeX = 2500 / pos.Z; local sizeY = 3500 / pos.Z
-                    e.Box.Visible = true; e.Box.Size = Vector2.new(sizeX, sizeY); e.Box.Position = Vector2.new(pos.X - sizeX/2, pos.Y - sizeY/2)
+                    e.Box.Visible = true; e.Box.Size = Vector2.new(sizeX, sizeY)
+                    e.Box.Position = Vector2.new(pos.X - sizeX/2, pos.Y - sizeY/2)
+                    e.Box.Color = drawColor
                 else e.Box.Visible = false end
+                
                 e.Name.Visible = Settings.Names; e.Name.Text = p.DisplayName; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20)
                 e.Dist.Visible = Settings.Distance; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5)
+                
+                if Settings.Lines and head then
+                    local headPos = Camera:WorldToViewportPoint(head.Position)
+                    e.Line.Visible = true
+                    e.Line.From = Vector2.new(Camera.ViewportSize.X / 2, 0)
+                    e.Line.To = Vector2.new(headPos.X, headPos.Y)
+                    e.Line.Color = drawColor
+                else e.Line.Visible = false end
+
                 if Settings.Highlight then
                     if not e.Highlight or e.Highlight.Parent ~= p.Character then
                         if e.Highlight then e.Highlight:Destroy() end
                         e.Highlight = Instance.new("Highlight", p.Character)
                     end
-                    e.Highlight.Enabled = true; e.Highlight.FillColor = Color3.fromHSV(tick()%5/5, 1, 1)
+                    e.Highlight.Enabled = true
+                    if Settings.TeamColor then
+                        e.Highlight.FillColor = drawColor
+                        e.Highlight.OutlineColor = Color3.new(1,1,1)
+                    else
+                        e.Highlight.FillColor = Color3.fromHSV(tick()%5/5, 1, 1)
+                    end
                 elseif e.Highlight then e.Highlight.Enabled = false end
-            else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; if e.Highlight then e.Highlight.Enabled = false end end
-        else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; if e.Highlight then e.Highlight:Destroy(); e.Highlight = nil end end
+            else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end end
+        else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight:Destroy(); e.Highlight = nil end end
     end
 end)
 
