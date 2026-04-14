@@ -33,10 +33,13 @@ local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 local ToggleBtn = Instance.new("ImageButton", ScreenGui)
 ToggleBtn.Size = UDim2.new(0,60,0,60)
 ToggleBtn.Position = UDim2.new(0,20,0.6,0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
 ToggleBtn.Image = "rbxassetid://70505361093133"
+ToggleBtn.BackgroundTransparency = 1
+ToggleBtn.ClipsDescendants = true
 ToggleBtn.Draggable = true
-Instance.new("UICorner", ToggleBtn)
+
+local corner = Instance.new("UICorner", ToggleBtn)
+corner.CornerRadius = UDim.new(1,0)
 
 -- MAIN
 local Main = Instance.new("Frame", ScreenGui)
@@ -161,10 +164,68 @@ Toggle(ESPPage,"Distance",function(v) Settings.Distance=v end)
 Toggle(ESPPage,"Chams",function(v) Settings.Highlight=v end)
 
 -- PLAYER TAB
-Toggle(PlayerPage,"Speed",function(v) Settings.UseSpeed=v end)
-Toggle(PlayerPage,"Jump",function(v) Settings.UseJump=v end)
-Toggle(PlayerPage,"Pulo Infinito",function(v) Settings.InfiniteJump=v end)
+-- VELOCIDADE
+Toggle(PlayerPage,"Velocidade",function(v)
+    Settings.UseSpeed = v
+end)
 
+local SpeedLabel = Instance.new("TextLabel", PlayerPage)
+SpeedLabel.Size = UDim2.new(1,0,0,30)
+SpeedLabel.Text = "Velocidade: 16"
+SpeedLabel.TextColor3 = Color3.new(1,1,1)
+SpeedLabel.BackgroundTransparency = 1
+
+local SpeedMinus = Instance.new("TextButton", PlayerPage)
+SpeedMinus.Size = UDim2.new(0.5,0,0,35)
+SpeedMinus.Text = "-"
+
+local SpeedPlus = Instance.new("TextButton", PlayerPage)
+SpeedPlus.Size = UDim2.new(0.5,0,0,35)
+SpeedPlus.Text = "+"
+
+SpeedMinus.MouseButton1Click:Connect(function()
+    Settings.Speed = math.clamp(Settings.Speed-1,16,200)
+    SpeedLabel.Text = "Velocidade: "..Settings.Speed
+end)
+
+SpeedPlus.MouseButton1Click:Connect(function()
+    Settings.Speed = math.clamp(Settings.Speed+1,16,200)
+    SpeedLabel.Text = "Velocidade: "..Settings.Speed
+end)
+
+-- PULO
+Toggle(PlayerPage,"Pulo",function(v)
+    Settings.UseJump = v
+end)
+
+local JumpLabel = Instance.new("TextLabel", PlayerPage)
+JumpLabel.Size = UDim2.new(1,0,0,30)
+JumpLabel.Text = "Pulo: 50"
+JumpLabel.TextColor3 = Color3.new(1,1,1)
+JumpLabel.BackgroundTransparency = 1
+
+local JumpMinus = Instance.new("TextButton", PlayerPage)
+JumpMinus.Size = UDim2.new(0.5,0,0,35)
+JumpMinus.Text = "-"
+
+local JumpPlus = Instance.new("TextButton", PlayerPage)
+JumpPlus.Size = UDim2.new(0.5,0,0,35)
+JumpPlus.Text = "+"
+
+JumpMinus.MouseButton1Click:Connect(function()
+    Settings.JumpPower = math.clamp(Settings.JumpPower-5,50,200)
+    JumpLabel.Text = "Pulo: "..Settings.JumpPower
+end)
+
+JumpPlus.MouseButton1Click:Connect(function()
+    Settings.JumpPower = math.clamp(Settings.JumpPower+5,50,200)
+    JumpLabel.Text = "Pulo: "..Settings.JumpPower
+end)
+
+-- INFINITE JUMP
+Toggle(PlayerPage,"Pulo Infinito",function(v)
+    Settings.InfiniteJump = v
+end)
 -- HITBOX TAB
 Toggle(HitboxPage,"Hitbox",function(v) Settings.HitboxEnabled=v end)
 
@@ -233,10 +294,29 @@ end)
 local ESPContainer = {}
 local function CreateESP(p)
     if p == LocalPlayer then return end
+
+    local Box = Drawing.new("Square")
+    Box.Thickness = 2
+    Box.Color = Color3.fromRGB(255,0,0)
+    Box.Filled = false -- 🔥 ISSO AQUI RESOLVE
+    Box.Transparency = 1
+
+    local Name = Drawing.new("Text")
+    Name.Size = 13
+    Name.Center = true
+    Name.Outline = true
+    Name.Color = Color3.new(1,1,1)
+
+    local Distance = Drawing.new("Text")
+    Distance.Size = 13
+    Distance.Center = true
+    Distance.Outline = true
+    Distance.Color = Color3.fromRGB(0,255,0)
+
     ESPContainer[p] = {
-        Box = Drawing.new("Square"),
-        Name = Drawing.new("Text"),
-        Distance = Drawing.new("Text"),
+        Box = Box,
+        Name = Name,
+        Distance = Distance,
         Highlight = nil
     }
 end
@@ -247,14 +327,22 @@ Players.PlayerAdded:Connect(CreateESP)
 RunService.RenderStepped:Connect(function()
     for p,esp in pairs(ESPContainer) do
         if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
+            
             local hrp = p.Character.HumanoidRootPart
             local pos,vis = Camera:WorldToViewportPoint(hrp.Position)
 
             if vis then
-                local size = 60
+                local dist = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart"))
+                and math.floor((LocalPlayer.Character.HumanoidRootPart.Position-hrp.Position).Magnitude) or 0
 
                 esp.Box.Visible = Settings.Boxes
-                esp.Box.Size = Vector2.new(size,size)
+                local scale = (Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3,0)).Y - pos.Y)
+
+                esp.Box.Size = Vector2.new(scale*1.5, scale*2)
+                esp.Box.Position = Vector2.new(
+pos.X - esp.Box.Size.X/2,
+pos.Y - esp.Box.Size.Y/2
+))
                 esp.Box.Position = Vector2.new(pos.X,pos.Y)
 
                 esp.Name.Visible = Settings.Names
@@ -262,39 +350,56 @@ RunService.RenderStepped:Connect(function()
                 esp.Name.Position = Vector2.new(pos.X,pos.Y-40)
 
                 esp.Distance.Visible = Settings.Distance
-                esp.Distance.Text = math.floor((LocalPlayer.Character.HumanoidRootPart.Position-hrp.Position).Magnitude).."m"
+                esp.Distance.Text = dist.."m"
                 esp.Distance.Position = Vector2.new(pos.X,pos.Y+20)
+                esp.Distance.Color = Color3.fromRGB(0,255,0)
 
-                if Settings.Highlight then
-                    if not esp.Highlight then
-                        local hl = Instance.new("Highlight", p.Character)
-                        esp.Highlight = hl
-                    end
-                    local hue = tick()%5/5
-                    esp.Highlight.FillColor = Color3.fromHSV(hue,1,1)
-                    esp.Highlight.OutlineColor = esp.Highlight.FillColor
-                else
-                    if esp.Highlight then esp.Highlight:Destroy() esp.Highlight=nil end
-                end
+            else
+                esp.Box.Visible = false
+                esp.Name.Visible = false
+                esp.Distance.Visible = false
+            end
+
+        else
+            esp.Box.Visible = false
+            esp.Name.Visible = false
+            esp.Distance.Visible = false
+        end
+    end
+end)
+
+-- REMOVE ESP quando player sair
+Players.PlayerRemoving:Connect(function(p)
+    if ESPContainer[p] then
+        for _,v in pairs(ESPContainer[p]) do
+            if typeof(v) == "userdata" then
+                pcall(function() v:Remove() end)
             end
         end
+        ESPContainer[p] = nil
     end
 end)
 
 -- HITBOX REAL
 task.spawn(function()
     while true do
-        if Settings.HitboxEnabled then
-            for _,p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        pcall(function()
+        for _,p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+
+                if hrp then
+                    pcall(function()
+                        if Settings.HitboxEnabled then
                             hrp.Size = Vector3.new(Settings.Hitbox,Settings.Hitbox,Settings.Hitbox)
                             hrp.Transparency = Settings.HitboxTransparency
                             hrp.CanCollide = false
-                        end)
-                    end
+                        else
+                            -- RESET LIMPO
+                            hrp.Size = Vector3.new(2,2,1)
+                            hrp.Transparency = 0
+                            hrp.CanCollide = true
+                        end
+                    end)
                 end
             end
         end
@@ -305,4 +410,28 @@ end)
 -- OPEN
 ToggleBtn.MouseButton1Click:Connect(function()
     Main.Visible = not Main.Visible
+end)
+
+RunService.RenderStepped:Connect(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        local hum = LocalPlayer.Character.Humanoid
+
+        if Settings.UseSpeed then
+            hum.WalkSpeed = Settings.Speed
+        else
+            hum.WalkSpeed = 16
+        end
+
+        if Settings.UseJump then
+            hum.JumpPower = Settings.JumpPower
+        else
+            hum.JumpPower = 50
+        end
+    end
+end)
+
+UIS.JumpRequest:Connect(function()
+    if Settings.InfiniteJump and LocalPlayer.Character then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+    end
 end)
