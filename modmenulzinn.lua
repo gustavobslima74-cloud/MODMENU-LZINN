@@ -27,10 +27,16 @@ getgenv().Settings = {
     InfiniteJump = false
 }
 
---// FUNÇÃO DRAG
-local function MakeDraggable(gui)
+--// VARIÁVEIS DE CONTROLE
+local MenuAberto = false
+
+--// FUNÇÃO DRAG MELHORADA (COM TRAVA)
+local function MakeDraggable(gui, isMenu)
     local dragging, dragInput, dragStart, startPos
     gui.InputBegan:Connect(function(input)
+        -- Se for o botão e o menu estiver aberto, não deixa arrastar
+        if not isMenu and MenuAberto then return end
+        
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
@@ -41,6 +47,7 @@ local function MakeDraggable(gui)
         end
     end)
     gui.InputChanged:Connect(function(input)
+        if not isMenu and MenuAberto then return end
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
@@ -63,6 +70,7 @@ ToggleBtn.Position = UDim2.new(0,20,0.6,0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
 ToggleBtn.Image = "rbxassetid://70505361093133"
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0)
+MakeDraggable(ToggleBtn, false) -- Inicia livre
 
 -- JANELA
 local Main = Instance.new("Frame", ScreenGui)
@@ -71,9 +79,9 @@ Main.Position = UDim2.new(0.5, -150, 0.5, -190)
 Main.BackgroundColor3 = Color3.fromRGB(10,10,10)
 Main.ClipsDescendants = true
 Main.Visible = false
-Main.BackgroundTransparency = 1 -- Inicia invisível para animação
+Main.BackgroundTransparency = 1
 Instance.new("UICorner", Main)
-MakeDraggable(Main)
+MakeDraggable(Main, true) -- Menu sempre arrastável
 
 local stroke = Instance.new("UIStroke", Main)
 stroke.Thickness = 2
@@ -87,14 +95,14 @@ end)
 
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,35)
-Title.Text = "LQB KIKO | v3.4"
+Title.Text = "LQB KIKO | v3.5"
 Title.BackgroundTransparency = 1
 Title.TextColor3 = Color3.new(1,1,1)
 Title.TextSize = 18
 Title.Font = Enum.Font.GothamBold
 Title.TextTransparency = 1
 
--- SISTEMA DE ABAS
+-- ABAS
 local Tabs = Instance.new("Frame", Main)
 Tabs.Size = UDim2.new(1,0,0,30)
 Tabs.Position = UDim2.new(0,0,0,35)
@@ -123,7 +131,6 @@ local function CreatePage(name)
     local layout = Instance.new("UIListLayout", page)
     layout.Padding = UDim.new(0,5)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         page.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
     end)
@@ -140,7 +147,7 @@ local PlayerPage, pb = CreatePage("PLAYER")
 local HitboxPage, hb = CreatePage("HITBOX")
 ESPPage.Visible = true
 
--- COMPONENTES UI (TOGGLE E STEPPER)
+-- COMPONENTES UI (MANTIDOS)
 local function CreateToggle(parent, text, callback)
     local b = Instance.new("TextButton", parent)
     b.Size = UDim2.new(1,-20,0,35)
@@ -172,22 +179,12 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     minus.Text = "-"
     minus.BackgroundColor3 = Color3.fromRGB(40,40,40)
     minus.TextColor3 = Color3.new(1,1,1)
-    Instance.new("UICorner", minus)
-    local plus = Instance.new("TextButton", frame)
-    plus.Size = UDim2.new(0.4,0,0,30)
-    plus.Position = UDim2.new(0.55,0,0,25)
-    plus.Text = "+"
-    plus.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    plus.TextColor3 = Color3.new(1,1,1)
-    Instance.new("UICorner", plus)
+    Instance.new("UICorner", minus); local plus = Instance.new("TextButton", frame)
+    plus.Size = UDim2.new(0.4,0,0,30); plus.Position = UDim2.new(0.55,0,0,25)
+    plus.Text = "+"; plus.BackgroundColor3 = Color3.fromRGB(40,40,40); plus.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", plus)
     local val = default
-    local function up(n)
-        val = math.clamp(n, min, max)
-        label.Text = text..": "..val
-        callback(val)
-    end
-    minus.MouseButton1Click:Connect(function() up(val - step) end)
-    plus.MouseButton1Click:Connect(function() up(val + step) end)
+    local function up(n) val = math.clamp(n, min, max); label.Text = text..": "..val; callback(val) end
+    minus.MouseButton1Click:Connect(function() up(val - step) end); plus.MouseButton1Click:Connect(function() up(val + step) end)
 end
 
 -- SETUP ABAS
@@ -207,20 +204,14 @@ CreateToggle(HitboxPage, "Hitbox Expander", function(v) Settings.HitboxEnabled =
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade %", 0, 100, 60, 10, function(v) Settings.HitboxTransparency = v/100 end)
 
--- LÓGICA DE ANIMAÇÃO
+-- ANIMAÇÕES
 local function OpenUI()
+    MenuAberto = true
     Main.Visible = true
-    Main.Position = UDim2.new(0.5, -150, 0.5, -100) -- Começa um pouco abaixo
-    Main.Size = UDim2.new(0, 300, 0, 0) -- Começa sem altura
+    Main.Position = UDim2.new(0.5, -150, 0.5, -190) -- Volta pro centro
     
     local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    
-    TweenService:Create(Main, tweenInfo, {
-        Size = UDim2.new(0, 300, 0, 380),
-        Position = UDim2.new(0.5, -150, 0.5, -190),
-        BackgroundTransparency = 0.1
-    }):Play()
-    
+    TweenService:Create(Main, tweenInfo, {Size = UDim2.new(0, 300, 0, 380), BackgroundTransparency = 0.1}):Play()
     TweenService:Create(stroke, tweenInfo, {Transparency = 0}):Play()
     TweenService:Create(Title, tweenInfo, {TextTransparency = 0}):Play()
     TweenService:Create(eb, tweenInfo, {TextTransparency = 0}):Play()
@@ -229,32 +220,24 @@ local function OpenUI()
 end
 
 local function CloseUI()
+    MenuAberto = false
     local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-    
-    local anim = TweenService:Create(Main, tweenInfo, {
-        Size = UDim2.new(0, 300, 0, 0),
-        BackgroundTransparency = 1
-    })
-    
+    local anim = TweenService:Create(Main, tweenInfo, {Size = UDim2.new(0, 300, 0, 0), BackgroundTransparency = 1})
     TweenService:Create(stroke, tweenInfo, {Transparency = 1}):Play()
     TweenService:Create(Title, tweenInfo, {TextTransparency = 1}):Play()
     TweenService:Create(eb, tweenInfo, {TextTransparency = 1}):Play()
     TweenService:Create(pb, tweenInfo, {TextTransparency = 1}):Play()
     TweenService:Create(hb, tweenInfo, {TextTransparency = 1}):Play()
-    
     anim:Play()
-    anim.Completed:Connect(function()
-        Main.Visible = false
-    end)
+    anim.Completed:Connect(function() Main.Visible = false end)
 end
 
--- LOGICA ESP / PULO / HITBOX (MANTIDAS)
+-- [LÓGICA ESP E HITBOX - MANTIDAS DA 3.4]
 local ESPContainer = {}
 local function CreateESP(p)
     if p == LocalPlayer then return end
     ESPContainer[p] = {Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Highlight = nil}
-    local e = ESPContainer[p]
-    e.Box.Thickness = 1.5; e.Box.Filled = false; e.Box.Color = Color3.new(1,1,1)
+    local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Box.Color = Color3.new(1,1,1)
     e.Name.Size = 16; e.Name.Center = true; e.Name.Outline = true; e.Name.Color = Color3.new(1,1,1)
     e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true; e.Dist.Color = Color3.new(0,1,0)
 end
@@ -265,8 +248,7 @@ local function RemoveESP(p)
         ESPContainer[p] = nil
     end
 end
-Players.PlayerAdded:Connect(CreateESP)
-Players.PlayerRemoving:Connect(RemoveESP)
+Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP)
 for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
 
 RunService.RenderStepped:Connect(function()
@@ -320,16 +302,10 @@ task.spawn(function()
     end
 end)
 
--- CLICK DO BOTÃO COM ANIMAÇÃO
+-- CLICK
 ToggleBtn.MouseButton1Click:Connect(function()
-    -- Animação de pulo no botão
     ToggleBtn:TweenSize(UDim2.new(0,50,0,50), "Out", "Quad", 0.1, true)
     task.wait(0.1)
     ToggleBtn:TweenSize(UDim2.new(0,60,0,60), "Out", "Elastic", 0.4, true)
-
-    if Main.Visible then
-        CloseUI()
-    else
-        OpenUI()
-    end
+    if Main.Visible then CloseUI() else OpenUI() end
 end)
