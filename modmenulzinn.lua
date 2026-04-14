@@ -1,11 +1,18 @@
 --// SERVIÇOS
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 --// CONFIG
 getgenv().Settings = {
+    ESP = false,
+    Boxes = false,
+    Names = true,
+    Distance = true,
+    Highlight = false,
+
     UseSpeed = false,
     Speed = 16,
 
@@ -18,16 +25,14 @@ getgenv().Settings = {
 --// GUI
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 
--- BOTÃO FLUTUANTE
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
 ToggleBtn.Size = UDim2.new(0,55,0,55)
 ToggleBtn.Position = UDim2.new(0,20,0.6,0)
-ToggleBtn.Text = ""
+ToggleBtn.Text = "HUB"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
 ToggleBtn.Draggable = true
 Instance.new("UICorner", ToggleBtn)
 
--- MAIN
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0,300,0,360)
 Main.Position = UDim2.new(0.5,-150,0.5,-180)
@@ -36,45 +41,15 @@ Main.BackgroundTransparency = 0.2
 Main.Visible = false
 Instance.new("UICorner", Main)
 
--- BORDA RGB
+-- RGB BORDA
 local stroke = Instance.new("UIStroke", Main)
 stroke.Thickness = 2
 task.spawn(function()
     while true do
-        for i = 0,1,0.01 do
+        for i=0,1,0.01 do
             stroke.Color = Color3.fromHSV(i,1,1)
             task.wait()
         end
-    end
-end)
-
--- DRAG MOBILE
-local dragging = false
-local startPos, startFrame
-
-Main.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        startPos = input.Position
-        startFrame = Main.Position
-    end
-end)
-
-Main.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
-UIS.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - startPos
-        Main.Position = UDim2.new(
-            startFrame.X.Scale,
-            startFrame.X.Offset + delta.X,
-            startFrame.Y.Scale,
-            startFrame.Y.Offset + delta.Y
-        )
     end
 end)
 
@@ -171,14 +146,8 @@ local function Slider(parent,text,min,max,callback)
     end)
 
     UIS.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement 
-        or input.UserInputType == Enum.UserInputType.Touch) then
-            
-            local pos = math.clamp(
-                (input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X,
-                0,1
-            )
-
+        if dragging then
+            local pos = math.clamp((input.Position.X - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
             fill.Size = UDim2.new(pos,0,1,0)
 
             local value = math.floor(min + (max-min)*pos)
@@ -187,6 +156,13 @@ local function Slider(parent,text,min,max,callback)
         end
     end)
 end
+
+-- ESP TAB
+Toggle(ESPPage,"ESP",function(v) Settings.ESP=v end)
+Toggle(ESPPage,"Boxes",function(v) Settings.Boxes=v end)
+Toggle(ESPPage,"Names",function(v) Settings.Names=v end)
+Toggle(ESPPage,"Distance",function(v) Settings.Distance=v end)
+Toggle(ESPPage,"Chams",function(v) Settings.Highlight=v end)
 
 -- PLAYER TAB
 Toggle(PlayerPage,"Speed",function(v) Settings.UseSpeed=v end)
@@ -198,14 +174,83 @@ Slider(PlayerPage,"Pulo",50,150,function(v) Settings.JumpPower=v end)
 Toggle(PlayerPage,"Pulo Infinito",function(v) Settings.InfiniteJump=v end)
 
 -- ABRIR/FECHAR
-local open=false
 ToggleBtn.MouseButton1Click:Connect(function()
-    open = not open
-    Main.Visible = open
+    Main.Visible = not Main.Visible
 end)
 
--- PLAYER LOOP
-game:GetService("RunService").RenderStepped:Connect(function()
+-- ESP SISTEMA
+local ESPContainer = {}
+
+local function CreateESP(player)
+    if player == LocalPlayer then return end
+
+    local Box = Drawing.new("Square")
+    Box.Thickness = 2
+    Box.Color = Color3.new(1,0,0)
+    Box.Filled = false
+
+    local Name = Drawing.new("Text")
+    Name.Size = 13
+    Name.Center = true
+    Name.Outline = true
+
+    local Dist = Drawing.new("Text")
+    Dist.Size = 13
+    Dist.Center = true
+    Dist.Outline = true
+
+    ESPContainer[player] = {Box=Box,Name=Name,Dist=Dist}
+end
+
+for _,p in pairs(Players:GetPlayers()) do CreateESP(p) end
+Players.PlayerAdded:Connect(CreateESP)
+
+RunService.RenderStepped:Connect(function()
+    for p,esp in pairs(ESPContainer) do
+        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
+            local hrp = p.Character.HumanoidRootPart
+            local pos,vis = Camera:WorldToViewportPoint(hrp.Position)
+
+            if vis then
+                local size = (Camera:WorldToViewportPoint(hrp.Position+Vector3.new(0,3,0)).Y - pos.Y)
+
+                esp.Box.Visible = Settings.Boxes
+                if Settings.Boxes then
+                    esp.Box.Size = Vector2.new(size*1.5,size*2)
+                    esp.Box.Position = Vector2.new(pos.X - esp.Box.Size.X/2,pos.Y - esp.Box.Size.Y/2)
+                end
+
+                esp.Name.Visible = Settings.Names
+                if Settings.Names then
+                    esp.Name.Text = p.DisplayName
+                    esp.Name.Position = Vector2.new(pos.X,pos.Y-size)
+                end
+
+                esp.Dist.Visible = Settings.Distance
+                if Settings.Distance then
+                    local dist = (LocalPlayer.Character.HumanoidRootPart.Position-hrp.Position).Magnitude
+                    esp.Dist.Text = math.floor(dist).."m"
+                    esp.Dist.Position = Vector2.new(pos.X,pos.Y+size/2)
+                end
+
+                if Settings.Highlight then
+                    if not p.Character:FindFirstChild("Highlight") then
+                        Instance.new("Highlight",p.Character)
+                    end
+                end
+            else
+                esp.Box.Visible = false
+                esp.Name.Visible = false
+                esp.Dist.Visible = false
+            end
+        else
+            esp.Box.Visible = false
+            esp.Name.Visible = false
+            esp.Dist.Visible = false
+        end
+    end
+
+    -- PLAYER
     if LocalPlayer.Character then
         local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
         if hum then
@@ -215,14 +260,13 @@ game:GetService("RunService").RenderStepped:Connect(function()
     end
 end)
 
--- INFINITE JUMP
 UIS.JumpRequest:Connect(function()
     if Settings.InfiniteJump and LocalPlayer.Character then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
     end
 end)
 
--- CRÉDITOS RGB
+-- CRÉDITOS
 local Credit = Instance.new("TextLabel", Main)
 Credit.Size = UDim2.new(1,0,0,20)
 Credit.Position = UDim2.new(0,0,1,-20)
@@ -232,7 +276,7 @@ Credit.TextScaled = true
 
 task.spawn(function()
     while true do
-        for i = 0,1,0.01 do
+        for i=0,1,0.01 do
             Credit.TextColor3 = Color3.fromHSV(i,1,1)
             task.wait()
         end
