@@ -12,7 +12,7 @@ if setfpscap then setfpscap(120) end
 
 --// CONFIG
 getgenv().Settings = {
-    ESP = false, Boxes = false, Names = true, Distance = true, Highlight = false, Lines = false, TeamColor = false,
+    ESP = false, Boxes = false, Names = false, Distance = false, Highlight = false, Lines = false, TeamColor = false,
     HitboxEnabled = false, Hitbox = 20, HitboxTransparency = 0.6,
     UseSpeed = false, Speed = 16, UseJump = false, JumpPower = 50, InfiniteJump = false,
     BoostFPS = false, RemoveShadows = false, FPSCap = 120 -- Alterado para 120 padrão
