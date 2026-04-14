@@ -13,9 +13,9 @@ getgenv().Settings = {
     Distance = true,
     Highlight = false,
 
-    Hitbox = 10,
     HitboxEnabled = false,
-    HitboxTransparency = 0.5,
+    Hitbox = 20,
+    HitboxTransparency = 0.6,
 
     UseSpeed = false,
     Speed = 16,
@@ -35,9 +35,8 @@ ToggleBtn.Size = UDim2.new(0,60,0,60)
 ToggleBtn.Position = UDim2.new(0,20,0.6,0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
 ToggleBtn.Image = "rbxassetid://70505361093133"
-ToggleBtn.ScaleType = Enum.ScaleType.Fit
 ToggleBtn.Draggable = true
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0)
+Instance.new("UICorner", ToggleBtn)
 
 -- MAIN
 local Main = Instance.new("Frame", ScreenGui)
@@ -58,40 +57,14 @@ task.spawn(function()
     end
 end)
 
--- DRAG MOBILE
-local dragging = false
-local dragStart, startPos
-
-Main.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = Main.Position
-    end
-end)
-
-Main.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
-UIS.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - dragStart
-        Main.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
+-- DRAG
+Main.Active = true
+Main.Draggable = true
 
 -- TÍTULO
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,30)
-Title.Text = "LQB KIKO | v2.6.2"
+Title.Text = "LQB KIKO | v2.7"
 Title.BackgroundTransparency = 1
 Title.TextScaled = true
 
@@ -102,7 +75,7 @@ task.spawn(function()
     end
 end)
 
--- ABAS (SEM FUNDO)
+-- ABAS
 local Tabs = Instance.new("Frame", Main)
 Tabs.Size = UDim2.new(1,0,0,30)
 Tabs.Position = UDim2.new(0,0,0,30)
@@ -116,17 +89,14 @@ Pages.Position = UDim2.new(0,0,0,60)
 Pages.Size = UDim2.new(1,0,0,0)
 Pages.BackgroundTransparency = 1
 
--- FUNÇÃO DE ATUALIZAR TAMANHO (CORRETA)
 local function UpdateSize(page)
     task.wait()
-
     local total = 0
     for _,v in pairs(page:GetChildren()) do
-        if v:IsA("TextButton") or v:IsA("TextLabel") or v:IsA("Frame") then
+        if v:IsA("GuiObject") then
             total += v.AbsoluteSize.Y + 8
         end
     end
-
     Main.Size = UDim2.new(0,300,0,total + 100)
 end
 
@@ -138,16 +108,14 @@ local function CreatePage(name)
     btn.TextColor3 = Color3.new(1,1,1)
 
     local page = Instance.new("Frame", Pages)
-    page.Size = UDim2.new(1,0,0,0)
-    page.Visible = false
     page.BackgroundTransparency = 1
+    page.Visible = false
 
     local layout = Instance.new("UIListLayout", page)
     layout.Padding = UDim.new(0,8)
 
-    -- 🔥 ATUALIZA AUTOMÁTICO SEMPRE QUE MUDAR
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        page.Size = UDim2.new(1,0,0, layout.AbsoluteContentSize.Y)
+        page.Size = UDim2.new(1,0,0,layout.AbsoluteContentSize.Y)
         UpdateSize(page)
     end)
 
@@ -156,7 +124,6 @@ local function CreatePage(name)
             if v:IsA("Frame") then v.Visible = false end
         end
         page.Visible = true
-
         UpdateSize(page)
     end)
 
@@ -167,8 +134,6 @@ local ESPPage = CreatePage("ESP")
 local PlayerPage = CreatePage("PLAYER")
 local HitboxPage = CreatePage("HITBOX")
 ESPPage.Visible = true
-
--- 🔥 GARANTE TAMANHO INICIAL CORRETO
 task.wait()
 UpdateSize(ESPPage)
 
@@ -203,171 +168,137 @@ Toggle(PlayerPage,"Pulo Infinito",function(v) Settings.InfiniteJump=v end)
 -- HITBOX TAB
 Toggle(HitboxPage,"Hitbox",function(v) Settings.HitboxEnabled=v end)
 
--- TAMANHO
-local HitboxParts = {}
+local SizeLabel = Instance.new("TextLabel", HitboxPage)
+SizeLabel.Size = UDim2.new(1,0,0,30)
+SizeLabel.Text = "Tamanho: 20"
+SizeLabel.TextColor3 = Color3.new(1,1,1)
+SizeLabel.BackgroundTransparency = 1
 
-RunService.RenderStepped:Connect(function()
-    for _,p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            
-            local hrp = p.Character.HumanoidRootPart
+local Minus = Instance.new("TextButton", HitboxPage)
+Minus.Size = UDim2.new(0.5,0,0,35)
+Minus.Text = "-"
 
-            if Settings.HitboxEnabled then
-                
-                if not HitboxParts[p] then
-                    local part = Instance.new("BoxHandleAdornment")
-                    part.Adornee = hrp
-                    part.AlwaysOnTop = true
-                    part.ZIndex = 5
-                    part.Color3 = Color3.fromRGB(255,0,0)
-                    part.Transparency = 0.5
-                    part.Size = Vector3.new(10,10,10)
-                    part.Parent = hrp
+local Plus = Instance.new("TextButton", HitboxPage)
+Plus.Size = UDim2.new(0.5,0,0,35)
+Plus.Text = "+"
 
-                    HitboxParts[p] = part
-                end
+Minus.MouseButton1Click:Connect(function()
+    Settings.Hitbox = math.clamp(Settings.Hitbox-1,10,50)
+    SizeLabel.Text = "Tamanho: "..Settings.Hitbox
+end)
 
-                local hb = HitboxParts[p]
+Plus.MouseButton1Click:Connect(function()
+    Settings.Hitbox = math.clamp(Settings.Hitbox+1,10,50)
+    SizeLabel.Text = "Tamanho: "..Settings.Hitbox
+end)
 
-                -- TAMANHO
-                hb.Size = Vector3.new(Settings.Hitbox,Settings.Hitbox,Settings.Hitbox)
+-- OPACIDADE
+local OpLabel = Instance.new("TextLabel", HitboxPage)
+OpLabel.Size = UDim2.new(1,0,0,30)
+OpLabel.Text = "Opacidade: 0.60"
+OpLabel.BackgroundTransparency = 1
+OpLabel.TextColor3 = Color3.new(1,1,1)
 
-                -- OPACIDADE (FUNCIONA DE VERDADE)
-                local t = math.floor(Settings.HitboxTransparency / 0.05 + 0.5) * 0.05
-                hb.Transparency = t
+local Bar = Instance.new("Frame", HitboxPage)
+Bar.Size = UDim2.new(1,0,0,10)
+Bar.BackgroundColor3 = Color3.fromRGB(50,50,50)
 
-                -- RGB OPCIONAL (fica bonito)
-                hb.Color3 = Color3.fromHSV(tick()%5/5,1,1)
+local Fill = Instance.new("Frame", Bar)
+Fill.Size = UDim2.new(0.6,0,1,0)
+Fill.BackgroundColor3 = Color3.fromRGB(0,170,255)
 
-            else
-                if HitboxParts[p] then
-                    HitboxParts[p]:Destroy()
-                    HitboxParts[p] = nil
-                end
-            end
-        end
+local dragging = false
+
+Bar.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.Touch then dragging = true end
+end)
+
+Bar.InputEnded:Connect(function()
+    dragging = false
+end)
+
+UIS.InputChanged:Connect(function(i)
+    if dragging then
+        local pos = math.clamp((i.Position.X - Bar.AbsolutePosition.X)/Bar.AbsoluteSize.X,0,1)
+        Fill.Size = UDim2.new(pos,0,1,0)
+
+        local value = 0.05 + (1-0.05)*pos
+        value = math.floor(value / 0.05 + 0.5) * 0.05
+        Settings.HitboxTransparency = value
+        OpLabel.Text = "Opacidade: "..string.format("%.2f", value)
     end
 end)
 
--- ESP SISTEMA (CORRIGIDO + CHAMS RGB)
+-- ESP LOOP
 local ESPContainer = {}
-
-local function CreateESP(player)
-    if player == LocalPlayer then return end
-
-    local Box = Drawing.new("Square")
-    Box.Thickness = 2
-    Box.Color = Color3.fromRGB(255,0,0)
-    Box.Filled = false
-
-    local Name = Drawing.new("Text")
-    Name.Size = 13
-    Name.Center = true
-    Name.Outline = true
-
-    local Distance = Drawing.new("Text")
-    Distance.Size = 13
-    Distance.Center = true
-    Distance.Outline = true
-    Distance.Color = Color3.fromRGB(0,255,0)
-
-    ESPContainer[player] = {Box=Box,Name=Name,Distance=Distance,Highlight=nil}
+local function CreateESP(p)
+    if p == LocalPlayer then return end
+    ESPContainer[p] = {
+        Box = Drawing.new("Square"),
+        Name = Drawing.new("Text"),
+        Distance = Drawing.new("Text"),
+        Highlight = nil
+    }
 end
 
 for _,p in pairs(Players:GetPlayers()) do CreateESP(p) end
 Players.PlayerAdded:Connect(CreateESP)
 
 RunService.RenderStepped:Connect(function()
-    for player, esp in pairs(ESPContainer) do
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
-            
-            local hrp = player.Character.HumanoidRootPart
-            local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
+    for p,esp in pairs(ESPContainer) do
+        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
+            local hrp = p.Character.HumanoidRootPart
+            local pos,vis = Camera:WorldToViewportPoint(hrp.Position)
 
             if vis then
-                local size = (Camera:WorldToViewportPoint(hrp.Position+Vector3.new(0,3,0)).Y - pos.Y)
+                local size = 60
 
                 esp.Box.Visible = Settings.Boxes
-                if Settings.Boxes then
-                    esp.Box.Size = Vector2.new(size*1.5,size*2)
-                    esp.Box.Position = Vector2.new(pos.X - esp.Box.Size.X/2,pos.Y - esp.Box.Size.Y/2)
-                end
+                esp.Box.Size = Vector2.new(size,size)
+                esp.Box.Position = Vector2.new(pos.X,pos.Y)
 
                 esp.Name.Visible = Settings.Names
-                if Settings.Names then
-                    esp.Name.Text = player.DisplayName
-                    esp.Name.Position = Vector2.new(pos.X,pos.Y-size)
-                end
+                esp.Name.Text = p.DisplayName
+                esp.Name.Position = Vector2.new(pos.X,pos.Y-40)
 
                 esp.Distance.Visible = Settings.Distance
-                if Settings.Distance then
-                    local dist = (LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
-                    esp.Distance.Text = math.floor(dist).."m"
-                    esp.Distance.Position = Vector2.new(pos.X,pos.Y+size/2)
-                end
+                esp.Distance.Text = math.floor((LocalPlayer.Character.HumanoidRootPart.Position-hrp.Position).Magnitude).."m"
+                esp.Distance.Position = Vector2.new(pos.X,pos.Y+20)
 
-                -- CHAMS RGB
                 if Settings.Highlight then
                     if not esp.Highlight then
-                        local hl = Instance.new("Highlight")
-                        hl.FillTransparency = 0.5
-                        hl.Parent = player.Character
+                        local hl = Instance.new("Highlight", p.Character)
                         esp.Highlight = hl
                     end
                     local hue = tick()%5/5
                     esp.Highlight.FillColor = Color3.fromHSV(hue,1,1)
-                    esp.Highlight.OutlineColor = Color3.fromHSV(hue,1,1)
+                    esp.Highlight.OutlineColor = esp.Highlight.FillColor
                 else
-                    if esp.Highlight then
-                        esp.Highlight:Destroy()
-                        esp.Highlight = nil
-                    end
+                    if esp.Highlight then esp.Highlight:Destroy() esp.Highlight=nil end
                 end
-
-            else
-                esp.Box.Visible = false
-                esp.Name.Visible = false
-                esp.Distance.Visible = false
             end
-        else
-            esp.Box.Visible = false
-            esp.Name.Visible = false
-            esp.Distance.Visible = false
         end
     end
 end)
 
--- HITBOX FIX
-local HitboxParts = {}
-
-RunService.RenderStepped:Connect(function()
-    for _,p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = p.Character.HumanoidRootPart
-
-            if Settings.HitboxEnabled then
-                if not HitboxParts[p] then
-                    local part = Instance.new("Part")
-                    part.Anchored = true
-                    part.CanCollide = false
-                    part.Material = Enum.Material.ForceField
-                    part.Color = Color3.fromRGB(255,0,0)
-                    part.Parent = workspace
-                    HitboxParts[p] = part
-                end
-
-                local hb = HitboxParts[p]
-                hb.Size = Vector3.new(Settings.Hitbox,Settings.Hitbox,Settings.Hitbox)
-                hb.CFrame = hrp.CFrame
-                hb.Transparency = math.floor(Settings.HitboxTransparency / 0.05 + 0.5) * 0.05
-
-            else
-                if HitboxParts[p] then
-                    HitboxParts[p]:Destroy()
-                    HitboxParts[p] = nil
+-- HITBOX REAL
+task.spawn(function()
+    while true do
+        if Settings.HitboxEnabled then
+            for _,p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        pcall(function()
+                            hrp.Size = Vector3.new(Settings.Hitbox,Settings.Hitbox,Settings.Hitbox)
+                            hrp.Transparency = Settings.HitboxTransparency
+                            hrp.CanCollide = false
+                        end)
+                    end
                 end
             end
         end
+        task.wait(0.12)
     end
 end)
 
