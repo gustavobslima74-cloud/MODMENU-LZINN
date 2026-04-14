@@ -29,7 +29,7 @@ getgenv().Settings = {
 --// GUI
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 
--- BOTÃO PNG
+-- BOTÃO
 local ToggleBtn = Instance.new("ImageButton", ScreenGui)
 ToggleBtn.Size = UDim2.new(0,60,0,60)
 ToggleBtn.Position = UDim2.new(0,20,0.6,0)
@@ -41,8 +41,8 @@ Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0)
 
 -- MAIN
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0,330,0,420)
-Main.Position = UDim2.new(0.5,-165,0.5,-210)
+Main.Size = UDim2.new(0,300,0,200)
+Main.Position = UDim2.new(0.5,-150,0.5,-100)
 Main.BackgroundColor3 = Color3.fromRGB(0,0,0)
 Main.BackgroundTransparency = 0.1
 Main.Visible = false
@@ -88,10 +88,10 @@ UIS.InputChanged:Connect(function(input)
     end
 end)
 
--- CRÉDITOS TOPO
+-- TÍTULO
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,30)
-Title.Text = "LQB KIKO | v2.5"
+Title.Text = "LQB KIKO | v2.6"
 Title.BackgroundTransparency = 1
 Title.TextScaled = true
 
@@ -102,9 +102,9 @@ task.spawn(function()
     end
 end)
 
--- ABAS
+-- ABAS (SEM FUNDO)
 local Tabs = Instance.new("Frame", Main)
-Tabs.Size = UDim2.new(1,0,0,40)
+Tabs.Size = UDim2.new(1,0,0,30)
 Tabs.Position = UDim2.new(0,0,0,30)
 Tabs.BackgroundTransparency = 1
 
@@ -112,21 +112,18 @@ local LayoutTabs = Instance.new("UIListLayout", Tabs)
 LayoutTabs.FillDirection = Enum.FillDirection.Horizontal
 
 local Pages = Instance.new("Frame", Main)
-Pages.Size = UDim2.new(1,0,1,-70)
-Pages.Position = UDim2.new(0,0,0,70)
+Pages.Position = UDim2.new(0,0,0,60)
 Pages.BackgroundTransparency = 1
 
 local function CreatePage(name)
     local btn = Instance.new("TextButton", Tabs)
     btn.Size = UDim2.new(0.33,0,1,0)
     btn.Text = name
-    btn.BackgroundColor3 = Color3.fromRGB(15,15,15)
+    btn.BackgroundTransparency = 1
     btn.TextColor3 = Color3.new(1,1,1)
 
-    local page = Instance.new("ScrollingFrame", Pages)
-    page.Size = UDim2.new(1,0,1,0)
-    page.CanvasSize = UDim2.new(0,0,2,0)
-    page.ScrollBarThickness = 4
+    local page = Instance.new("Frame", Pages)
+    page.Size = UDim2.new(1,0,0,0)
     page.Visible = false
     page.BackgroundTransparency = 1
 
@@ -135,9 +132,12 @@ local function CreatePage(name)
 
     btn.MouseButton1Click:Connect(function()
         for _,v in pairs(Pages:GetChildren()) do
-            if v:IsA("ScrollingFrame") then v.Visible = false end
+            if v:IsA("Frame") then v.Visible = false end
         end
         page.Visible = true
+
+        task.wait()
+        Main.Size = UDim2.new(0,300,0, page.AbsoluteSize.Y + 90)
     end)
 
     return page
@@ -153,7 +153,7 @@ local function Toggle(parent,text,callback)
     local b = Instance.new("TextButton", parent)
     b.Size = UDim2.new(1,0,0,40)
     b.Text = text..": OFF"
-    b.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    b.BackgroundColor3 = Color3.fromRGB(15,15,15)
     b.TextColor3 = Color3.new(1,1,1)
 
     local state = false
@@ -161,50 +161,6 @@ local function Toggle(parent,text,callback)
         state = not state
         b.Text = text..": "..(state and "ON" or "OFF")
         callback(state)
-    end)
-end
-
--- SLIDER (0.05 STEP)
-local function Slider(parent,text,min,max,callback)
-    local frame = Instance.new("Frame", parent)
-    frame.Size = UDim2.new(1,0,0,50)
-    frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
-
-    local label = Instance.new("TextLabel", frame)
-    label.Size = UDim2.new(1,0,0,20)
-    label.Text = text..": "..min
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.new(1,1,1)
-
-    local bar = Instance.new("Frame", frame)
-    bar.Size = UDim2.new(1,-10,0,10)
-    bar.Position = UDim2.new(0,5,0,30)
-    bar.BackgroundColor3 = Color3.fromRGB(50,50,50)
-
-    local fill = Instance.new("Frame", bar)
-    fill.Size = UDim2.new(0,0,1,0)
-    fill.BackgroundColor3 = Color3.fromRGB(0,170,255)
-
-    local dragging = false
-
-    bar.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.Touch then dragging = true end
-    end)
-
-    bar.InputEnded:Connect(function() dragging = false end)
-
-    UIS.InputChanged:Connect(function(i)
-        if dragging then
-            local pos = math.clamp((i.Position.X - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
-            fill.Size = UDim2.new(pos,0,1,0)
-
-            local value = min + (max-min)*pos
-            value = math.floor(value / 0.05 + 0.5) * 0.05
-            value = math.clamp(value,min,max)
-
-            label.Text = text..": "..string.format("%.2f", value)
-            callback(value)
-        end
     end)
 end
 
@@ -217,17 +173,13 @@ Toggle(ESPPage,"Chams",function(v) Settings.Highlight=v end)
 
 -- PLAYER TAB
 Toggle(PlayerPage,"Speed",function(v) Settings.UseSpeed=v end)
-Slider(PlayerPage,"Velocidade",16,100,function(v) Settings.Speed=v end)
-
 Toggle(PlayerPage,"Jump",function(v) Settings.UseJump=v end)
-Slider(PlayerPage,"Pulo",50,150,function(v) Settings.JumpPower=v end)
-
 Toggle(PlayerPage,"Pulo Infinito",function(v) Settings.InfiniteJump=v end)
 
 -- HITBOX TAB
 Toggle(HitboxPage,"Hitbox",function(v) Settings.HitboxEnabled=v end)
 
--- ESP SISTEMA (CORRIGIDO)
+-- ESP SISTEMA (CORRIGIDO + CHAMS RGB)
 local ESPContainer = {}
 
 local function CreateESP(player)
@@ -242,7 +194,6 @@ local function CreateESP(player)
     Name.Size = 13
     Name.Center = true
     Name.Outline = true
-    Name.Color = Color3.new(1,1,1)
 
     local Distance = Drawing.new("Text")
     Distance.Size = 13
@@ -256,10 +207,10 @@ end
 for _,p in pairs(Players:GetPlayers()) do CreateESP(p) end
 Players.PlayerAdded:Connect(CreateESP)
 
--- LOOP
 RunService.RenderStepped:Connect(function()
     for player, esp in pairs(ESPContainer) do
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
+            
             local hrp = player.Character.HumanoidRootPart
             local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
 
@@ -284,6 +235,25 @@ RunService.RenderStepped:Connect(function()
                     esp.Distance.Text = math.floor(dist).."m"
                     esp.Distance.Position = Vector2.new(pos.X,pos.Y+size/2)
                 end
+
+                -- CHAMS RGB
+                if Settings.Highlight then
+                    if not esp.Highlight then
+                        local hl = Instance.new("Highlight")
+                        hl.FillTransparency = 0.5
+                        hl.Parent = player.Character
+                        esp.Highlight = hl
+                    end
+                    local hue = tick()%5/5
+                    esp.Highlight.FillColor = Color3.fromHSV(hue,1,1)
+                    esp.Highlight.OutlineColor = Color3.fromHSV(hue,1,1)
+                else
+                    if esp.Highlight then
+                        esp.Highlight:Destroy()
+                        esp.Highlight = nil
+                    end
+                end
+
             else
                 esp.Box.Visible = false
                 esp.Name.Visible = false
@@ -295,18 +265,9 @@ RunService.RenderStepped:Connect(function()
             esp.Distance.Visible = false
         end
     end
-
-    -- PLAYER
-    if LocalPlayer.Character then
-        local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
-        if hum then
-            if Settings.UseSpeed then hum.WalkSpeed = Settings.Speed end
-            if Settings.UseJump then hum.JumpPower = Settings.JumpPower end
-        end
-    end
 end)
 
--- HITBOX FAKE
+-- HITBOX FIX
 local HitboxParts = {}
 
 RunService.RenderStepped:Connect(function()
@@ -319,7 +280,7 @@ RunService.RenderStepped:Connect(function()
                     local part = Instance.new("Part")
                     part.Anchored = true
                     part.CanCollide = false
-                    part.Material = Enum.Material.Neon
+                    part.Material = Enum.Material.ForceField
                     part.Color = Color3.fromRGB(255,0,0)
                     part.Parent = workspace
                     HitboxParts[p] = part
@@ -328,7 +289,8 @@ RunService.RenderStepped:Connect(function()
                 local hb = HitboxParts[p]
                 hb.Size = Vector3.new(Settings.Hitbox,Settings.Hitbox,Settings.Hitbox)
                 hb.CFrame = hrp.CFrame
-                hb.Transparency = Settings.HitboxTransparency
+                hb.Transparency = math.floor(Settings.HitboxTransparency / 0.05 + 0.5) * 0.05
+
             else
                 if HitboxParts[p] then
                     HitboxParts[p]:Destroy()
@@ -342,11 +304,4 @@ end)
 -- OPEN
 ToggleBtn.MouseButton1Click:Connect(function()
     Main.Visible = not Main.Visible
-end)
-
--- INFINITE JUMP
-UIS.JumpRequest:Connect(function()
-    if Settings.InfiniteJump and LocalPlayer.Character then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-    end
 end)
