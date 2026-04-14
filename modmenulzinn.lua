@@ -91,7 +91,7 @@ end)
 -- TÍTULO
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,30)
-Title.Text = "LQB KIKO | v2.6"
+Title.Text = "LQB KIKO | v2.6.2"
 Title.BackgroundTransparency = 1
 Title.TextScaled = true
 
@@ -204,73 +204,50 @@ Toggle(PlayerPage,"Pulo Infinito",function(v) Settings.InfiniteJump=v end)
 Toggle(HitboxPage,"Hitbox",function(v) Settings.HitboxEnabled=v end)
 
 -- TAMANHO
-local SizeLabel = Instance.new("TextLabel", HitboxPage)
-SizeLabel.Size = UDim2.new(1,0,0,30)
-SizeLabel.Text = "Tamanho: 10"
-SizeLabel.TextColor3 = Color3.new(1,1,1)
-SizeLabel.BackgroundTransparency = 1
+local HitboxParts = {}
 
-local Plus = Instance.new("TextButton", HitboxPage)
-Plus.Size = UDim2.new(0.5,0,0,35)
-Plus.Text = "+"
+RunService.RenderStepped:Connect(function()
+    for _,p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            
+            local hrp = p.Character.HumanoidRootPart
 
-local Minus = Instance.new("TextButton", HitboxPage)
-Minus.Size = UDim2.new(0.5,0,0,35)
-Minus.Text = "-"
+            if Settings.HitboxEnabled then
+                
+                if not HitboxParts[p] then
+                    local part = Instance.new("BoxHandleAdornment")
+                    part.Adornee = hrp
+                    part.AlwaysOnTop = true
+                    part.ZIndex = 5
+                    part.Color3 = Color3.fromRGB(255,0,0)
+                    part.Transparency = 0.5
+                    part.Size = Vector3.new(10,10,10)
+                    part.Parent = hrp
 
-Plus.MouseButton1Click:Connect(function()
-    Settings.Hitbox = math.clamp(Settings.Hitbox+1,10,50)
-    SizeLabel.Text = "Tamanho: "..Settings.Hitbox
-end)
+                    HitboxParts[p] = part
+                end
 
-Minus.MouseButton1Click:Connect(function()
-    Settings.Hitbox = math.clamp(Settings.Hitbox-1,10,50)
-    SizeLabel.Text = "Tamanho: "..Settings.Hitbox
-end)
+                local hb = HitboxParts[p]
 
--- OPACIDADE
-local OpLabel = Instance.new("TextLabel", HitboxPage)
-OpLabel.Size = UDim2.new(1,0,0,30)
-OpLabel.Text = "Opacidade: 0.50"
-OpLabel.TextColor3 = Color3.new(1,1,1)
-OpLabel.BackgroundTransparency = 1
+                -- TAMANHO
+                hb.Size = Vector3.new(Settings.Hitbox,Settings.Hitbox,Settings.Hitbox)
 
-local function OpacitySlider(parent)
-    local bar = Instance.new("Frame", parent)
-    bar.Size = UDim2.new(1,0,0,10)
-    bar.BackgroundColor3 = Color3.fromRGB(50,50,50)
+                -- OPACIDADE (FUNCIONA DE VERDADE)
+                local t = math.floor(Settings.HitboxTransparency / 0.05 + 0.5) * 0.05
+                hb.Transparency = t
 
-    local fill = Instance.new("Frame", bar)
-    fill.Size = UDim2.new(0.5,0,1,0)
-    fill.BackgroundColor3 = Color3.fromRGB(0,170,255)
+                -- RGB OPCIONAL (fica bonito)
+                hb.Color3 = Color3.fromHSV(tick()%5/5,1,1)
 
-    local dragging = false
-
-    bar.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
+            else
+                if HitboxParts[p] then
+                    HitboxParts[p]:Destroy()
+                    HitboxParts[p] = nil
+                end
+            end
         end
-    end)
-
-    bar.InputEnded:Connect(function()
-        dragging = false
-    end)
-
-    UIS.InputChanged:Connect(function(i)
-        if dragging then
-            local pos = math.clamp((i.Position.X - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
-            fill.Size = UDim2.new(pos,0,1,0)
-
-            local value = math.floor((0.05 + (1-0.05)*pos) / 0.05 + 0.5) * 0.05
-            value = math.clamp(value,0.05,1)
-
-            Settings.HitboxTransparency = value
-            OpLabel.Text = "Opacidade: "..string.format("%.2f", value)
-        end
-    end)
-end
-
-OpacitySlider(HitboxPage)
+    end
+end)
 
 -- ESP SISTEMA (CORRIGIDO + CHAMS RGB)
 local ESPContainer = {}
