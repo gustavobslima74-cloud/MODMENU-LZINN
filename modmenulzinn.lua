@@ -7,21 +7,24 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 
+--// UNLOCK FPS (Executa ao carregar)
+if setfpscap then setfpscap(120) end
+
 --// CONFIG
 getgenv().Settings = {
     ESP = false, Boxes = false, Names = true, Distance = true, Highlight = false, Lines = false, TeamColor = false,
     HitboxEnabled = false, Hitbox = 20, HitboxTransparency = 0.6,
     UseSpeed = false, Speed = 16, UseJump = false, JumpPower = 50, InfiniteJump = false,
-    BoostFPS = false, RemoveShadows = false, FPSCap = 60
+    BoostFPS = false, RemoveShadows = false, FPSCap = 120 -- Alterado para 120 padrão
 }
 
-local VERSION = "v4.3"
+local VERSION = "v4.4"
 local CHANGELOG_TEXT = [[
 --- HISTÓRICO DE VERSÕES ---
+v4.4: FPS Padrão definido para 120. Unlock FPS no Start.
 v4.3: Restaurado botões de Distância e Nomes. Fix na aba Infos.
 v4.2: Aba FPS e Otimização de Texturas.
 v4.1: UI Inteligente e Auto-Resize.
-v3.8: ESP Team Color original.
 ----------------------------]]
 
 local MenuAberto = false
@@ -65,7 +68,7 @@ local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,35); Title.Text = "LQB KIKO | " .. VERSION; Title.BackgroundTransparency = 1; Title.TextColor3 = Color3.new(1,1,1); Title.TextSize = 16; Title.Font = Enum.Font.GothamBold; Title.TextTransparency = 1
 
 local FPSLabel = Instance.new("TextLabel", Main)
-FPSLabel.Size = UDim2.new(0,50,0,35); FPSLabel.Position = UDim2.new(1,-60,0,0); FPSLabel.Text = "FPS: 60"; FPSLabel.BackgroundTransparency = 1; FPSLabel.TextColor3 = Color3.new(0,1,0); FPSLabel.TextSize = 12; FPSLabel.Font = Enum.Font.Code; FPSLabel.TextTransparency = 1
+FPSLabel.Size = UDim2.new(0,50,0,35); FPSLabel.Position = UDim2.new(1,-60,0,0); FPSLabel.Text = "FPS: 0"; FPSLabel.BackgroundTransparency = 1; FPSLabel.TextColor3 = Color3.new(0,1,0); FPSLabel.TextSize = 12; FPSLabel.Font = Enum.Font.Code; FPSLabel.TextTransparency = 1
 
 -- ABAS (SCROLL)
 local TabsFrame = Instance.new("ScrollingFrame", Main)
@@ -124,7 +127,7 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     minus.MouseButton1Click:Connect(function() up(val - step) end); plus.MouseButton1Click:Connect(function() up(val + step) end)
 end
 
--- SETUP ESP (RESTAURADO COMPLETO)
+-- SETUP ABAS
 CreateToggle(ESPPage, "ESP Geral", function(v) Settings.ESP = v end)
 CreateToggle(ESPPage, "Team Color", function(v) Settings.TeamColor = v end)
 CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
@@ -133,19 +136,16 @@ CreateToggle(ESPPage, "Distancia", function(v) Settings.Distance = v end, true)
 CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
 CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
 
--- SETUP PLAYER
 CreateToggle(PlayerPage, "Ativar Velocidade", function(v) Settings.UseSpeed = v end)
 CreateStepper(PlayerPage, "Speed", 16, 500, 16, 5, function(v) Settings.Speed = v end)
 CreateToggle(PlayerPage, "Ativar Pulo", function(v) Settings.UseJump = v end)
 CreateStepper(PlayerPage, "Jump Power", 50, 500, 50, 5, function(v) Settings.JumpPower = v end)
 CreateToggle(PlayerPage, "Pulo Infinito", function(v) Settings.InfiniteJump = v end)
 
--- SETUP HITBOX
 CreateToggle(HitboxPage, "Hitbox Expander", function(v) Settings.HitboxEnabled = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade %", 0, 100, 60, 10, function(v) Settings.HitboxTransparency = v/100 end)
 
--- SETUP FPS
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) 
     Settings.BoostFPS = v
     for _, obj in pairs(game:GetDescendants()) do
@@ -153,9 +153,9 @@ CreateToggle(FPSPage, "Otimizar Texturas", function(v)
     end
 end)
 CreateToggle(FPSPage, "Remover Sombras", function(v) Lighting.GlobalShadows = not v end)
-CreateStepper(FPSPage, "Limite FPS", 30, 240, 60, 30, function(v) setfpscap(v) end)
+CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap then setfpscap(v) end end)
 
--- ABA INFOS (FIXED)
+-- ABA INFOS
 local LogLabel = Instance.new("TextLabel", InfoPage)
 LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 13; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
 
@@ -176,16 +176,21 @@ end
 Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP)
 for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
 
+-- RENDER LOOP
+local lastUpdate = tick()
+local frameCount = 0
 RunService.RenderStepped:Connect(function()
-    -- FPS Counter
-    local fps = math.floor(1/RunService.RenderStepped:Wait())
-    FPSLabel.Text = "FPS: "..fps
-    
-    -- Player Configs
+    frameCount += 1
+    local now = tick()
+    if now - lastUpdate >= 1 then
+        FPSLabel.Text = "FPS: "..frameCount
+        frameCount = 0
+        lastUpdate = now
+    end
+
     if Settings.UseSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Speed end
     if Settings.UseJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.JumpPower = Settings.JumpPower end
     
-    -- ESP Rendering
     for p, e in pairs(ESPContainer) do
         if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
             local hrp = p.Character.HumanoidRootPart; local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
@@ -219,7 +224,7 @@ task.spawn(function()
         task.wait(0.1)
     end
 end)
-UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
+UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
 
 -- ANIMAÇÕES
 local function OpenUI()
