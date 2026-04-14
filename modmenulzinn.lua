@@ -26,6 +26,32 @@ getgenv().Settings = {
     InfiniteJump = false
 }
 
+--// FUNÇÃO PARA MOVER UI (DRAG)
+local function MakeDraggable(gui)
+    local dragging, dragInput, dragStart, startPos
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = gui.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    gui.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    RunService.RenderStepped:Connect(function()
+        if dragging and dragInput then
+            local delta = dragInput.Position - dragStart
+            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
 --// GUI PRINCIPAL
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 
@@ -36,6 +62,7 @@ ToggleBtn.Position = UDim2.new(0,20,0.6,0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
 ToggleBtn.Image = "rbxassetid://70505361093133"
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0)
+MakeDraggable(ToggleBtn)
 
 -- JANELA
 local Main = Instance.new("Frame", ScreenGui)
@@ -43,9 +70,8 @@ Main.Size = UDim2.new(0,300,0,380)
 Main.Position = UDim2.new(0.5,-150,0.5,-190)
 Main.BackgroundColor3 = Color3.fromRGB(10,10,10)
 Main.Visible = false
-Main.Active = true
-Main.Draggable = true
 Instance.new("UICorner", Main)
+MakeDraggable(Main)
 
 local stroke = Instance.new("UIStroke", Main)
 stroke.Thickness = 2
@@ -58,7 +84,7 @@ end)
 
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,35)
-Title.Text = "LQB KIKO | v3.1"
+Title.Text = "LQB KIKO | v3.2"
 Title.BackgroundTransparency = 1
 Title.TextColor3 = Color3.new(1,1,1)
 Title.TextSize = 18
@@ -87,8 +113,17 @@ local function CreatePage(name)
     page.Size = UDim2.new(1,0,1,0)
     page.BackgroundTransparency = 1
     page.Visible = false
-    page.ScrollBarThickness = 2
-    Instance.new("UIListLayout", page).Padding = UDim.new(0,5)
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = Color3.new(1,1,1)
+    
+    local layout = Instance.new("UIListLayout", page)
+    layout.Padding = UDim.new(0,5)
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+    -- AJUSTE AUTOMÁTICO DO SCROLL
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
+    end)
     
     btn.MouseButton1Click:Connect(function()
         for _,v in pairs(Pages:GetChildren()) do v.Visible = false end
@@ -105,7 +140,7 @@ ESPPage.Visible = true
 -- COMPONENTES UI
 local function CreateToggle(parent, text, callback)
     local b = Instance.new("TextButton", parent)
-    b.Size = UDim2.new(1,-10,0,35)
+    b.Size = UDim2.new(1,-20,0,35)
     b.Text = text..": OFF"
     b.BackgroundColor3 = Color3.fromRGB(30,30,30)
     b.TextColor3 = Color3.new(1,1,1)
@@ -121,7 +156,7 @@ end
 
 local function CreateStepper(parent, text, min, max, default, step, callback)
     local frame = Instance.new("Frame", parent)
-    frame.Size = UDim2.new(1,-10,0,60)
+    frame.Size = UDim2.new(1,-20,0,60)
     frame.BackgroundTransparency = 1
     
     local label = Instance.new("TextLabel", frame)
@@ -157,16 +192,16 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
 end
 
 -- SETUP
-CreateToggle(ESPPage, "ESP", function(v) Settings.ESP = v end)
+CreateToggle(ESPPage, "ESP Geral", function(v) Settings.ESP = v end)
 CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
 CreateToggle(ESPPage, "Names", function(v) Settings.Names = v end)
 CreateToggle(ESPPage, "Distance", function(v) Settings.Distance = v end)
 CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
 
-CreateToggle(PlayerPage, "Velocidade", function(v) Settings.UseSpeed = v end)
+CreateToggle(PlayerPage, "Ativar Velocidade", function(v) Settings.UseSpeed = v end)
 CreateStepper(PlayerPage, "Speed", 16, 500, 16, 1, function(v) Settings.Speed = v end)
-CreateToggle(PlayerPage, "Pulo", function(v) Settings.UseJump = v end)
-CreateStepper(PlayerPage, "Jump", 50, 500, 50, 1, function(v) Settings.JumpPower = v end)
+CreateToggle(PlayerPage, "Ativar Pulo", function(v) Settings.UseJump = v end)
+CreateStepper(PlayerPage, "Jump Power", 50, 500, 50, 1, function(v) Settings.JumpPower = v end)
 CreateToggle(PlayerPage, "Pulo Infinito", function(v) Settings.InfiniteJump = v end)
 
 CreateToggle(HitboxPage, "Hitbox Expander", function(v) Settings.HitboxEnabled = v end)
@@ -185,7 +220,7 @@ local function CreateESP(p)
     }
     local e = ESPContainer[p]
     e.Box.Thickness = 1.5
-    e.Box.Filled = false -- APENAS BORDA
+    e.Box.Filled = false
     e.Box.Color = Color3.new(1,1,1)
     e.Name.Size = 16
     e.Name.Center = true
@@ -211,10 +246,10 @@ Players.PlayerRemoving:Connect(RemoveESP)
 for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
 
 RunService.RenderStepped:Connect(function()
-    if Settings.UseSpeed and LocalPlayer.Character:FindFirstChild("Humanoid") then
+    if Settings.UseSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Speed
     end
-    if Settings.UseJump and LocalPlayer.Character:FindFirstChild("Humanoid") then
+    if Settings.UseJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid.JumpPower = Settings.JumpPower
     end
 
@@ -224,7 +259,6 @@ RunService.RenderStepped:Connect(function()
             local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
             
             if vis then
-                -- BOX AJUSTADA (BORDA)
                 if Settings.Boxes then
                     local sizeX = 2500 / pos.Z
                     local sizeY = 3500 / pos.Z
@@ -241,21 +275,20 @@ RunService.RenderStepped:Connect(function()
                 e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"
                 e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5)
 
-                -- CHAMS (HIGHLIGHT)
+                -- CHAMS REFORMULADO (ATUALIZAÇÃO CONSTANTE)
                 if Settings.Highlight then
-                    if not e.Highlight or e.Highlight.Parent == nil then
-                        local hl = Instance.new("Highlight")
-                        hl.Parent = p.Character
-                        hl.FillTransparency = 0.5
-                        hl.OutlineTransparency = 0
-                        e.Highlight = hl
+                    if not e.Highlight or e.Highlight.Parent ~= p.Character then
+                        if e.Highlight then e.Highlight:Destroy() end
+                        e.Highlight = Instance.new("Highlight")
+                        e.Highlight.Parent = p.Character
                     end
-                    local h = tick()%5/5
-                    e.Highlight.FillColor = Color3.fromHSV(h, 1, 1)
+                    e.Highlight.Enabled = true
+                    e.Highlight.FillTransparency = 0.5
+                    e.Highlight.OutlineTransparency = 0
+                    e.Highlight.FillColor = Color3.fromHSV(tick()%5/5, 1, 1)
                     e.Highlight.OutlineColor = Color3.new(1,1,1)
                 elseif e.Highlight then
-                    e.Highlight:Destroy()
-                    e.Highlight = nil
+                    e.Highlight.Enabled = false
                 end
             else 
                 e.Box.Visible = false e.Name.Visible = false e.Dist.Visible = false 
@@ -269,7 +302,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 UIS.JumpRequest:Connect(function()
-    if Settings.InfiniteJump and LocalPlayer.Character:FindFirstChild("Humanoid") then
+    if Settings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid:ChangeState("Jumping")
     end
 end)
