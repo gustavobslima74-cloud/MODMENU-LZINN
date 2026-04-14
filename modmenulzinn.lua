@@ -7,24 +7,42 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 
---// UNLOCK FPS (Executa ao carregar)
+--// UNLOCK FPS (120 FPS Padrão)
 if setfpscap then setfpscap(120) end
 
---// CONFIG
+--// CONFIG (Names e Distance agora iniciam em FALSE)
 getgenv().Settings = {
-    ESP = false, Boxes = false, Names = false, Distance = false, Highlight = false, Lines = false, TeamColor = false,
-    HitboxEnabled = false, Hitbox = 20, HitboxTransparency = 0.6,
-    UseSpeed = false, Speed = 16, UseJump = false, JumpPower = 50, InfiniteJump = false,
-    BoostFPS = false, RemoveShadows = false, FPSCap = 120 -- Alterado para 120 padrão
+    ESP = false, 
+    Boxes = false, 
+    Names = false, -- Alterado para desativado no start
+    Distance = false, -- Alterado para desativado no start
+    Highlight = false, 
+    Lines = false, 
+    TeamColor = false,
+
+    HitboxEnabled = false,
+    Hitbox = 20,
+    HitboxTransparency = 0.6,
+
+    UseSpeed = false,
+    Speed = 16,
+
+    UseJump = false,
+    JumpPower = 50,
+
+    InfiniteJump = false,
+    BoostFPS = false,
+    RemoveShadows = false,
+    FPSCap = 120
 }
 
-local VERSION = "v4.4"
+local VERSION = "v4.5"
 local CHANGELOG_TEXT = [[
 --- HISTÓRICO DE VERSÕES ---
-v4.4: FPS Padrão definido para 120. Unlock FPS no Start.
-v4.3: Restaurado botões de Distância e Nomes. Fix na aba Infos.
+v4.5: Names e Distance iniciam desativados (OFF).
+v4.4: FPS Padrão 120 e Unlock no Start.
+v4.3: Restauração de botões e fix na aba Infos.
 v4.2: Aba FPS e Otimização de Texturas.
-v4.1: UI Inteligente e Auto-Resize.
 ----------------------------]]
 
 local MenuAberto = false
@@ -127,25 +145,28 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     minus.MouseButton1Click:Connect(function() up(val - step) end); plus.MouseButton1Click:Connect(function() up(val + step) end)
 end
 
--- SETUP ABAS
+-- SETUP ESP
 CreateToggle(ESPPage, "ESP Geral", function(v) Settings.ESP = v end)
 CreateToggle(ESPPage, "Team Color", function(v) Settings.TeamColor = v end)
 CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
-CreateToggle(ESPPage, "DisplayNames", function(v) Settings.Names = v end, true)
-CreateToggle(ESPPage, "Distancia", function(v) Settings.Distance = v end, true)
+CreateToggle(ESPPage, "DisplayNames", function(v) Settings.Names = v end, false) -- Agora inicia em OFF
+CreateToggle(ESPPage, "Distancia", function(v) Settings.Distance = v end, false) -- Agora inicia em OFF
 CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
 CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
 
+-- SETUP PLAYER
 CreateToggle(PlayerPage, "Ativar Velocidade", function(v) Settings.UseSpeed = v end)
 CreateStepper(PlayerPage, "Speed", 16, 500, 16, 5, function(v) Settings.Speed = v end)
 CreateToggle(PlayerPage, "Ativar Pulo", function(v) Settings.UseJump = v end)
 CreateStepper(PlayerPage, "Jump Power", 50, 500, 50, 5, function(v) Settings.JumpPower = v end)
 CreateToggle(PlayerPage, "Pulo Infinito", function(v) Settings.InfiniteJump = v end)
 
+-- SETUP HITBOX
 CreateToggle(HitboxPage, "Hitbox Expander", function(v) Settings.HitboxEnabled = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade %", 0, 100, 60, 10, function(v) Settings.HitboxTransparency = v/100 end)
 
+-- SETUP FPS
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) 
     Settings.BoostFPS = v
     for _, obj in pairs(game:GetDescendants()) do
@@ -159,7 +180,7 @@ CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap 
 local LogLabel = Instance.new("TextLabel", InfoPage)
 LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 13; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
 
--- LÓGICA ESP
+-- LÓGICA ESP E RENDER
 local ESPContainer = {}
 local function CreateESP(p)
     if p == LocalPlayer then return end
@@ -176,7 +197,6 @@ end
 Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP)
 for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
 
--- RENDER LOOP
 local lastUpdate = tick()
 local frameCount = 0
 RunService.RenderStepped:Connect(function()
