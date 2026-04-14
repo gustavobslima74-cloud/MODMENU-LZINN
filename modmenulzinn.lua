@@ -12,16 +12,16 @@ getgenv().Settings = {
     ESP = false, Boxes = false, Names = true, Distance = true, Highlight = false, Lines = false, TeamColor = false,
     HitboxEnabled = false, Hitbox = 20, HitboxTransparency = 0.6,
     UseSpeed = false, Speed = 16, UseJump = false, JumpPower = 50, InfiniteJump = false,
-    -- FPS SETTINGS
     BoostFPS = false, RemoveShadows = false, FPSCap = 60
 }
 
-local VERSION = "v4.2"
+local VERSION = "v4.3"
 local CHANGELOG_TEXT = [[
 --- HISTÓRICO DE VERSÕES ---
-v4.2: Aba FPS Adicionada. Corrigido Scroll das abas (CanvasSize dinâmico).
-v4.1: UI Inteligente e Auto-Resize por aba.
-v3.8: Base estável (Team Color e ESPs).
+v4.3: Restaurado botões de Distância e Nomes. Fix na aba Infos.
+v4.2: Aba FPS e Otimização de Texturas.
+v4.1: UI Inteligente e Auto-Resize.
+v3.8: ESP Team Color original.
 ----------------------------]]
 
 local MenuAberto = false
@@ -67,21 +67,21 @@ Title.Size = UDim2.new(1,0,0,35); Title.Text = "LQB KIKO | " .. VERSION; Title.B
 local FPSLabel = Instance.new("TextLabel", Main)
 FPSLabel.Size = UDim2.new(0,50,0,35); FPSLabel.Position = UDim2.new(1,-60,0,0); FPSLabel.Text = "FPS: 60"; FPSLabel.BackgroundTransparency = 1; FPSLabel.TextColor3 = Color3.new(0,1,0); FPSLabel.TextSize = 12; FPSLabel.Font = Enum.Font.Code; FPSLabel.TextTransparency = 1
 
--- ABAS COM SCROLL CORRIGIDO
+-- ABAS (SCROLL)
 local TabsFrame = Instance.new("ScrollingFrame", Main)
-TabsFrame.Size = UDim2.new(1,0,0,35); TabsFrame.Position = UDim2.new(0,0,0,35); TabsFrame.BackgroundTransparency = 1; TabsFrame.ScrollBarThickness = 0; TabsFrame.CanvasSize = UDim2.new(0,0,0,0) -- Inicia zerado
+TabsFrame.Size = UDim2.new(1,0,0,35); TabsFrame.Position = UDim2.new(0,0,0,35); TabsFrame.BackgroundTransparency = 1; TabsFrame.ScrollBarThickness = 0; TabsFrame.CanvasSize = UDim2.new(0,0,0,0)
 
 local TabList = Instance.new("UIListLayout", TabsFrame)
 TabList.FillDirection = Enum.FillDirection.Horizontal
 TabList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    TabsFrame.CanvasSize = UDim2.new(0, TabList.AbsoluteContentSize.X, 0, 0) -- Ajuste exato
+    TabsFrame.CanvasSize = UDim2.new(0, TabList.AbsoluteContentSize.X, 0, 0)
 end)
 
 local Pages = Instance.new("Frame", Main)
 Pages.Position = UDim2.new(0,0,0,70); Pages.Size = UDim2.new(1,0,1,-70); Pages.BackgroundTransparency = 1
 
 local function UpdateMenuSize(pageSizeY)
-    local targetHeight = math.clamp(pageSizeY + 100, 200, 500)
+    local targetHeight = math.clamp(pageSizeY + 110, 200, 500)
     TweenService:Create(Main, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(0, 300, 0, targetHeight)}):Play()
 end
 
@@ -103,22 +103,16 @@ local FPSPage, fb = CreatePage("FPS")
 local InfoPage, ib = CreatePage("INFOS")
 ESPPage.Visible = true
 
--- ABA FPS LOGIC
-local function BoostFPS(v)
-    Settings.BoostFPS = v
-    if v then
-        for _, obj in pairs(game:GetDescendants()) do
-            if obj:IsA("Texture") or obj:IsA("Decal") then
-                obj.Transparency = 1 -- Oculta texturas pesadas sem remover o bloco
-            end
-        end
-    end
-end
-
 -- COMPONENTES UI
-local function CreateToggle(parent, text, callback)
-    local b = Instance.new("TextButton", parent); b.Size = UDim2.new(1,-20,0,35); b.Text = text..": OFF"; b.BackgroundColor3 = Color3.fromRGB(30,30,30); b.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", b)
-    local state = false; b.MouseButton1Click:Connect(function() state = not state; b.Text = text..": "..(state and "ON" or "OFF"); b.BackgroundColor3 = state and Color3.fromRGB(50,100,50) or Color3.fromRGB(30,30,30); callback(state) end)
+local function CreateToggle(parent, text, callback, default)
+    local b = Instance.new("TextButton", parent); b.Size = UDim2.new(1,-20,0,35); b.Text = text..": "..(default and "ON" or "OFF"); b.BackgroundColor3 = default and Color3.fromRGB(50,100,50) or Color3.fromRGB(30,30,30); b.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", b)
+    local state = default or false
+    b.MouseButton1Click:Connect(function()
+        state = not state
+        b.Text = text..": "..(state and "ON" or "OFF")
+        b.BackgroundColor3 = state and Color3.fromRGB(50,100,50) or Color3.fromRGB(30,30,30)
+        callback(state)
+    end)
 end
 
 local function CreateStepper(parent, text, min, max, default, step, callback)
@@ -130,39 +124,102 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     minus.MouseButton1Click:Connect(function() up(val - step) end); plus.MouseButton1Click:Connect(function() up(val + step) end)
 end
 
--- SETUP ABAS
+-- SETUP ESP (RESTAURADO COMPLETO)
 CreateToggle(ESPPage, "ESP Geral", function(v) Settings.ESP = v end)
 CreateToggle(ESPPage, "Team Color", function(v) Settings.TeamColor = v end)
 CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
+CreateToggle(ESPPage, "DisplayNames", function(v) Settings.Names = v end, true)
+CreateToggle(ESPPage, "Distancia", function(v) Settings.Distance = v end, true)
 CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
 CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
 
-CreateToggle(FPSPage, "Otimizar Texturas", BoostFPS)
-CreateToggle(FPSPage, "Remover Sombras", function(v) Lighting.GlobalShadows = not v end)
-CreateStepper(FPSPage, "Limite FPS", 30, 240, 60, 10, function(v) setfpscap(v) end)
-
--- [RESTAURADO PLAYER E HITBOX]
+-- SETUP PLAYER
 CreateToggle(PlayerPage, "Ativar Velocidade", function(v) Settings.UseSpeed = v end)
-CreateStepper(PlayerPage, "Speed", 16, 500, 16, 1, function(v) Settings.Speed = v end)
+CreateStepper(PlayerPage, "Speed", 16, 500, 16, 5, function(v) Settings.Speed = v end)
 CreateToggle(PlayerPage, "Ativar Pulo", function(v) Settings.UseJump = v end)
-CreateStepper(PlayerPage, "Jump Power", 50, 500, 50, 1, function(v) Settings.JumpPower = v end)
+CreateStepper(PlayerPage, "Jump Power", 50, 500, 50, 5, function(v) Settings.JumpPower = v end)
 CreateToggle(PlayerPage, "Pulo Infinito", function(v) Settings.InfiniteJump = v end)
 
+-- SETUP HITBOX
 CreateToggle(HitboxPage, "Hitbox Expander", function(v) Settings.HitboxEnabled = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade %", 0, 100, 60, 10, function(v) Settings.HitboxTransparency = v/100 end)
 
--- CONTADOR FPS
-local lastTick = tick()
-local frameCount = 0
-RunService.RenderStepped:Connect(function()
-    frameCount += 1
-    if tick() - lastTick >= 1 then
-        FPSLabel.Text = "FPS: "..frameCount
-        frameCount = 0
-        lastTick = tick()
+-- SETUP FPS
+CreateToggle(FPSPage, "Otimizar Texturas", function(v) 
+    Settings.BoostFPS = v
+    for _, obj in pairs(game:GetDescendants()) do
+        if obj:IsA("Texture") or obj:IsA("Decal") then obj.Transparency = v and 1 or 0 end
     end
 end)
+CreateToggle(FPSPage, "Remover Sombras", function(v) Lighting.GlobalShadows = not v end)
+CreateStepper(FPSPage, "Limite FPS", 30, 240, 60, 30, function(v) setfpscap(v) end)
+
+-- ABA INFOS (FIXED)
+local LogLabel = Instance.new("TextLabel", InfoPage)
+LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 13; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
+
+-- LÓGICA ESP
+local ESPContainer = {}
+local function CreateESP(p)
+    if p == LocalPlayer then return end
+    ESPContainer[p] = {Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil}
+    local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 16; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1
+end
+local function RemoveESP(p)
+    if ESPContainer[p] then
+        ESPContainer[p].Box:Remove(); ESPContainer[p].Name:Remove(); ESPContainer[p].Dist:Remove(); ESPContainer[p].Line:Remove()
+        if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end
+        ESPContainer[p] = nil
+    end
+end
+Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP)
+for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
+
+RunService.RenderStepped:Connect(function()
+    -- FPS Counter
+    local fps = math.floor(1/RunService.RenderStepped:Wait())
+    FPSLabel.Text = "FPS: "..fps
+    
+    -- Player Configs
+    if Settings.UseSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Speed end
+    if Settings.UseJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.JumpPower = Settings.JumpPower end
+    
+    -- ESP Rendering
+    for p, e in pairs(ESPContainer) do
+        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
+            local hrp = p.Character.HumanoidRootPart; local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
+            local color = (Settings.TeamColor and p.TeamColor) and p.TeamColor.Color or Color3.new(1,1,1)
+            if vis then
+                if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = color else e.Box.Visible = false end
+                if Settings.Names then e.Name.Visible = true; e.Name.Text = p.DisplayName; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20); e.Name.Color = color else e.Name.Visible = false end
+                if Settings.Distance then e.Dist.Visible = true; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5); e.Dist.Color = Color3.new(0,1,0) else e.Dist.Visible = false end
+                if Settings.Lines then local head = p.Character:FindFirstChild("Head"); if head then local hpos = Camera:WorldToViewportPoint(head.Position); e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(hpos.X, hpos.Y); e.Line.Color = color end else e.Line.Visible = false end
+                if Settings.Highlight then
+                    if not e.Highlight or e.Highlight.Parent ~= p.Character then if e.Highlight then e.Highlight:Destroy() end e.Highlight = Instance.new("Highlight", p.Character) end
+                    e.Highlight.Enabled = true; e.Highlight.FillColor = color; e.Highlight.FillTransparency = 0.5
+                elseif e.Highlight then e.Highlight.Enabled = false end
+            else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end end
+        else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight:Destroy(); e.Highlight = nil end end
+    end
+end)
+
+-- HITBOX / PULO
+task.spawn(function()
+    while true do
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = p.Character.HumanoidRootPart
+                if Settings.HitboxEnabled then
+                    hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox)
+                    hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false
+                else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
 
 -- ANIMAÇÕES
 local function OpenUI()
@@ -184,63 +241,4 @@ local function CloseUI()
     anim:Play(); anim.Completed:Connect(function() Main.Visible = false end)
 end
 
--- LÓGICA ESP v3.8
-local ESPContainer = {}
-local function CreateESP(p)
-    if p == LocalPlayer then return end
-    ESPContainer[p] = {Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil}
-    local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 16; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1
-end
-local function RemoveESP(p)
-    if ESPContainer[p] then
-        ESPContainer[p].Box:Remove(); ESPContainer[p].Name:Remove(); ESPContainer[p].Dist:Remove(); ESPContainer[p].Line:Remove()
-        if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end
-        ESPContainer[p] = nil
-    end
-end
-Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP)
-for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
-
-RunService.RenderStepped:Connect(function()
-    if Settings.UseSpeed and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Speed
-    end
-    if Settings.UseJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.JumpPower = Settings.JumpPower
-    end
-    for p, e in pairs(ESPContainer) do
-        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
-            local hrp = p.Character.HumanoidRootPart; local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
-            local color = (Settings.TeamColor and p.TeamColor) and p.TeamColor.Color or Color3.new(1,1,1)
-            if vis then
-                if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = color else e.Box.Visible = false end
-                if Settings.Names then e.Name.Visible = true; e.Name.Text = p.DisplayName; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20); e.Name.Color = color else e.Name.Visible = false end
-                if Settings.Lines then local head = p.Character:FindFirstChild("Head"); if head then local hpos = Camera:WorldToViewportPoint(head.Position); e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(hpos.X, hpos.Y); e.Line.Color = color end else e.Line.Visible = false end
-                if Settings.Highlight then
-                    if not e.Highlight or e.Highlight.Parent ~= p.Character then if e.Highlight then e.Highlight:Destroy() end e.Highlight = Instance.new("Highlight", p.Character) end
-                    e.Highlight.Enabled = true; e.Highlight.FillColor = color; e.Highlight.FillTransparency = 0.5
-                elseif e.Highlight then e.Highlight.Enabled = false end
-            else e.Box.Visible = false; e.Name.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end end
-        else e.Box.Visible = false; e.Name.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight:Destroy(); e.Highlight = nil end end
-    end
-end)
-
-UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
-task.spawn(function()
-    while true do
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = p.Character.HumanoidRootPart
-                if Settings.HitboxEnabled then
-                    hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox)
-                    hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false
-                else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end
-            end
-        end
-        task.wait(0.1)
-    end
-end)
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    if Main.Visible then CloseUI() else OpenUI() end
-end)
+ToggleBtn.MouseButton1Click:Connect(function() if Main.Visible then CloseUI() else OpenUI() end end)
