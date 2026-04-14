@@ -113,7 +113,22 @@ LayoutTabs.FillDirection = Enum.FillDirection.Horizontal
 
 local Pages = Instance.new("Frame", Main)
 Pages.Position = UDim2.new(0,0,0,60)
+Pages.Size = UDim2.new(1,0,0,0)
 Pages.BackgroundTransparency = 1
+
+-- FUNÇÃO DE ATUALIZAR TAMANHO (CORRETA)
+local function UpdateSize(page)
+    task.wait()
+
+    local total = 0
+    for _,v in pairs(page:GetChildren()) do
+        if v:IsA("TextButton") or v:IsA("TextLabel") or v:IsA("Frame") then
+            total += v.AbsoluteSize.Y + 8
+        end
+    end
+
+    Main.Size = UDim2.new(0,300,0,total + 100)
+end
 
 local function CreatePage(name)
     local btn = Instance.new("TextButton", Tabs)
@@ -130,14 +145,19 @@ local function CreatePage(name)
     local layout = Instance.new("UIListLayout", page)
     layout.Padding = UDim.new(0,8)
 
+    -- 🔥 ATUALIZA AUTOMÁTICO SEMPRE QUE MUDAR
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.Size = UDim2.new(1,0,0, layout.AbsoluteContentSize.Y)
+        UpdateSize(page)
+    end)
+
     btn.MouseButton1Click:Connect(function()
         for _,v in pairs(Pages:GetChildren()) do
             if v:IsA("Frame") then v.Visible = false end
         end
         page.Visible = true
 
-        task.wait()
-        Main.Size = UDim2.new(0,300,0, page.AbsoluteSize.Y + 90)
+        UpdateSize(page)
     end)
 
     return page
@@ -147,6 +167,10 @@ local ESPPage = CreatePage("ESP")
 local PlayerPage = CreatePage("PLAYER")
 local HitboxPage = CreatePage("HITBOX")
 ESPPage.Visible = true
+
+-- 🔥 GARANTE TAMANHO INICIAL CORRETO
+task.wait()
+UpdateSize(ESPPage)
 
 -- TOGGLE
 local function Toggle(parent,text,callback)
@@ -178,6 +202,75 @@ Toggle(PlayerPage,"Pulo Infinito",function(v) Settings.InfiniteJump=v end)
 
 -- HITBOX TAB
 Toggle(HitboxPage,"Hitbox",function(v) Settings.HitboxEnabled=v end)
+
+-- TAMANHO
+local SizeLabel = Instance.new("TextLabel", HitboxPage)
+SizeLabel.Size = UDim2.new(1,0,0,30)
+SizeLabel.Text = "Tamanho: 10"
+SizeLabel.TextColor3 = Color3.new(1,1,1)
+SizeLabel.BackgroundTransparency = 1
+
+local Plus = Instance.new("TextButton", HitboxPage)
+Plus.Size = UDim2.new(0.5,0,0,35)
+Plus.Text = "+"
+
+local Minus = Instance.new("TextButton", HitboxPage)
+Minus.Size = UDim2.new(0.5,0,0,35)
+Minus.Text = "-"
+
+Plus.MouseButton1Click:Connect(function()
+    Settings.Hitbox = math.clamp(Settings.Hitbox+1,10,50)
+    SizeLabel.Text = "Tamanho: "..Settings.Hitbox
+end)
+
+Minus.MouseButton1Click:Connect(function()
+    Settings.Hitbox = math.clamp(Settings.Hitbox-1,10,50)
+    SizeLabel.Text = "Tamanho: "..Settings.Hitbox
+end)
+
+-- OPACIDADE
+local OpLabel = Instance.new("TextLabel", HitboxPage)
+OpLabel.Size = UDim2.new(1,0,0,30)
+OpLabel.Text = "Opacidade: 0.50"
+OpLabel.TextColor3 = Color3.new(1,1,1)
+OpLabel.BackgroundTransparency = 1
+
+local function OpacitySlider(parent)
+    local bar = Instance.new("Frame", parent)
+    bar.Size = UDim2.new(1,0,0,10)
+    bar.BackgroundColor3 = Color3.fromRGB(50,50,50)
+
+    local fill = Instance.new("Frame", bar)
+    fill.Size = UDim2.new(0.5,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(0,170,255)
+
+    local dragging = false
+
+    bar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+        end
+    end)
+
+    bar.InputEnded:Connect(function()
+        dragging = false
+    end)
+
+    UIS.InputChanged:Connect(function(i)
+        if dragging then
+            local pos = math.clamp((i.Position.X - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
+            fill.Size = UDim2.new(pos,0,1,0)
+
+            local value = math.floor((0.05 + (1-0.05)*pos) / 0.05 + 0.5) * 0.05
+            value = math.clamp(value,0.05,1)
+
+            Settings.HitboxTransparency = value
+            OpLabel.Text = "Opacidade: "..string.format("%.2f", value)
+        end
+    end)
+end
+
+OpacitySlider(HitboxPage)
 
 -- ESP SISTEMA (CORRIGIDO + CHAMS RGB)
 local ESPContainer = {}
