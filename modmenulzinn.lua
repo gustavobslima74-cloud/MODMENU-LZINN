@@ -4,6 +4,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 --// CONFIG
 getgenv().Settings = {
@@ -26,7 +27,7 @@ getgenv().Settings = {
     InfiniteJump = false
 }
 
---// FUNÇÃO PARA MOVER UI (DRAG)
+--// FUNÇÃO DRAG
 local function MakeDraggable(gui)
     local dragging, dragInput, dragStart, startPos
     gui.InputBegan:Connect(function(input)
@@ -62,19 +63,21 @@ ToggleBtn.Position = UDim2.new(0,20,0.6,0)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
 ToggleBtn.Image = "rbxassetid://70505361093133"
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0)
-MakeDraggable(ToggleBtn)
 
 -- JANELA
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0,300,0,380)
-Main.Position = UDim2.new(0.5,-150,0.5,-190)
+Main.Position = UDim2.new(0.5, -150, 0.5, -190)
 Main.BackgroundColor3 = Color3.fromRGB(10,10,10)
+Main.ClipsDescendants = true
 Main.Visible = false
+Main.BackgroundTransparency = 1 -- Inicia invisível para animação
 Instance.new("UICorner", Main)
 MakeDraggable(Main)
 
 local stroke = Instance.new("UIStroke", Main)
 stroke.Thickness = 2
+stroke.Transparency = 1
 task.spawn(function()
     while true do
         stroke.Color = Color3.fromHSV(tick()%5/5,1,1)
@@ -84,13 +87,14 @@ end)
 
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,35)
-Title.Text = "LQB KIKO | v3.2"
+Title.Text = "LQB KIKO | v3.4"
 Title.BackgroundTransparency = 1
 Title.TextColor3 = Color3.new(1,1,1)
 Title.TextSize = 18
 Title.Font = Enum.Font.GothamBold
+Title.TextTransparency = 1
 
--- ABAS
+-- SISTEMA DE ABAS
 local Tabs = Instance.new("Frame", Main)
 Tabs.Size = UDim2.new(1,0,0,30)
 Tabs.Position = UDim2.new(0,0,0,35)
@@ -108,19 +112,18 @@ local function CreatePage(name)
     btn.Text = name
     btn.BackgroundTransparency = 1
     btn.TextColor3 = Color3.new(1,1,1)
+    btn.TextTransparency = 1
 
     local page = Instance.new("ScrollingFrame", Pages)
     page.Size = UDim2.new(1,0,1,0)
     page.BackgroundTransparency = 1
     page.Visible = false
     page.ScrollBarThickness = 3
-    page.ScrollBarImageColor3 = Color3.new(1,1,1)
     
     local layout = Instance.new("UIListLayout", page)
     layout.Padding = UDim.new(0,5)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-    -- AJUSTE AUTOMÁTICO DO SCROLL
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         page.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
     end)
@@ -129,15 +132,15 @@ local function CreatePage(name)
         for _,v in pairs(Pages:GetChildren()) do v.Visible = false end
         page.Visible = true
     end)
-    return page
+    return page, btn
 end
 
-local ESPPage = CreatePage("ESP")
-local PlayerPage = CreatePage("PLAYER")
-local HitboxPage = CreatePage("HITBOX")
+local ESPPage, eb = CreatePage("ESP")
+local PlayerPage, pb = CreatePage("PLAYER")
+local HitboxPage, hb = CreatePage("HITBOX")
 ESPPage.Visible = true
 
--- COMPONENTES UI
+-- COMPONENTES UI (TOGGLE E STEPPER)
 local function CreateToggle(parent, text, callback)
     local b = Instance.new("TextButton", parent)
     b.Size = UDim2.new(1,-20,0,35)
@@ -158,13 +161,11 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     local frame = Instance.new("Frame", parent)
     frame.Size = UDim2.new(1,-20,0,60)
     frame.BackgroundTransparency = 1
-    
     local label = Instance.new("TextLabel", frame)
     label.Size = UDim2.new(1,0,0,25)
     label.Text = text..": "..default
     label.TextColor3 = Color3.new(1,1,1)
     label.BackgroundTransparency = 1
-
     local minus = Instance.new("TextButton", frame)
     minus.Size = UDim2.new(0.4,0,0,30)
     minus.Position = UDim2.new(0.05,0,0,25)
@@ -172,7 +173,6 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     minus.BackgroundColor3 = Color3.fromRGB(40,40,40)
     minus.TextColor3 = Color3.new(1,1,1)
     Instance.new("UICorner", minus)
-
     local plus = Instance.new("TextButton", frame)
     plus.Size = UDim2.new(0.4,0,0,30)
     plus.Position = UDim2.new(0.55,0,0,25)
@@ -180,7 +180,6 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     plus.BackgroundColor3 = Color3.fromRGB(40,40,40)
     plus.TextColor3 = Color3.new(1,1,1)
     Instance.new("UICorner", plus)
-
     local val = default
     local function up(n)
         val = math.clamp(n, min, max)
@@ -191,7 +190,7 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     plus.MouseButton1Click:Connect(function() up(val + step) end)
 end
 
--- SETUP
+-- SETUP ABAS
 CreateToggle(ESPPage, "ESP Geral", function(v) Settings.ESP = v end)
 CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
 CreateToggle(ESPPage, "Names", function(v) Settings.Names = v end)
@@ -208,39 +207,64 @@ CreateToggle(HitboxPage, "Hitbox Expander", function(v) Settings.HitboxEnabled =
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade %", 0, 100, 60, 10, function(v) Settings.HitboxTransparency = v/100 end)
 
--- LOGICA ESP
+-- LÓGICA DE ANIMAÇÃO
+local function OpenUI()
+    Main.Visible = true
+    Main.Position = UDim2.new(0.5, -150, 0.5, -100) -- Começa um pouco abaixo
+    Main.Size = UDim2.new(0, 300, 0, 0) -- Começa sem altura
+    
+    local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    
+    TweenService:Create(Main, tweenInfo, {
+        Size = UDim2.new(0, 300, 0, 380),
+        Position = UDim2.new(0.5, -150, 0.5, -190),
+        BackgroundTransparency = 0.1
+    }):Play()
+    
+    TweenService:Create(stroke, tweenInfo, {Transparency = 0}):Play()
+    TweenService:Create(Title, tweenInfo, {TextTransparency = 0}):Play()
+    TweenService:Create(eb, tweenInfo, {TextTransparency = 0}):Play()
+    TweenService:Create(pb, tweenInfo, {TextTransparency = 0}):Play()
+    TweenService:Create(hb, tweenInfo, {TextTransparency = 0}):Play()
+end
+
+local function CloseUI()
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    
+    local anim = TweenService:Create(Main, tweenInfo, {
+        Size = UDim2.new(0, 300, 0, 0),
+        BackgroundTransparency = 1
+    })
+    
+    TweenService:Create(stroke, tweenInfo, {Transparency = 1}):Play()
+    TweenService:Create(Title, tweenInfo, {TextTransparency = 1}):Play()
+    TweenService:Create(eb, tweenInfo, {TextTransparency = 1}):Play()
+    TweenService:Create(pb, tweenInfo, {TextTransparency = 1}):Play()
+    TweenService:Create(hb, tweenInfo, {TextTransparency = 1}):Play()
+    
+    anim:Play()
+    anim.Completed:Connect(function()
+        Main.Visible = false
+    end)
+end
+
+-- LOGICA ESP / PULO / HITBOX (MANTIDAS)
 local ESPContainer = {}
 local function CreateESP(p)
     if p == LocalPlayer then return end
-    ESPContainer[p] = {
-        Box = Drawing.new("Square"),
-        Name = Drawing.new("Text"),
-        Dist = Drawing.new("Text"),
-        Highlight = nil
-    }
+    ESPContainer[p] = {Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Highlight = nil}
     local e = ESPContainer[p]
-    e.Box.Thickness = 1.5
-    e.Box.Filled = false
-    e.Box.Color = Color3.new(1,1,1)
-    e.Name.Size = 16
-    e.Name.Center = true
-    e.Name.Outline = true
-    e.Dist.Size = 14
-    e.Dist.Center = true
-    e.Dist.Outline = true
-    e.Dist.Color = Color3.new(0,1,0)
+    e.Box.Thickness = 1.5; e.Box.Filled = false; e.Box.Color = Color3.new(1,1,1)
+    e.Name.Size = 16; e.Name.Center = true; e.Name.Outline = true; e.Name.Color = Color3.new(1,1,1)
+    e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true; e.Dist.Color = Color3.new(0,1,0)
 end
-
 local function RemoveESP(p)
     if ESPContainer[p] then
-        ESPContainer[p].Box:Remove()
-        ESPContainer[p].Name:Remove()
-        ESPContainer[p].Dist:Remove()
+        ESPContainer[p].Box:Remove(); ESPContainer[p].Name:Remove(); ESPContainer[p].Dist:Remove()
         if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end
         ESPContainer[p] = nil
     end
 end
-
 Players.PlayerAdded:Connect(CreateESP)
 Players.PlayerRemoving:Connect(RemoveESP)
 for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
@@ -252,52 +276,26 @@ RunService.RenderStepped:Connect(function()
     if Settings.UseJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid.JumpPower = Settings.JumpPower
     end
-
     for p, e in pairs(ESPContainer) do
         if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
             local hrp = p.Character.HumanoidRootPart
             local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
-            
             if vis then
                 if Settings.Boxes then
-                    local sizeX = 2500 / pos.Z
-                    local sizeY = 3500 / pos.Z
-                    e.Box.Visible = true
-                    e.Box.Size = Vector2.new(sizeX, sizeY)
-                    e.Box.Position = Vector2.new(pos.X - sizeX/2, pos.Y - sizeY/2)
+                    local sizeX = 2500 / pos.Z; local sizeY = 3500 / pos.Z
+                    e.Box.Visible = true; e.Box.Size = Vector2.new(sizeX, sizeY); e.Box.Position = Vector2.new(pos.X - sizeX/2, pos.Y - sizeY/2)
                 else e.Box.Visible = false end
-
-                e.Name.Visible = Settings.Names
-                e.Name.Text = p.DisplayName
-                e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20)
-
-                e.Dist.Visible = Settings.Distance
-                e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"
-                e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5)
-
-                -- CHAMS REFORMULADO (ATUALIZAÇÃO CONSTANTE)
+                e.Name.Visible = Settings.Names; e.Name.Text = p.DisplayName; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20)
+                e.Dist.Visible = Settings.Distance; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5)
                 if Settings.Highlight then
                     if not e.Highlight or e.Highlight.Parent ~= p.Character then
                         if e.Highlight then e.Highlight:Destroy() end
-                        e.Highlight = Instance.new("Highlight")
-                        e.Highlight.Parent = p.Character
+                        e.Highlight = Instance.new("Highlight", p.Character)
                     end
-                    e.Highlight.Enabled = true
-                    e.Highlight.FillTransparency = 0.5
-                    e.Highlight.OutlineTransparency = 0
-                    e.Highlight.FillColor = Color3.fromHSV(tick()%5/5, 1, 1)
-                    e.Highlight.OutlineColor = Color3.new(1,1,1)
-                elseif e.Highlight then
-                    e.Highlight.Enabled = false
-                end
-            else 
-                e.Box.Visible = false e.Name.Visible = false e.Dist.Visible = false 
-                if e.Highlight then e.Highlight.Enabled = false end
-            end
-        else 
-            e.Box.Visible = false e.Name.Visible = false e.Dist.Visible = false 
-            if e.Highlight then e.Highlight:Destroy() e.Highlight = nil end
-        end
+                    e.Highlight.Enabled = true; e.Highlight.FillColor = Color3.fromHSV(tick()%5/5, 1, 1)
+                elseif e.Highlight then e.Highlight.Enabled = false end
+            else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; if e.Highlight then e.Highlight.Enabled = false end end
+        else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; if e.Highlight then e.Highlight:Destroy(); e.Highlight = nil end end
     end
 end)
 
@@ -314,16 +312,24 @@ task.spawn(function()
                 local hrp = p.Character.HumanoidRootPart
                 if Settings.HitboxEnabled then
                     hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox)
-                    hrp.Transparency = Settings.HitboxTransparency
-                    hrp.CanCollide = false
-                else
-                    hrp.Size = Vector3.new(2, 2, 1)
-                    hrp.Transparency = 1
-                end
+                    hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false
+                else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end
             end
         end
         task.wait(0.1)
     end
 end)
 
-ToggleBtn.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+-- CLICK DO BOTÃO COM ANIMAÇÃO
+ToggleBtn.MouseButton1Click:Connect(function()
+    -- Animação de pulo no botão
+    ToggleBtn:TweenSize(UDim2.new(0,50,0,50), "Out", "Quad", 0.1, true)
+    task.wait(0.1)
+    ToggleBtn:TweenSize(UDim2.new(0,60,0,60), "Out", "Elastic", 0.4, true)
+
+    if Main.Visible then
+        CloseUI()
+    else
+        OpenUI()
+    end
+end)
