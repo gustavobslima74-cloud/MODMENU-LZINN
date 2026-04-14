@@ -6,30 +6,26 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
---// CONFIG
+--// CONFIG (TODAS AS VOLTARAM)
 getgenv().Settings = {
     ESP = false, Boxes = false, Names = true, Distance = true, Highlight = false, Lines = false, TeamColor = false,
     HitboxEnabled = false, Hitbox = 20, HitboxTransparency = 0.6,
     UseSpeed = false, Speed = 16, UseJump = false, JumpPower = 50, InfiniteJump = false,
-    
-    -- NOVAS CONFIGS COMBAT
     NoStun = false, NoFreeze = false, NoKnockback = false,
-    
-    -- NOVAS CONFIGS AIM
-    AimAssist = false, AimFOV = 100, ShowFOV = false, AimSmoothing = 5
+    AimAssist = false, AimFOV = 100, ShowFOV = false
 }
 
-local VERSION = "v3.9"
+local VERSION = "v4.0"
 local CHANGELOG_TEXT = [[
 --- HISTÓRICO DE VERSÕES ---
-v3.9: Novas Abas COMBAT e AIM. Adicionado NoStun/Freeze e Círculo de FOV.
-v3.8: ESP Team Color (Coloração automática).
-v3.7: Ajuste de Texto (TextWrapped).
-v3.6: Aba INFOS e ESP Lines.
+v4.0: RESTAURAÇÃO TOTAL. Todos os botões voltaram!
+v3.9: Abas COMBAT e AIM (Scroll Horizontal).
+v3.8: ESP Team Color.
+v3.7: Texto do Log ajustado.
 ----------------------------]]
 
 local MenuAberto = false
-local FOVCircle = Drawing.new("Circle") -- Círculo do FOV
+local FOVCircle = Drawing.new("Circle")
 
 --// FUNÇÃO DRAG
 local function MakeDraggable(gui, isMenu)
@@ -69,17 +65,17 @@ stroke.Thickness = 2; stroke.Transparency = 1; task.spawn(function() while true 
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,35); Title.Text = "LQB KIKO | " .. VERSION; Title.BackgroundTransparency = 1; Title.TextColor3 = Color3.new(1,1,1); Title.TextSize = 18; Title.Font = Enum.Font.GothamBold; Title.TextTransparency = 1
 
--- ABAS (Ajustado para 0.16 para caber 6 abas pequenas ou scroll)
+-- BARRA DE ABAS (SCROLL)
 local Tabs = Instance.new("ScrollingFrame", Main)
-Tabs.Size = UDim2.new(1,0,0,35); Tabs.Position = UDim2.new(0,0,0,35); Tabs.BackgroundTransparency = 1; Tabs.CanvasSize = UDim2.new(1.5,0,0,0); Tabs.ScrollBarThickness = 0
-Instance.new("UIListLayout", Tabs).FillDirection = Enum.FillDirection.Horizontal
+Tabs.Size = UDim2.new(1,0,0,35); Tabs.Position = UDim2.new(0,0,0,35); Tabs.BackgroundTransparency = 1; Tabs.CanvasSize = UDim2.new(2,0,0,0); Tabs.ScrollBarThickness = 0
+local TabList = Instance.new("UIListLayout", Tabs); TabList.FillDirection = Enum.FillDirection.Horizontal
 
 local Pages = Instance.new("Frame", Main)
 Pages.Position = UDim2.new(0,0,0,70); Pages.Size = UDim2.new(1,0,1,-70); Pages.BackgroundTransparency = 1
 
 local function CreatePage(name)
     local btn = Instance.new("TextButton", Tabs)
-    btn.Size = UDim2.new(0, 80, 1, 0); btn.Text = name; btn.BackgroundTransparency = 1; btn.TextColor3 = Color3.new(1,1,1); btn.TextTransparency = 1; btn.TextSize = 11
+    btn.Size = UDim2.new(0, 75, 1, 0); btn.Text = name; btn.BackgroundTransparency = 1; btn.TextColor3 = Color3.new(1,1,1); btn.TextTransparency = 1; btn.TextSize = 11
     local page = Instance.new("ScrollingFrame", Pages)
     page.Size = UDim2.new(1,0,1,0); page.BackgroundTransparency = 1; page.Visible = false; page.ScrollBarThickness = 3
     local layout = Instance.new("UIListLayout", page); layout.Padding = UDim.new(0,5); layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -114,62 +110,127 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     minus.MouseButton1Click:Connect(function() up(val - step) end); plus.MouseButton1Click:Connect(function() up(val + step) end)
 end
 
--- SETUP ABAS
+-- SETUP ESP
 CreateToggle(ESPPage, "ESP Geral", function(v) Settings.ESP = v end)
 CreateToggle(ESPPage, "Team Color", function(v) Settings.TeamColor = v end)
+CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
+CreateToggle(ESPPage, "Names", function(v) Settings.Names = v end)
+CreateToggle(ESPPage, "Distance", function(v) Settings.Distance = v end)
 CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
+CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
 
+-- SETUP PLAYER
+CreateToggle(PlayerPage, "Ativar Velocidade", function(v) Settings.UseSpeed = v end)
+CreateStepper(PlayerPage, "Speed", 16, 500, 16, 1, function(v) Settings.Speed = v end)
+CreateToggle(PlayerPage, "Ativar Pulo", function(v) Settings.UseJump = v end)
+CreateStepper(PlayerPage, "Jump Power", 50, 500, 50, 1, function(v) Settings.JumpPower = v end)
+CreateToggle(PlayerPage, "Pulo Infinito", function(v) Settings.InfiniteJump = v end)
+
+-- SETUP COMBAT
 CreateToggle(CombatPage, "No Stun", function(v) Settings.NoStun = v end)
 CreateToggle(CombatPage, "No Freeze", function(v) Settings.NoFreeze = v end)
 CreateToggle(CombatPage, "No Knockback", function(v) Settings.NoKnockback = v end)
 
-CreateToggle(AimPage, "Assistência de Mira", function(v) Settings.AimAssist = v end)
+-- SETUP AIM
+CreateToggle(AimPage, "Assistência Mira", function(v) Settings.AimAssist = v end)
 CreateToggle(AimPage, "Exibir FOV", function(v) Settings.ShowFOV = v end)
 CreateStepper(AimPage, "Tamanho FOV", 50, 500, 100, 10, function(v) Settings.AimFOV = v end)
 
--- ANIMAÇÕES ABRIR/FECHAR
+-- SETUP HITBOX
+CreateToggle(HitboxPage, "Hitbox Expander", function(v) Settings.HitboxEnabled = v end)
+CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
+CreateStepper(HitboxPage, "Opacidade %", 0, 100, 60, 10, function(v) Settings.HitboxTransparency = v/100 end)
+
+-- [ANIMAÇÕES MANTIDAS]
 local function OpenUI()
     MenuAberto = true; Main.Visible = true; Main.Position = UDim2.new(0.5, -150, 0.5, -190)
-    local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    TweenService:Create(Main, tweenInfo, {Size = UDim2.new(0, 300, 0, 380), BackgroundTransparency = 0.1}):Play()
-    TweenService:Create(stroke, tweenInfo, {Transparency = 0}):Play()
-    TweenService:Create(Title, tweenInfo, {TextTransparency = 0}):Play()
-    for _, b in pairs(Tabs:GetChildren()) do if b:IsA("TextButton") then TweenService:Create(b, tweenInfo, {TextTransparency = 0}):Play() end end
+    local tw = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    TweenService:Create(Main, tw, {Size = UDim2.new(0, 300, 0, 380), BackgroundTransparency = 0.1}):Play()
+    TweenService:Create(stroke, tw, {Transparency = 0}):Play()
+    TweenService:Create(Title, tw, {TextTransparency = 0}):Play()
+    for _, b in pairs(Tabs:GetChildren()) do if b:IsA("TextButton") then TweenService:Create(b, tw, {TextTransparency = 0}):Play() end end
 end
 local function CloseUI()
-    MenuAberto = false; local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-    local anim = TweenService:Create(Main, tweenInfo, {Size = UDim2.new(0, 300, 0, 0), BackgroundTransparency = 1})
-    TweenService:Create(stroke, tweenInfo, {Transparency = 1}):Play()
-    TweenService:Create(Title, tweenInfo, {TextTransparency = 1}):Play()
-    for _, b in pairs(Tabs:GetChildren()) do if b:IsA("TextButton") then TweenService:Create(b, tweenInfo, {TextTransparency = 1}):Play() end end
+    MenuAberto = false; local tw = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    local anim = TweenService:Create(Main, tw, {Size = UDim2.new(0, 300, 0, 0), BackgroundTransparency = 1})
+    TweenService:Create(stroke, tw, {Transparency = 1}):Play()
+    TweenService:Create(Title, tw, {TextTransparency = 1}):Play()
+    for _, b in pairs(Tabs:GetChildren()) do if b:IsA("TextButton") then TweenService:Create(b, tw, {TextTransparency = 1}):Play() end end
     anim:Play(); anim.Completed:Connect(function() Main.Visible = false end)
 end
 
--- LÓGICA DE COMBATE (NO STUN / FREEZE)
-RunService.Heartbeat:Connect(function()
-    local char = LocalPlayer.Character
-    if char then
-        if Settings.NoStun and char:FindFirstChild("Stun") then char.Stun:Destroy() end
-        if Settings.NoFreeze and char:FindFirstChild("Freeze") then char.Freeze:Destroy() end
-        -- No Knockback: Frequentemente requer zerar a velocidade da Velocity/BodyVelocity
-        if Settings.NoKnockback and char:FindFirstChild("HumanoidRootPart") then
-            for _, v in pairs(char.HumanoidRootPart:GetChildren()) do
-                if v:IsA("BodyVelocity") or v:IsA("BodyForce") then v:Destroy() end
-            end
-        end
+-- [LOGICA ESP COMPLETA RESTAURADA]
+local ESPContainer = {}
+local function CreateESP(p)
+    if p == LocalPlayer then return end
+    ESPContainer[p] = {Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil}
+    local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 16; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1
+end
+local function RemoveESP(p)
+    if ESPContainer[p] then
+        ESPContainer[p].Box:Remove(); ESPContainer[p].Name:Remove(); ESPContainer[p].Dist:Remove(); ESPContainer[p].Line:Remove()
+        if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end
+        ESPContainer[p] = nil
+    end
+end
+Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP)
+for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
+
+RunService.RenderStepped:Connect(function()
+    -- Player Functions
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        local h = LocalPlayer.Character.Humanoid
+        if Settings.UseSpeed then h.WalkSpeed = Settings.Speed end
+        if Settings.UseJump then h.JumpPower = Settings.JumpPower end
     end
     
-    -- Atualizar FOV Circle
-    FOVCircle.Visible = Settings.ShowFOV
-    FOVCircle.Radius = Settings.AimFOV
-    FOVCircle.Position = UIS:GetMouseLocation()
-    FOVCircle.Color = Color3.new(1,1,1)
-    FOVCircle.Thickness = 1
+    -- ESP Loop
+    for p, e in pairs(ESPContainer) do
+        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
+            local hrp = p.Character.HumanoidRootPart; local head = p.Character:FindFirstChild("Head")
+            local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
+            local color = (Settings.TeamColor and p.TeamColor) and p.TeamColor.Color or Color3.new(1,1,1)
+
+            if vis then
+                if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = color else e.Box.Visible = false end
+                if Settings.Names then e.Name.Visible = true; e.Name.Text = p.DisplayName; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20); e.Name.Color = color else e.Name.Visible = false end
+                if Settings.Distance then e.Dist.Visible = true; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5); e.Dist.Color = Color3.new(0,1,0) else e.Dist.Visible = false end
+                if Settings.Lines and head then e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(pos.X, pos.Y); e.Line.Color = color else e.Line.Visible = false end
+                if Settings.Highlight then
+                    if not e.Highlight or e.Highlight.Parent ~= p.Character then if e.Highlight then e.Highlight:Destroy() end e.Highlight = Instance.new("Highlight", p.Character) end
+                    e.Highlight.Enabled = true; e.Highlight.FillColor = color; e.Highlight.FillTransparency = 0.5
+                elseif e.Highlight then e.Highlight.Enabled = false end
+            else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end end
+        else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false end
+    end
 end)
 
--- CLICK E LOOP ESP MANTIDOS DAS VERSÕES ANTERIORES
-ToggleBtn.MouseButton1Click:Connect(function()
-    ToggleBtn:TweenSize(UDim2.new(0,50,0,50), "Out", "Quad", 0.1, true)
-    task.wait(0.1); ToggleBtn:TweenSize(UDim2.new(0,60,0,60), "Out", "Elastic", 0.4, true)
-    if Main.Visible then CloseUI() else OpenUI() end
+-- [COMBAT & HITBOX LOOP]
+task.spawn(function()
+    while true do
+        local char = LocalPlayer.Character
+        if char then
+            if Settings.NoStun then local s = char:FindFirstChild("Stun") or char:FindFirstChild("Stunned"); if s then s:Destroy() end end
+            if Settings.NoFreeze then local f = char:FindFirstChild("Freeze") or char:FindFirstChild("Frozen"); if f then f:Destroy() end end
+            if Settings.NoKnockback and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.Velocity = Vector3.new(0, char.HumanoidRootPart.Velocity.Y, 0)
+            end
+        end
+        -- Hitbox
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = p.Character.HumanoidRootPart
+                if Settings.HitboxEnabled then
+                    hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox)
+                    hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false
+                else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end
+            end
+        end
+        task.wait(0.1)
+    end
 end)
+
+-- FOV & PULO
+UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
+RunService.RenderStepped:Connect(function() FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Radius = Settings.AimFOV; FOVCircle.Position = UIS:GetMouseLocation(); FOVCircle.Color = Color3.new(1,1,1); FOVCircle.Thickness = 1 end)
+ToggleBtn.MouseButton1Click:Connect(function() if Main.Visible then CloseUI() else OpenUI() end end)
