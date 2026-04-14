@@ -13,6 +13,10 @@ getgenv().Settings = {
     Distance = true,
     Highlight = false,
 
+    Hitbox = 10,
+    HitboxEnabled = false,
+    HitboxTransparency = 0.5,
+
     UseSpeed = false,
     Speed = 16,
 
@@ -25,23 +29,26 @@ getgenv().Settings = {
 --// GUI
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 
-local ToggleBtn = Instance.new("TextButton", ScreenGui)
+-- BOTÃO PNG
+local ToggleBtn = Instance.new("ImageButton", ScreenGui)
 ToggleBtn.Size = UDim2.new(0,55,0,55)
 ToggleBtn.Position = UDim2.new(0,20,0.6,0)
-ToggleBtn.Text = "HUB"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+ToggleBtn.Image = "rbxassetid://70505361093133"
+ToggleBtn.ScaleType = Enum.ScaleType.Fit
 ToggleBtn.Draggable = true
-Instance.new("UICorner", ToggleBtn)
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0)
 
+-- MAIN
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0,300,0,360)
-Main.Position = UDim2.new(0.5,-150,0.5,-180)
+Main.Size = UDim2.new(0,320,0,380)
+Main.Position = UDim2.new(0.5,-160,0.5,-190)
 Main.BackgroundColor3 = Color3.fromRGB(20,20,20)
 Main.BackgroundTransparency = 0.2
 Main.Visible = false
 Instance.new("UICorner", Main)
 
--- RGB BORDA
+-- BORDA RGB
 local stroke = Instance.new("UIStroke", Main)
 stroke.Thickness = 2
 task.spawn(function()
@@ -66,7 +73,7 @@ Pages.Position = UDim2.new(0,0,0,40)
 
 local function CreatePage(name)
     local btn = Instance.new("TextButton", Tabs)
-    btn.Size = UDim2.new(0.5,0,1,0)
+    btn.Size = UDim2.new(0.33,0,1,0)
     btn.Text = name
     btn.BackgroundColor3 = Color3.fromRGB(35,35,35)
     btn.TextColor3 = Color3.new(1,1,1)
@@ -90,6 +97,7 @@ end
 
 local ESPPage = CreatePage("ESP")
 local PlayerPage = CreatePage("PLAYER")
+local HitboxPage = CreatePage("HITBOX")
 ESPPage.Visible = true
 
 -- TOGGLE
@@ -131,25 +139,20 @@ local function Slider(parent,text,min,max,callback)
 
     local dragging = false
 
-    bar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 
-        or input.UserInputType == Enum.UserInputType.Touch then
+    bar.InputBegan:Connect(function(i)
+        if i.UserInputType.Name:find("Mouse") or i.UserInputType == Enum.UserInputType.Touch then
             dragging = true
         end
     end)
 
-    bar.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 
-        or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
+    bar.InputEnded:Connect(function()
+        dragging = false
     end)
 
-    UIS.InputChanged:Connect(function(input)
+    UIS.InputChanged:Connect(function(i)
         if dragging then
-            local pos = math.clamp((input.Position.X - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
+            local pos = math.clamp((i.Position.X - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
             fill.Size = UDim2.new(pos,0,1,0)
-
             local value = math.floor(min + (max-min)*pos)
             label.Text = text..": "..value
             callback(value)
@@ -173,84 +176,59 @@ Slider(PlayerPage,"Pulo",50,150,function(v) Settings.JumpPower=v end)
 
 Toggle(PlayerPage,"Pulo Infinito",function(v) Settings.InfiniteJump=v end)
 
--- ABRIR/FECHAR
+-- HITBOX TAB
+Toggle(HitboxPage,"Hitbox",function(v) Settings.HitboxEnabled=v end)
+
+local ValueLabel = Instance.new("TextButton", HitboxPage)
+ValueLabel.Size = UDim2.new(1,0,0,35)
+ValueLabel.Text = "Size: 10"
+
+local Plus = Instance.new("TextButton", HitboxPage)
+Plus.Size = UDim2.new(0.48,0,0,35)
+Plus.Text = "+"
+
+local Minus = Instance.new("TextButton", HitboxPage)
+Minus.Size = UDim2.new(0.48,0,0,35)
+Minus.Text = "-"
+
+Plus.MouseButton1Click:Connect(function()
+    Settings.Hitbox = math.clamp(Settings.Hitbox+1,10,50)
+    ValueLabel.Text = "Size: "..Settings.Hitbox
+end)
+
+Minus.MouseButton1Click:Connect(function()
+    Settings.Hitbox = math.clamp(Settings.Hitbox-1,10,50)
+    ValueLabel.Text = "Size: "..Settings.Hitbox
+end)
+
+ValueLabel.MouseButton1Click:Connect(function()
+    local input = tonumber(game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChildOfClass("TextBox"))
+end)
+
+Slider(HitboxPage,"Opacidade",0.05,1,function(v)
+    Settings.HitboxTransparency = v
+end)
+
+-- OPEN
 ToggleBtn.MouseButton1Click:Connect(function()
     Main.Visible = not Main.Visible
 end)
 
--- ESP SISTEMA
-local ESPContainer = {}
-
-local function CreateESP(player)
-    if player == LocalPlayer then return end
-
-    local Box = Drawing.new("Square")
-    Box.Thickness = 2
-    Box.Color = Color3.new(1,0,0)
-    Box.Filled = false
-
-    local Name = Drawing.new("Text")
-    Name.Size = 13
-    Name.Center = true
-    Name.Outline = true
-
-    local Dist = Drawing.new("Text")
-    Dist.Size = 13
-    Dist.Center = true
-    Dist.Outline = true
-
-    ESPContainer[player] = {Box=Box,Name=Name,Dist=Dist}
-end
-
-for _,p in pairs(Players:GetPlayers()) do CreateESP(p) end
-Players.PlayerAdded:Connect(CreateESP)
-
+-- ESP + HITBOX LOOP
 RunService.RenderStepped:Connect(function()
-    for p,esp in pairs(ESPContainer) do
-        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
+    for _,p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = p.Character.HumanoidRootPart
-            local pos,vis = Camera:WorldToViewportPoint(hrp.Position)
 
-            if vis then
-                local size = (Camera:WorldToViewportPoint(hrp.Position+Vector3.new(0,3,0)).Y - pos.Y)
-
-                esp.Box.Visible = Settings.Boxes
-                if Settings.Boxes then
-                    esp.Box.Size = Vector2.new(size*1.5,size*2)
-                    esp.Box.Position = Vector2.new(pos.X - esp.Box.Size.X/2,pos.Y - esp.Box.Size.Y/2)
-                end
-
-                esp.Name.Visible = Settings.Names
-                if Settings.Names then
-                    esp.Name.Text = p.DisplayName
-                    esp.Name.Position = Vector2.new(pos.X,pos.Y-size)
-                end
-
-                esp.Dist.Visible = Settings.Distance
-                if Settings.Distance then
-                    local dist = (LocalPlayer.Character.HumanoidRootPart.Position-hrp.Position).Magnitude
-                    esp.Dist.Text = math.floor(dist).."m"
-                    esp.Dist.Position = Vector2.new(pos.X,pos.Y+size/2)
-                end
-
-                if Settings.Highlight then
-                    if not p.Character:FindFirstChild("Highlight") then
-                        Instance.new("Highlight",p.Character)
-                    end
-                end
-            else
-                esp.Box.Visible = false
-                esp.Name.Visible = false
-                esp.Dist.Visible = false
+            if Settings.HitboxEnabled then
+                hrp.Size = Vector3.new(Settings.Hitbox,Settings.Hitbox,Settings.Hitbox)
+                hrp.Transparency = Settings.HitboxTransparency
+                hrp.Material = Enum.Material.Neon
+                hrp.CanCollide = false
             end
-        else
-            esp.Box.Visible = false
-            esp.Name.Visible = false
-            esp.Dist.Visible = false
         end
     end
 
-    -- PLAYER
     if LocalPlayer.Character then
         local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
         if hum then
@@ -260,6 +238,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- INFINITE JUMP
 UIS.JumpRequest:Connect(function()
     if Settings.InfiniteJump and LocalPlayer.Character then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
@@ -270,8 +249,8 @@ end)
 local Credit = Instance.new("TextLabel", Main)
 Credit.Size = UDim2.new(1,0,0,20)
 Credit.Position = UDim2.new(0,0,1,-20)
+Credit.Text = "LQB KIKO | v2.3"
 Credit.BackgroundTransparency = 1
-Credit.Text = "LQB KIKO | v2.2"
 Credit.TextScaled = true
 
 task.spawn(function()
