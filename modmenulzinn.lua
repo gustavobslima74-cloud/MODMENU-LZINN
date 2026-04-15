@@ -20,16 +20,14 @@ getgenv().Settings = {
     AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false
 }
 
-local VERSION = "v5.0.2"
+local VERSION = "v5.0.3"
 local CHANGELOG_TEXT = [[
---- CORREÇÕES v5.0.2 ---
-[+] FOV: Agora apenas contorno fino (sem cor interna).
-[+] TELEPORTE: Botão de TP e Distância do grude restaurados.
-[+] ESP LINES: Corrigido e funcional.
-[+] CAMERA: Terceira pessoa forçada com zoom liberado.
-[+] HITBOX: Opacidade restaurada.
-[+] FPS: Remover Sombras voltou.
-[+] MIRA: Team Check integrado ao auxílio.
+--- HISTÓRICO v5.0.3 ---
+[+] VISUAL: Novo título 'Kiko MENU' com efeito RGB e Glitch Hacker.
+[+] MIRA: FOV agora é apenas um círculo fino e sem preenchimento.
+[+] FIX: ESP Lines e Third Person restaurados e funcionais.
+[+] FIX: Botão de TP e Distância do grude voltaram à aba TP.
+[+] FIX: Hitbox Opacity e FPS Shadows restaurados.
 -------------------------]]
 
 local MenuAberto = false
@@ -66,18 +64,47 @@ Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0); MakeDraggable(
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0,300,0,350); Main.Position = UDim2.new(0.5, -150, 0.5, -175); Main.BackgroundColor3 = Color3.fromRGB(10,10,10); Main.ClipsDescendants = true; Main.Visible = false; Main.BackgroundTransparency = 1
 Instance.new("UICorner", Main); MakeDraggable(Main, true)
-local stroke = Instance.new("UIStroke", Main)
-stroke.Thickness = 2; stroke.Transparency = 1; task.spawn(function() while true do stroke.Color = Color3.fromHSV(tick()%5/5,1,1); task.wait() end end)
 
+local stroke = Instance.new("UIStroke", Main)
+stroke.Thickness = 2; stroke.Transparency = 1
+
+-- EFEITO RGB E HACKER NO TÍTULO
 local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1,0,0,35); Title.Text = "LQB KIKO | " .. VERSION; Title.BackgroundTransparency = 1; Title.TextColor3 = Color3.new(1,1,1); Title.TextSize = 16; Title.Font = Enum.Font.GothamBold; Title.TextTransparency = 1
+Title.Size = UDim2.new(1,0,0,35); Title.BackgroundTransparency = 1
+Title.TextSize = 18; Title.Font = Enum.Font.Code; Title.TextTransparency = 1
+
+local function hackerEffect()
+    local realText = "Kiko MENU | " .. VERSION
+    local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*"
+    task.spawn(function()
+        while true do
+            local hue = tick() % 5 / 5
+            local color = Color3.fromHSV(hue, 1, 1)
+            Title.TextColor3 = color
+            stroke.Color = color
+            
+            -- Efeito de "Scramble" ocasional
+            if math.random(1, 20) == 1 then
+                local randomText = ""
+                for i = 1, #realText do
+                    randomText = randomText .. chars:sub(math.random(1, #chars), math.random(1, #chars))
+                end
+                Title.Text = randomText
+                task.wait(0.05)
+            end
+            Title.Text = realText
+            task.wait(0.05)
+        end
+    end)
+end
+hackerEffect()
 
 local FPSLabel = Instance.new("TextLabel", Main)
 FPSLabel.Size = UDim2.new(0,50,0,35); FPSLabel.Position = UDim2.new(1,-60,0,0); FPSLabel.Text = "FPS: 0"; FPSLabel.BackgroundTransparency = 1; FPSLabel.TextColor3 = Color3.new(0,1,0); FPSLabel.TextSize = 12; FPSLabel.Font = Enum.Font.Code; FPSLabel.TextTransparency = 1
 
 -- ABAS
 local TabsFrame = Instance.new("ScrollingFrame", Main)
-TabsFrame.Size = UDim2.new(1,0,0,35); TabsFrame.Position = UDim2.new(0,0,0,35); TabsFrame.BackgroundTransparency = 1; TabsFrame.ScrollBarThickness = 0; TabsFrame.CanvasSize = UDim2.new(0,0,0,0)
+TabsFrame.Size = UDim2.new(1,0,0,35); TabsFrame.Position = UDim2.new(0,0,0,35); TabsFrame.BackgroundTransparency = 1; TabsFrame.ScrollBarThickness = 0; TabsFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 local TabList = Instance.new("UIListLayout", TabsFrame); TabList.FillDirection = Enum.FillDirection.Horizontal
 TabList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() TabsFrame.CanvasSize = UDim2.new(0, TabList.AbsoluteContentSize.X, 0, 0) end)
 
@@ -121,14 +148,13 @@ end
 local function CreateStepper(parent, text, min, max, default, step, callback)
     local frame = Instance.new("Frame", parent); frame.Size = UDim2.new(1,-20,0,60); frame.BackgroundTransparency = 1
     local label = Instance.new("TextLabel", frame); label.Size = UDim2.new(1,0,0,25); label.Text = text..": "..default; label.TextColor3 = Color3.new(1,1,1); label.BackgroundTransparency = 1
-    local minus = Instance.new("TextButton", frame); minus.Size = UDim2.new(0,40,0,30); minus.Position = UDim2.new(0,50,0,25); minus.Text = "-"; minus.BackgroundColor3 = Color3.fromRGB(40,40,40); minus.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", minus)
-    local plus = Instance.new("TextButton", frame); plus.Size = UDim2.new(0,40,0,30); plus.Position = UDim2.new(0,180,0,25); plus.Text = "+"; plus.BackgroundColor3 = Color3.fromRGB(40,40,40); plus.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", plus)
+    local minus = Instance.new("TextButton", frame); minus.Size = UDim2.new(0,40,0,30); minus.Position = UDim2.new(0.2,0,0,25); minus.Text = "-"; minus.BackgroundColor3 = Color3.fromRGB(40,40,40); minus.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", minus)
+    local plus = Instance.new("TextButton", frame); plus.Size = UDim2.new(0,40,0,30); plus.Position = UDim2.new(0.6,0,0,25); plus.Text = "+"; plus.BackgroundColor3 = Color3.fromRGB(40,40,40); plus.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", plus)
     local val = default; local function up(n) val = math.clamp(n, min, max); label.Text = text..": "..string.format("%.2f", val); callback(val) end
     minus.MouseButton1Click:Connect(function() up(val - step) end); plus.MouseButton1Click:Connect(function() up(val + step) end)
 end
 
 -- CONFIGURAÇÃO ABAS
--- ESP
 CreateToggle(ESPPage, "ESP Geral", function(v) Settings.ESP = v end)
 CreateToggle(ESPPage, "Team Color", function(v) Settings.TeamColor = v end)
 CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
@@ -137,13 +163,11 @@ CreateToggle(ESPPage, "Distance", function(v) Settings.Distance = v end)
 CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
 CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
 
--- PLAYER
 CreateToggle(PlayerPage, "Third Person", function(v) Settings.ForceThirdPerson = v end)
 CreateToggle(PlayerPage, "Velocidade", function(v) Settings.UseSpeed = v end)
 CreateStepper(PlayerPage, "Speed", 16, 500, 16, 5, function(v) Settings.Speed = v end)
 CreateToggle(PlayerPage, "Pulo Infinito", function(v) Settings.InfiniteJump = v end)
 
--- TP
 local SectionSelect = CreateSection(TPPage, "SELEÇÃO"); local SectionAction = CreateSection(TPPage, "AÇÕES")
 local SelectedLabel = Instance.new("TextLabel", SectionSelect); SelectedLabel.Size = UDim2.new(1,-20,0,30); SelectedLabel.Text = "Alvo: Nenhum"; SelectedLabel.TextColor3 = Color3.new(0,1,0); SelectedLabel.BackgroundTransparency = 1
 local PlayerListFrame = Instance.new("Frame", SectionSelect); PlayerListFrame.Size = UDim2.new(1,-20,0,100); PlayerListFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
@@ -157,7 +181,6 @@ CreateToggle(SectionAction, "Grudar Atrás", function(v) Settings.StickyBehind =
 CreateStepper(SectionAction, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) Settings.StickySmoothness = v end)
 CreateStepper(SectionAction, "Distância", 1, 20, 3, 1, function(v) Settings.StickyDistance = v end)
 
--- MIRA
 CreateToggle(MiraPage, "Auxílio de Mira", function(v) Settings.AimAssist = v end)
 local PartBtn = Instance.new("TextButton", MiraPage); PartBtn.Size = UDim2.new(1,-20,0,35); PartBtn.Text = "Alvo: Cabeça"; PartBtn.BackgroundColor3 = Color3.fromRGB(30,30,30); PartBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", PartBtn)
 PartBtn.MouseButton1Click:Connect(function() Settings.AimPart = (Settings.AimPart == "Head" and "HumanoidRootPart" or "Head"); PartBtn.Text = "Alvo: "..(Settings.AimPart == "Head" and "Cabeça" or "Tronco") end)
@@ -166,20 +189,15 @@ CreateToggle(MiraPage, "Exibir FOV", function(v) Settings.ShowFOV = v end)
 CreateStepper(MiraPage, "Tamanho FOV", 10, 800, 100, 10, function(v) Settings.AimFOV = v end)
 CreateStepper(MiraPage, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) Settings.AimSmooth = v end)
 
--- HITBOX
 CreateToggle(HitboxPage, "Hitbox Enabled", function(v) Settings.HitboxEnabled = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
-
--- FPS
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
 CreateToggle(FPSPage, "Remover Sombras", function(v) Lighting.GlobalShadows = not v end)
 CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap then setfpscap(v) end end)
-
--- INFOS
 local LogLabel = Instance.new("TextLabel", InfoPage); LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 13; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
 
--- LÓGICA WALL CHECK
+-- LÓGICA RENDER (FPS, AIM, ESP)
 local function IsVisible(part)
     if not Settings.WallCheck then return true end
     local castPoints = {Camera.CFrame.Position, part.Position}
@@ -191,17 +209,15 @@ local function IsVisible(part)
     return result == nil
 end
 
--- RENDER LOOP
 local ESPContainer = {}
-local function CreateESP(p) if p == LocalPlayer then return end; ESPContainer[p] = {Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil}; local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 16; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1 end
 local function RemoveESP(p) if ESPContainer[p] then for _,v in pairs(ESPContainer[p]) do if typeof(v) == "table" then v:Remove() end end; if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end; ESPContainer[p] = nil end end
+local function CreateESP(p) if p == LocalPlayer then return end; ESPContainer[p] = {Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil}; local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 16; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 14; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1 end
 Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP); for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
 
 RunService.RenderStepped:Connect(function()
     FPSLabel.Text = "FPS: " .. math.floor(1/RunService.RenderStepped:Wait())
-    FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Radius = Settings.AimFOV; FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); FOVCircle.Color = Color3.new(1,1,1); FOVCircle.Thickness = 1.5; FOVCircle.Filled = false
+    FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Radius = Settings.AimFOV; FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); FOVCircle.Color = stroke.Color; FOVCircle.Thickness = 1.2; FOVCircle.Filled = false
 
-    -- Aimbot
     if Settings.AimAssist then
         local target, minDist = nil, Settings.AimFOV
         for _, p in pairs(Players:GetPlayers()) do
@@ -217,17 +233,14 @@ RunService.RenderStepped:Connect(function()
         if target then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Character[Settings.AimPart].Position), Settings.AimSmooth) end
     end
 
-    -- Camera / Player
-    if Settings.ForceThirdPerson then LocalPlayer.CameraMode = Enum.CameraMode.Classic; LocalPlayer.CameraMaxZoomDistance = 100; LocalPlayer.CameraMinZoomDistance = 10 else LocalPlayer.CameraMaxZoomDistance = 128 end
-    if Settings.UseSpeed and LocalPlayer.Character then LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Speed end
-    
-    -- Sticky
     if Settings.StickyBehind and Settings.SelectedPlayer and Settings.SelectedPlayer.Character then
         local hrp = Settings.SelectedPlayer.Character:FindFirstChild("HumanoidRootPart")
         if hrp then LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame:Lerp(hrp.CFrame * CFrame.new(0, 0, Settings.StickyDistance), Settings.StickySmoothness) end
     end
+    
+    if Settings.ForceThirdPerson then LocalPlayer.CameraMode = Enum.CameraMode.Classic; LocalPlayer.CameraMaxZoomDistance = 100 else LocalPlayer.CameraMaxZoomDistance = 128 end
+    if Settings.UseSpeed and LocalPlayer.Character then LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Speed end
 
-    -- ESP
     for p, e in pairs(ESPContainer) do
         if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
             local hrp = p.Character.HumanoidRootPart; local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
@@ -236,7 +249,7 @@ RunService.RenderStepped:Connect(function()
                 if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = color else e.Box.Visible = false end
                 if Settings.Names then e.Name.Visible = true; e.Name.Text = p.DisplayName; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20); e.Name.Color = color else e.Name.Visible = false end
                 if Settings.Distance then e.Dist.Visible = true; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5); e.Dist.Color = Color3.new(0,1,0) else e.Dist.Visible = false end
-                if Settings.Lines then e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(pos.X, pos.Y); e.Line.Color = color else e.Line.Visible = false end
+                if Settings.Lines then local head = p.Character:FindFirstChild("Head"); if head then local hpos = Camera:WorldToViewportPoint(head.Position); e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(hpos.X, hpos.Y); e.Line.Color = color end else e.Line.Visible = false end
                 if Settings.Highlight then if not e.Highlight or e.Highlight.Parent ~= p.Character then if e.Highlight then e.Highlight:Destroy() end e.Highlight = Instance.new("Highlight", p.Character) end e.Highlight.Enabled = true; e.Highlight.FillColor = color; e.Highlight.FillTransparency = 0.5 else if e.Highlight then e.Highlight.Enabled = false end end
             else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end end
         else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false end
