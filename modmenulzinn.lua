@@ -17,15 +17,16 @@ getgenv().Settings = {
     UseSpeed = false, Speed = 16, UseJump = false, JumpPower = 50, InfiniteJump = false,
     ForceThirdPerson = false, BoostFPS = false, RemoveShadows = false,
     SelectedPlayer = nil, AutoNearest = false, StickyBehind = false, StickySmoothness = 0.1, StickyDistance = 3,
-    AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false
+    AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
+    AimNPC = false -- NOVA OPÇÃO MIRA NPC
 }
 
-local VERSION = "v5.0.7"
+local VERSION = "v5.1.0"
 local CHANGELOG_TEXT = [[
---- CORREÇÕES v5.0.7 ---
-[!] RESTAURADO: ESP Chams (Highlight) voltou à aba ESP.
-[+] FIX: Menu agora abre no centro com tamanho otimizado.
-[+] ESTABILIDADE: Limpeza de memória dos Chams ao sair do servidor.
+--- ATUALIZAÇÃO OFICIAL v5.1.0 ---
+[!] BUG FIX CRÍTICO: ESP Names, Boxes e Lines param de travar na tela quando jogadores saem (Anti-Ghosting).
+[+] MIRA: Auxílio de mira agora suporta NPCs (com otimização de Cache para não dar lag).
+[+] ESTÁVEL: Baseada 100% na estrutura da v5.0.7 que estava perfeita.
 -------------------------]]
 
 local MenuAberto = false
@@ -148,7 +149,7 @@ CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
 CreateToggle(ESPPage, "Names", function(v) Settings.Names = v end)
 CreateToggle(ESPPage, "Distance", function(v) Settings.Distance = v end)
 CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
-CreateToggle(ESPPage, "Chams (Highlight)", function(v) Settings.Highlight = v end) -- RESTAURADO
+CreateToggle(ESPPage, "Chams (Highlight)", function(v) Settings.Highlight = v end)
 
 -- SETUP PLAYER
 CreateToggle(PlayerPage, "Third Person", function(v) Settings.ForceThirdPerson = v end)
@@ -169,8 +170,11 @@ CreateToggle(SecAct, "Grudar Atrás", function(v) Settings.StickyBehind = v end)
 CreateStepper(SecAct, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) Settings.StickySmoothness = v end)
 CreateStepper(SecAct, "Distância", 1, 20, 3, 1, function(v) Settings.StickyDistance = v end)
 
--- SETUP MIRA
+-- SETUP MIRA (COM NPC E SELETOR DE ALVO)
 CreateToggle(MiraPage, "Auxílio de Mira", function(v) Settings.AimAssist = v end)
+local PartBtn = Instance.new("TextButton", MiraPage); PartBtn.Size = UDim2.new(1,-25,0,32); PartBtn.Text = "Alvo: Cabeça"; PartBtn.BackgroundColor3 = Color3.fromRGB(30,30,30); PartBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", PartBtn)
+PartBtn.MouseButton1Click:Connect(function() Settings.AimPart = (Settings.AimPart == "Head" and "HumanoidRootPart" or "Head"); PartBtn.Text = "Alvo: "..(Settings.AimPart == "Head" and "Cabeça" or "Tronco") end)
+CreateToggle(MiraPage, "Mira em NPC", function(v) Settings.AimNPC = v end)
 CreateToggle(MiraPage, "Team Check", function(v) Settings.TeamCheck = v end)
 CreateToggle(MiraPage, "Wall Check", function(v) Settings.WallCheck = v end)
 CreateToggle(MiraPage, "Exibir FOV", function(v) Settings.ShowFOV = v end)
@@ -196,29 +200,102 @@ local function IsVisible(part)
     return result == nil
 end
 
--- RENDER LOOP (ESP, AIM, POS)
-local ESPContainer = {}
-local function RemoveESP(p) if ESPContainer[p] then for _,v in pairs(ESPContainer[p]) do if typeof(v) == "table" then v:Remove() end end; if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end; ESPContainer[p] = nil end end
-local function CreateESP(p) if p == LocalPlayer then return end; RemoveESP(p); ESPContainer[p] = {Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil}; local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 14; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 12; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1 end
-Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP); for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
+-- CACHE DE NPC PARA NÃO DESTRUIR O FPS
+local NPCCache = {}
+task.spawn(function()
+    while true do
+        if Settings.AimNPC then
+            local tempCache = {}
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 0 and not Players:GetPlayerFromCharacter(obj) then
+                    table.insert(tempCache, obj)
+                end
+            end
+            NPCCache = tempCache
+        else
+            NPCCache = {}
+        end
+        task.wait(2) -- Atualiza a lista a cada 2 segundos
+    end
+end)
 
+-- LÓGICA ESP E LIMPEZA ANTI-GHOST
+local ESPContainer = {}
+
+local function RemoveESP(p)
+    if ESPContainer[p] then
+        -- Remoção explícita de Drawings para não falhar dependendo do executor
+        if ESPContainer[p].Box then ESPContainer[p].Box:Remove() end
+        if ESPContainer[p].Name then ESPContainer[p].Name:Remove() end
+        if ESPContainer[p].Dist then ESPContainer[p].Dist:Remove() end
+        if ESPContainer[p].Line then ESPContainer[p].Line:Remove() end
+        if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end
+        ESPContainer[p] = nil
+    end
+end
+
+local function CreateESP(p)
+    if p == LocalPlayer then return end
+    RemoveESP(p)
+    ESPContainer[p] = {
+        Box = Drawing.new("Square"),
+        Name = Drawing.new("Text"),
+        Dist = Drawing.new("Text"),
+        Line = Drawing.new("Line"),
+        Highlight = nil
+    }
+    local e = ESPContainer[p]
+    e.Box.Thickness = 1.5; e.Box.Filled = false
+    e.Name.Size = 14; e.Name.Center = true; e.Name.Outline = true
+    e.Dist.Size = 12; e.Dist.Center = true; e.Dist.Outline = true
+    e.Line.Thickness = 1
+end
+
+Players.PlayerAdded:Connect(CreateESP)
+Players.PlayerRemoving:Connect(RemoveESP)
+for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
+
+-- RENDER LOOP PRINCIPAL
 RunService.RenderStepped:Connect(function()
     FPSLabel.Text = "FPS: " .. math.floor(1/RunService.RenderStepped:Wait())
     FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Radius = Settings.AimFOV; FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); FOVCircle.Color = stroke.Color; FOVCircle.Thickness = 1.2; FOVCircle.Filled = false
 
+    -- Aimbot (Players e NPCs)
     if Settings.AimAssist then
         local target, minDist = nil, Settings.AimFOV
+        
+        -- Varredura de Players
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
                 if Settings.TeamCheck and p.Team == LocalPlayer.Team then continue end
-                local pos, vis = Camera:WorldToViewportPoint(p.Character[Settings.AimPart].Position)
-                if vis and IsVisible(p.Character[Settings.AimPart]) then
+                local part = p.Character[Settings.AimPart]
+                local pos, vis = Camera:WorldToViewportPoint(part.Position)
+                if vis and IsVisible(part) then
                     local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                    if mag < minDist then minDist, target = mag, p end
+                    if mag < minDist then minDist, target = mag, part end
                 end
             end
         end
-        if target then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Character[Settings.AimPart].Position), Settings.AimSmooth) end
+        
+        -- Varredura de NPCs
+        if Settings.AimNPC then
+            for _, obj in pairs(NPCCache) do
+                if obj and obj.Parent and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 0 then
+                    local part = obj:FindFirstChild(Settings.AimPart) or obj:FindFirstChild("HumanoidRootPart")
+                    if part then
+                        local pos, vis = Camera:WorldToViewportPoint(part.Position)
+                        if vis and IsVisible(part) then
+                            local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                            if mag < minDist then minDist, target = mag, part end
+                        end
+                    end
+                end
+            end
+        end
+
+        if target then 
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), Settings.AimSmooth) 
+        end
     end
 
     if Settings.StickyBehind and Settings.SelectedPlayer and Settings.SelectedPlayer.Character then
@@ -229,21 +306,36 @@ RunService.RenderStepped:Connect(function()
     if Settings.ForceThirdPerson then LocalPlayer.CameraMode = Enum.CameraMode.Classic; LocalPlayer.CameraMaxZoomDistance = 100 else LocalPlayer.CameraMaxZoomDistance = 128 end
     if Settings.UseSpeed and LocalPlayer.Character then LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Speed end
 
+    -- Renderização do ESP
     for p, e in pairs(ESPContainer) do
-        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Settings.ESP then
-            local hrp = p.Character.HumanoidRootPart; local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
+        -- Checagem de segurança Anti-Ghost
+        if not p or not p.Parent or not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then
+            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false
+            if e.Highlight then e.Highlight.Enabled = false end
+            continue
+        end
+
+        if Settings.ESP then
+            local hrp = p.Character.HumanoidRootPart; local head = p.Character:FindFirstChild("Head"); local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
             local color = (Settings.TeamColor and p.TeamColor) and p.TeamColor.Color or Color3.new(1,1,1)
+            
             if vis then
                 if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = color else e.Box.Visible = false end
                 if Settings.Names then e.Name.Visible = true; e.Name.Text = p.DisplayName; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20); e.Name.Color = color else e.Name.Visible = false end
                 if Settings.Distance then e.Dist.Visible = true; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5); e.Dist.Color = Color3.new(0,1,0) else e.Dist.Visible = false end
-                if Settings.Lines then local head = p.Character:FindFirstChild("Head"); if head then local headPos = Camera:WorldToViewportPoint(head.Position); e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(headPos.X, headPos.Y); e.Line.Color = color end else e.Line.Visible = false end
+                if Settings.Lines and head then local headPos = Camera:WorldToViewportPoint(head.Position); e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(headPos.X, headPos.Y); e.Line.Color = color else e.Line.Visible = false end
                 if Settings.Highlight then
                     if not e.Highlight or e.Highlight.Parent ~= p.Character then if e.Highlight then e.Highlight:Destroy() end e.Highlight = Instance.new("Highlight", p.Character) end
                     e.Highlight.Enabled = true; e.Highlight.FillColor = color; e.Highlight.FillTransparency = 0.5
                 elseif e.Highlight then e.Highlight.Enabled = false end
-            else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end end
-        else e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false end
+            else 
+                e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false
+                if e.Highlight then e.Highlight.Enabled = false end 
+            end
+        else 
+            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false 
+            if e.Highlight then e.Highlight.Enabled = false end
+        end
     end
 end)
 
