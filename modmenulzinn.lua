@@ -21,8 +21,12 @@ getgenv().Settings = {
     AimNPC = false
 }
 
-local VERSION = "v6.0.0"
+local VERSION = "v6.1.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.1.0 ---
+[+] AIMBOT: Mira solta automaticamente se o inimigo ficar com 1 ou 0 de vida.
+[+] UI: Botão flutuante menor e posicionado no canto superior direito por padrão.
+-------------------------
 --- NOVIDADES v6.0.0 ---
 [+] NOVA ABA: 'PRED' (Predefinições).
 [+] PRESETS: Configuração rápida com 1 clique (Ex: LEGIT).
@@ -58,7 +62,8 @@ end
 --// GUI PRINCIPAL
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 local ToggleBtn = Instance.new("ImageButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0,60,0,60); ToggleBtn.Position = UDim2.new(0,20,0.6,0); ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20); ToggleBtn.Image = "rbxassetid://70505361093133"
+-- TAMANHO DIMINUÍDO E POSIÇÃO MOVIDA PARA O TOPO DIREITO
+ToggleBtn.Size = UDim2.new(0,45,0,45); ToggleBtn.Position = UDim2.new(1,-65,0,15); ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20); ToggleBtn.Image = "rbxassetid://70505361093133"
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0); MakeDraggable(ToggleBtn, false)
 
 local Main = Instance.new("Frame", ScreenGui)
@@ -117,7 +122,7 @@ local function CreateSection(parent, name)
     return container
 end
 
--- CONTROLE VISUAL (Para sincronizar Presets e Keybinds com a Interface)
+-- CONTROLE VISUAL
 local VisualToggles = {}
 local VisualSteppers = {}
 
@@ -157,7 +162,7 @@ local PlayerPage = CreatePage("PLAYER")
 local TPPage = CreatePage("TP")
 local MiraPage = CreatePage("MIRA")
 local HitboxPage = CreatePage("HITBOX")
-local PredPage = CreatePage("PRED") -- NOVA ABA
+local PredPage = CreatePage("PRED")
 local FPSPage = CreatePage("FPS")
 local InfoPage = CreatePage("INFOS")
 ESPPage.Visible = true
@@ -211,7 +216,7 @@ CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap 
 
 local LogLabel = Instance.new("TextLabel", InfoPage); LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 11; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
 
--- ABA PRED (NOVA ABA DE PREDEFINIÇÕES E KEYBINDS)
+-- ABA PRED
 local SecPreset = CreateSection(PredPage, "PREDEFINIÇÕES")
 local SecFloat = CreateSection(PredPage, "BOTÕES FLUTUANTES")
 
@@ -248,7 +253,7 @@ local function SpawnFloatingButton(name, actionCallback)
     local closeBtn = Instance.new("TextButton", floatFrame)
     closeBtn.Size = UDim2.new(0, 20, 0, 20); closeBtn.Position = UDim2.new(1, -15, 0, -5); closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); closeBtn.Text = "X"; closeBtn.TextColor3 = Color3.new(1,1,1); closeBtn.TextSize = 10; Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
     
-    MakeDraggable(floatFrame, false) -- Permitir arrastar a qualquer momento
+    MakeDraggable(floatFrame, false)
     
     btn.MouseButton1Click:Connect(actionCallback)
     closeBtn.MouseButton1Click:Connect(function() floatFrame:Destroy() end)
@@ -271,7 +276,6 @@ BtnFloatESP.MouseButton1Click:Connect(function()
     end)
 end)
 
-
 -- LÓGICA DE VISIBILIDADE (WALL CHECK) E CACHE NPC
 local function IsVisible(part)
     if not Settings.WallCheck then return true end
@@ -288,7 +292,8 @@ task.spawn(function()
         if Settings.AimNPC then
             local tempCache = {}
             for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 0 and not Players:GetPlayerFromCharacter(obj) then
+                -- Verificação de vida > 1 (Ignora mortos ou vida em 1)
+                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 1 and not Players:GetPlayerFromCharacter(obj) then
                     table.insert(tempCache, obj)
                 end
             end
@@ -342,18 +347,23 @@ RunService.RenderStepped:Connect(function()
         local target, minDist = nil, Settings.AimFOV
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
-                if Settings.TeamCheck and p.Team == LocalPlayer.Team then continue end
-                local part = p.Character[Settings.AimPart]
-                local pos, vis = Camera:WorldToViewportPoint(part.Position)
-                if vis and IsVisible(part) then
-                    local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                    if mag < minDist then minDist, target = mag, part end
+                local humanoid = p.Character:FindFirstChild("Humanoid")
+                -- Verificação de vida: só trava/continua travado se a vida for > 1
+                if humanoid and humanoid.Health > 1 then
+                    if Settings.TeamCheck and p.Team == LocalPlayer.Team then continue end
+                    local part = p.Character[Settings.AimPart]
+                    local pos, vis = Camera:WorldToViewportPoint(part.Position)
+                    if vis and IsVisible(part) then
+                        local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                        if mag < minDist then minDist, target = mag, part end
+                    end
                 end
             end
         end
         if Settings.AimNPC then
             for _, obj in pairs(NPCCache) do
-                if obj and obj.Parent and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 0 then
+                -- Verificação de vida no loop de NPC também: > 1
+                if obj and obj.Parent and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 1 then
                     local part = obj:FindFirstChild(Settings.AimPart) or obj:FindFirstChild("HumanoidRootPart")
                     if part then
                         local pos, vis = Camera:WorldToViewportPoint(part.Position)
