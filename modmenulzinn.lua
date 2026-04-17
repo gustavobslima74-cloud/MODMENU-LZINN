@@ -22,23 +22,64 @@ getgenv().Settings = {
     SkeletonESP = false
 }
 
-local VERSION = "v6.2.0"
+local VERSION = "v6.3.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.3.0 ---
+[+] UI: Adicionado sistema de notificações ao ativar/desativar funções pelos botões flutuantes.
+-------------------------
 --- NOVIDADES v6.2.0 ---
-[+] ESP: Adicionado 'Skeleton ESP' (linhas nas articulações).
+[+] ESP: Adicionado 'Skeleton ESP'.
 -------------------------
 --- NOVIDADES v6.1.0 ---
-[+] AIMBOT: Mira solta automaticamente se o inimigo ficar com 1 ou 0 de vida.
-[+] UI: Botão flutuante menor e posicionado no canto superior direito por padrão.
--------------------------
---- NOVIDADES v6.0.0 ---
-[+] NOVA ABA: 'PRED' (Predefinições).
-[+] PRESETS: Configuração rápida com 1 clique.
-[+] MOBILE KEYBINDS: Botões flutuantes.
+[+] AIMBOT: Mira solta ao focar em vida 0/1.
+[+] UI: Botão ajustado pro canto direito.
 -------------------------]]
 
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
+
+--// GUI PRINCIPAL
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+
+--// SISTEMA DE NOTIFICAÇÕES (NOVO)
+local NotifContainer = Instance.new("Frame", ScreenGui)
+NotifContainer.Size = UDim2.new(0, 200, 0.5, 0)
+NotifContainer.Position = UDim2.new(0.5, -100, 0.05, 0)
+NotifContainer.BackgroundTransparency = 1
+local NotifLayout = Instance.new("UIListLayout", NotifContainer)
+NotifLayout.SortOrder = Enum.SortOrder.LayoutOrder
+NotifLayout.Padding = UDim.new(0, 5)
+NotifLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+NotifLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+
+local function SendNotification(text, state)
+    local color = state and Color3.new(0, 1, 0) or Color3.new(1, 0.2, 0.2)
+    local notif = Instance.new("TextLabel", NotifContainer)
+    notif.Size = UDim2.new(1, 0, 0, 25)
+    notif.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    notif.TextColor3 = color
+    notif.Text = text
+    notif.Font = Enum.Font.GothamBold
+    notif.TextSize = 11
+    notif.BackgroundTransparency = 1
+    notif.TextTransparency = 1
+    Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 4)
+    local stroke = Instance.new("UIStroke", notif)
+    stroke.Thickness = 1
+    stroke.Color = color
+    stroke.Transparency = 1
+    
+    local tIn = TweenService:Create(notif, TweenInfo.new(0.2), {BackgroundTransparency = 0.2, TextTransparency = 0})
+    local strokeIn = TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0})
+    tIn:Play(); strokeIn:Play()
+    
+    task.delay(1.5, function()
+        local tOut = TweenService:Create(notif, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1})
+        local strokeOut = TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 1})
+        tOut:Play(); strokeOut:Play()
+        tOut.Completed:Connect(function() notif:Destroy() end)
+    end)
+end
 
 --// FUNÇÃO DRAG
 local function MakeDraggable(gui, isMenu)
@@ -62,8 +103,6 @@ local function MakeDraggable(gui, isMenu)
     end)
 end
 
---// GUI PRINCIPAL
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 local ToggleBtn = Instance.new("ImageButton", ScreenGui)
 ToggleBtn.Size = UDim2.new(0,45,0,45); ToggleBtn.Position = UDim2.new(1,-65,0,15); ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20); ToggleBtn.Image = "rbxassetid://70505361093133"
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0); MakeDraggable(ToggleBtn, false)
@@ -265,7 +304,9 @@ end
 local BtnFloatAim = Instance.new("TextButton", SecFloat); BtnFloatAim.Size = UDim2.new(1,-25,0,32); BtnFloatAim.Text = "CRIAR FLUTUANTE: AIMBOT"; BtnFloatAim.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatAim.TextColor3 = Color3.new(1,1,1); BtnFloatAim.TextSize = 11; Instance.new("UICorner", BtnFloatAim)
 BtnFloatAim.MouseButton1Click:Connect(function()
     SpawnFloatingButton("AIM", function()
-        if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](not Settings.AimAssist) end
+        local newState = not Settings.AimAssist
+        if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](newState) end
+        SendNotification("AIMBOT: " .. (newState and "ATIVADO" or "DESATIVADO"), newState)
     end)
 end)
 
@@ -276,6 +317,7 @@ BtnFloatESP.MouseButton1Click:Connect(function()
         if VisualToggles["ESP Geral"] then VisualToggles["ESP Geral"](newState) end
         if VisualToggles["Chams"] then VisualToggles["Chams"](newState) end
         if VisualToggles["Team Color"] then VisualToggles["Team Color"](newState) end
+        SendNotification("ESP LITE: " .. (newState and "ATIVADO" or "DESATIVADO"), newState)
     end)
 end)
 
