@@ -22,16 +22,17 @@ getgenv().Settings = {
     TargetPriority = false, PriorityMode = "Distância", Priority360 = true
 }
 
-local VERSION = "v6.5.1"
+local VERSION = "v6.5.2"
 local CHANGELOG_TEXT = [[
---- NOVIDADES v6.5.1 ---
-[+] CORREÇÃO: Título e Borda agora sincronizados no efeito RGB corretamente.
-[+] CORREÇÃO: Barra de pesquisa agora encontra e exibe funções globalmente.
-[+] RESTAURAÇÃO: Abas PRED e FPS restauradas com todas as funções originais.
+--- NOVIDADES v6.5.2 ---
+[+] CORREÇÃO CRÍTICA: Interface congelada resolvida.
+[+] CORREÇÃO: Renderização do ESP (Players e NPCs) 100% restaurada.
+[+] OTIMIZAÇÃO: Botão de abrir menu responde mais rápido ao toque.
 -------------------------
 --- NOVIDADES v6.5.0 ---
 [+] MIRA: Target Priority (Distância, Menor HP, Mirando em Mim).
 [+] MIRA: Detecção 360 graus para o Target Priority.
+[+] MENU: Efeito RGB global (Título e Bordas).
 [+] MENU: Barra de pesquisa integrada.
 -------------------------]]
 
@@ -101,7 +102,7 @@ local function hackerEffect()
     task.spawn(function()
         while true do
             local color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
-            Title.TextColor3 = color; stroke.Color = color -- Sincroniza o título e a borda RGB
+            Title.TextColor3 = color; stroke.Color = color
             if MenuAberto then
                 if math.random(1, 25) == 1 then
                     local rand = ""; for i=1,#realText do rand ..= chars:sub(math.random(1,#chars), math.random(1,#chars)) end
@@ -155,9 +156,7 @@ end
 local function CreateToggle(parent, text, callback, default)
     local b = Instance.new("TextButton", parent); b.Size = UDim2.new(1,-25,0,32); b.Text = text..": "..(default and "ON" or "OFF"); b.BackgroundColor3 = default and Color3.fromRGB(50,100,50) or Color3.fromRGB(30,30,30); b.TextColor3 = Color3.new(1,1,1); b.TextSize = 11; Instance.new("UICorner", b)
     local state = default or false
-    VisualToggles[text] = function(v)
-        state = v; b.Text = text..": "..(state and "ON" or "OFF"); b.BackgroundColor3 = state and Color3.fromRGB(50,100,50) or Color3.fromRGB(30,30,30); callback(state)
-    end
+    VisualToggles[text] = function(v) state = v; b.Text = text..": "..(state and "ON" or "OFF"); b.BackgroundColor3 = state and Color3.fromRGB(50,100,50) or Color3.fromRGB(30,30,30); callback(state) end
     b.MouseButton1Click:Connect(function() VisualToggles[text](not state) end)
     table.insert(SearchCache, {Element = b, Name = text, OriginalParent = parent})
     return b
@@ -196,11 +195,7 @@ SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     else
         TabsFrame.Visible = false; Pages.Visible = false; SearchPage.Visible = true
         for _, item in pairs(SearchCache) do
-            if string.find(string.lower(item.Name), q) then
-                item.Element.Parent = SearchPage
-            else
-                item.Element.Parent = nil -- Esconde os que não combinam
-            end
+            if string.find(string.lower(item.Name), q) then item.Element.Parent = SearchPage else item.Element.Parent = nil end
         end
     end
 end)
@@ -264,14 +259,14 @@ CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
 CreateStepper(HitboxPage, "Tamanho Hitbox", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade Hitbox", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
 
--- SETUP FPS (RESTAURADO)
+-- SETUP FPS
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
 CreateToggle(FPSPage, "Remover Sombras", function(v) Lighting.GlobalShadows = not v end)
 CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap then setfpscap(v) end end)
 
 local LogLabel = Instance.new("TextLabel", InfoPage); LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 11; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
 
--- ABA PRED (RESTAURADA)
+-- ABA PRED
 local SecPreset = CreateSection(PredPage, "PREDEFINIÇÕES")
 local SecFloat = CreateSection(PredPage, "BOTÕES FLUTUANTES")
 
@@ -309,7 +304,7 @@ BtnFloatESP.MouseButton1Click:Connect(function() SpawnFloatingButton("ESP", func
 table.insert(SearchCache, {Element = BtnFloatESP, Name = "FLUTUANTE: ESP", OriginalParent = SecFloat})
 
 
--- LÓGICA DE CACHE NPC E VISIBILIDADE
+-- CACHE E ESP SISTEMA
 local function IsVisible(part)
     if not Settings.WallCheck then return true end
     local castPoints = {Camera.CFrame.Position, part.Position}; local ignoreList = {LocalPlayer.Character, part.Parent}
@@ -331,9 +326,79 @@ task.spawn(function()
     end
 end)
 
+local ESPContainer = {}
+local NPCESPContainer = {}
+
+local function CreateSkeletonLines()
+    local lines = {}
+    for i=1, 12 do local l = Drawing.new("Line"); l.Thickness = 1; l.Visible = false; l.Color = Color3.new(1,1,1); table.insert(lines, l) end
+    return lines
+end
+
+local function RemoveESP(p)
+    if ESPContainer[p] then
+        if ESPContainer[p].Box then ESPContainer[p].Box:Remove() end
+        if ESPContainer[p].Name then ESPContainer[p].Name:Remove() end
+        if ESPContainer[p].Dist then ESPContainer[p].Dist:Remove() end
+        if ESPContainer[p].Line then ESPContainer[p].Line:Remove() end
+        if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end
+        if ESPContainer[p].Skeleton then for _, l in pairs(ESPContainer[p].Skeleton) do l:Remove() end end
+        ESPContainer[p] = nil
+    end
+end
+
+local function CreateESP(p)
+    if p == LocalPlayer then return end
+    RemoveESP(p)
+    ESPContainer[p] = { Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil, Skeleton = CreateSkeletonLines() }
+    local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 14; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 12; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1
+end
+
+Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP)
+for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
+
+local function RemoveNPCESP(obj)
+    if NPCESPContainer[obj] then
+        if NPCESPContainer[obj].Box then NPCESPContainer[obj].Box:Remove() end
+        if NPCESPContainer[obj].Name then NPCESPContainer[obj].Name:Remove() end
+        if NPCESPContainer[obj].Dist then NPCESPContainer[obj].Dist:Remove() end
+        if NPCESPContainer[obj].Line then NPCESPContainer[obj].Line:Remove() end
+        if NPCESPContainer[obj].Highlight then NPCESPContainer[obj].Highlight:Destroy() end
+        if NPCESPContainer[obj].Skeleton then for _, l in pairs(NPCESPContainer[obj].Skeleton) do l:Remove() end end
+        NPCESPContainer[obj] = nil
+    end
+end
+
+local function CreateNPCESP(obj)
+    if NPCESPContainer[obj] then return end
+    NPCESPContainer[obj] = { Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil, Skeleton = CreateSkeletonLines() }
+    local e = NPCESPContainer[obj]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 14; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 12; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1
+end
+
+local function DrawSkeleton(character, skeletonLines, color)
+    local joints = {
+        {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"}, 
+        {"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
+        {"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
+        {"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
+        {"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"}
+    }
+    if not character:FindFirstChild("UpperTorso") then
+        joints = {{"Head", "Torso"}, {"Torso", "Left Arm"}, {"Torso", "Right Arm"}, {"Torso", "Left Leg"}, {"Torso", "Right Leg"}}
+    end
+    for i, l in ipairs(skeletonLines) do
+        local joint = joints[i]
+        if joint and character:FindFirstChild(joint[1]) and character:FindFirstChild(joint[2]) then
+            local p1, v1 = Camera:WorldToViewportPoint(character[joint[1]].Position)
+            local p2, v2 = Camera:WorldToViewportPoint(character[joint[2]].Position)
+            if v1 and v2 then l.Visible = true; l.From = Vector2.new(p1.X, p1.Y); l.To = Vector2.new(p2.X, p2.Y); l.Color = color else l.Visible = false end
+        else l.Visible = false end
+    end
+end
+
 -- RENDER LOOP PRINCIPAL
-RunService.RenderStepped:Connect(function()
-    FPSLabel.Text = "FPS: " .. math.floor(1/RunService.RenderStepped:Wait())
+RunService.RenderStepped:Connect(function(deltaTime)
+    FPSLabel.Text = "FPS: " .. math.floor(1 / deltaTime)
     FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Radius = Settings.AimFOV; FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); FOVCircle.Color = stroke.Color; FOVCircle.Thickness = 1.2; FOVCircle.Filled = false
 
     -- LÓGICA AIMBOT COM TARGET PRIORITY
@@ -362,10 +427,8 @@ RunService.RenderStepped:Connect(function()
 
                         local val = screenMag
                         if Settings.TargetPriority then
-                            if Settings.PriorityMode == "Distância" then
-                                val = (part.Position - Camera.CFrame.Position).Magnitude
-                            elseif Settings.PriorityMode == "Menor HP" then
-                                val = humanoid.Health
+                            if Settings.PriorityMode == "Distância" then val = (part.Position - Camera.CFrame.Position).Magnitude
+                            elseif Settings.PriorityMode == "Menor HP" then val = humanoid.Health
                             elseif Settings.PriorityMode == "Mirando em Mim" then
                                 local head = char:FindFirstChild("Head")
                                 if head then
@@ -381,9 +444,87 @@ RunService.RenderStepped:Connect(function()
         end
         if target then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), Settings.AimSmooth) end
     end
+    
+    if Settings.StickyBehind and Settings.SelectedPlayer and Settings.SelectedPlayer.Character then
+        local hrp = Settings.SelectedPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame:Lerp(hrp.CFrame * CFrame.new(0, 0, Settings.StickyDistance), Settings.StickySmoothness) end
+    end
+    if Settings.ForceThirdPerson then LocalPlayer.CameraMode = Enum.CameraMode.Classic; LocalPlayer.CameraMaxZoomDistance = 100 else LocalPlayer.CameraMaxZoomDistance = 128 end
+    if Settings.UseSpeed and LocalPlayer.Character then LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Speed end
+
+    -- RENDER ESP PLAYERS
+    for p, e in pairs(ESPContainer) do
+        if not p or not p.Parent or not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then
+            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end; for _, l in pairs(e.Skeleton) do l.Visible = false end; continue
+        end
+        local hrp = p.Character.HumanoidRootPart; local head = p.Character:FindFirstChild("Head")
+        local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
+        local color = (Settings.TeamColor and p.TeamColor) and p.TeamColor.Color or Color3.new(1,1,1)
+        if Settings.ESP and vis then
+            if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = color else e.Box.Visible = false end
+            if Settings.Names then e.Name.Visible = true; e.Name.Text = p.DisplayName; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20); e.Name.Color = color else e.Name.Visible = false end
+            if Settings.Distance then e.Dist.Visible = true; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5); e.Dist.Color = Color3.new(0,1,0) else e.Dist.Visible = false end
+            if Settings.Lines and head then local headPos = Camera:WorldToViewportPoint(head.Position); e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(headPos.X, headPos.Y); e.Line.Color = color else e.Line.Visible = false end
+            if Settings.Highlight then
+                if not e.Highlight or e.Highlight.Parent ~= p.Character then if e.Highlight then e.Highlight:Destroy() end e.Highlight = Instance.new("Highlight", p.Character) end
+                e.Highlight.Enabled = true; e.Highlight.FillColor = color; e.Highlight.FillTransparency = 0.5
+            elseif e.Highlight then e.Highlight.Enabled = false end
+            if Settings.SkeletonESP then DrawSkeleton(p.Character, e.Skeleton, color) else for _, l in pairs(e.Skeleton) do l.Visible = false end end
+        else 
+            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end; for _, l in pairs(e.Skeleton) do l.Visible = false end
+        end
+    end
+
+    -- RENDER ESP NPCs
+    if Settings.ESPNPC then
+        for _, obj in pairs(NPCCache) do CreateNPCESP(obj) end
+    end
+    for obj, e in pairs(NPCESPContainer) do
+        if not obj or not obj.Parent or not obj:FindFirstChild("HumanoidRootPart") or not Settings.ESPNPC then
+            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end; for _, l in pairs(e.Skeleton) do l.Visible = false end; continue
+        end
+        local hrp = obj.HumanoidRootPart; local head = obj:FindFirstChild("Head")
+        local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
+        local npcColor = Color3.fromRGB(255, 80, 80)
+        if vis then
+            if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = npcColor else e.Box.Visible = false end
+            if Settings.Names then e.Name.Visible = true; e.Name.Text = obj.Name; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20); e.Name.Color = npcColor else e.Name.Visible = false end
+            if Settings.Distance then e.Dist.Visible = true; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5); e.Dist.Color = Color3.new(0,1,0) else e.Dist.Visible = false end
+            if Settings.Lines and head then local headPos = Camera:WorldToViewportPoint(head.Position); e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(headPos.X, headPos.Y); e.Line.Color = npcColor else e.Line.Visible = false end
+            if Settings.Highlight then
+                if not e.Highlight or e.Highlight.Parent ~= obj then if e.Highlight then e.Highlight:Destroy() end e.Highlight = Instance.new("Highlight", obj) end
+                e.Highlight.Enabled = true; e.Highlight.FillColor = npcColor; e.Highlight.FillTransparency = 0.5
+            elseif e.Highlight then e.Highlight.Enabled = false end
+            if Settings.SkeletonESP then DrawSkeleton(obj, e.Skeleton, npcColor) else for _, l in pairs(e.Skeleton) do l.Visible = false end end
+        else 
+            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end; for _, l in pairs(e.Skeleton) do l.Visible = false end
+        end
+    end
 end)
 
-ToggleBtn.MouseButton1Up:Connect(function() 
+-- LOOP DO HITBOX EXPANDER
+task.spawn(function() 
+    while true do 
+        for _, p in pairs(Players:GetPlayers()) do 
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then 
+                local hrp = p.Character.HumanoidRootPart; 
+                if Settings.HitboxEnabled then hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end 
+            end 
+        end
+        for _, obj in pairs(NPCCache) do
+            if obj and obj.Parent and obj:FindFirstChild("HumanoidRootPart") then
+                local hrp = obj.HumanoidRootPart
+                if Settings.HitboxNPC then hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end
+            end
+        end
+        task.wait(0.1) 
+    end 
+end)
+
+UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
+
+-- ATIVAÇÃO DO MENU VIA CLIQUE
+ToggleBtn.MouseButton1Click:Connect(function() 
     if Main.Visible then 
         MenuAberto = false; TweenService:Create(Main, TweenInfo.new(0.3), {Size = UDim2.new(0, 280, 0, 0), BackgroundTransparency = 1}):Play()
         task.delay(0.3, function() if not MenuAberto then Main.Visible = false end end)
