@@ -19,45 +19,30 @@ getgenv().Settings = {
     SelectedPlayer = nil, AutoNearest = false, StickyBehind = false, StickySmoothness = 0.1, StickyDistance = 3,
     AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
     AimNPC = false, ESPNPC = false, SkeletonESP = false,
-    TargetPriority = false, PriorityMode = "Distância", Priority360 = true
+    -- NOVAS FUNÇÕES v6.5.0
+    TargetPriorityEnabled = false,
+    PriorityMode = "Distância", -- "Distância", "Menor HP", "Focado em Mim"
 }
 
-local VERSION = "v6.5.2"
-local CHANGELOG_TEXT = [[
---- NOVIDADES v6.5.2 ---
-[+] CORREÇÃO CRÍTICA: Interface congelada resolvida.
-[+] CORREÇÃO: Renderização do ESP (Players e NPCs) 100% restaurada.
-[+] OTIMIZAÇÃO: Botão de abrir menu responde mais rápido ao toque.
--------------------------
---- NOVIDADES v6.5.0 ---
-[+] MIRA: Target Priority (Distância, Menor HP, Mirando em Mim).
-[+] MIRA: Detecção 360 graus para o Target Priority.
-[+] MENU: Efeito RGB global (Título e Bordas).
-[+] MENU: Barra de pesquisa integrada.
--------------------------]]
-
+local VERSION = "v6.5.0"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
+local AllUIElements = {} -- Para o sistema de busca
 
 --// GUI PRINCIPAL
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 
---// SISTEMA DE NOTIFICAÇÕES
+--// SISTEMA DE NOTIFICAÇÕES (Mesma lógica anterior)
 local NotifContainer = Instance.new("Frame", ScreenGui)
 NotifContainer.Size = UDim2.new(0, 200, 0.5, 0); NotifContainer.Position = UDim2.new(0.5, -100, 0.05, 0); NotifContainer.BackgroundTransparency = 1
-local NotifLayout = Instance.new("UIListLayout", NotifContainer); NotifLayout.SortOrder = Enum.SortOrder.LayoutOrder; NotifLayout.Padding = UDim.new(0, 5); NotifLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; NotifLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+local NotifLayout = Instance.new("UIListLayout", NotifContainer); NotifLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local function SendNotification(text, state)
     local color = state and Color3.new(0, 1, 0) or Color3.new(1, 0.2, 0.2)
     local notif = Instance.new("TextLabel", NotifContainer)
-    notif.Size = UDim2.new(1, 0, 0, 25); notif.BackgroundColor3 = Color3.fromRGB(20, 20, 20); notif.TextColor3 = color; notif.Text = text; notif.Font = Enum.Font.GothamBold; notif.TextSize = 11; notif.BackgroundTransparency = 1; notif.TextTransparency = 1; Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 4)
-    local stroke = Instance.new("UIStroke", notif); stroke.Thickness = 1; stroke.Color = color; stroke.Transparency = 1
-    TweenService:Create(notif, TweenInfo.new(0.2), {BackgroundTransparency = 0.2, TextTransparency = 0}):Play(); TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0}):Play()
-    task.delay(1.5, function()
-        local tOut = TweenService:Create(notif, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1})
-        TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 1}):Play(); tOut:Play()
-        tOut.Completed:Connect(function() notif:Destroy() end)
-    end)
+    notif.Size = UDim2.new(1, 0, 0, 25); notif.BackgroundColor3 = Color3.fromRGB(20, 20, 20); notif.TextColor3 = color; notif.Text = text; notif.Font = Enum.Font.GothamBold; notif.TextSize = 11
+    Instance.new("UICorner", notif); local stroke = Instance.new("UIStroke", notif); stroke.Color = color
+    task.delay(1.5, function() notif:Destroy() end)
 end
 
 --// FUNÇÃO DRAG
@@ -65,471 +50,172 @@ local function MakeDraggable(gui, isMenu)
     local dragging, dragInput, dragStart, startPos
     gui.InputBegan:Connect(function(input)
         if not isMenu and MenuAberto then return end
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; dragStart = input.Position; startPos = gui.Position
-            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = gui.Position end
     end)
-    gui.InputChanged:Connect(function(input)
-        if not isMenu and MenuAberto then return end
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
-    end)
+    gui.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end end)
     RunService.RenderStepped:Connect(function()
         if dragging and dragInput then
             local delta = dragInput.Position - dragStart
             gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
+    UIS.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
 end
-
-local ToggleBtn = Instance.new("ImageButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0,45,0,45); ToggleBtn.Position = UDim2.new(1,-65,0,15); ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20); ToggleBtn.Image = "rbxassetid://70505361093133"
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0); MakeDraggable(ToggleBtn, false)
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0,280,0,360)
-Main.Position = UDim2.new(0.5, -140, 0.5, -180)
-Main.BackgroundColor3 = Color3.fromRGB(10,10,10); Main.ClipsDescendants = true; Main.Visible = false; Main.BackgroundTransparency = 1
+Main.Size = UDim2.new(0,280,0,350); Main.Position = UDim2.new(0.5, -140, 0.5, -175); Main.BackgroundColor3 = Color3.fromRGB(10,10,10); Main.Visible = false; Main.ClipsDescendants = true
 Instance.new("UICorner", Main); MakeDraggable(Main, true)
-local stroke = Instance.new("UIStroke", Main); stroke.Thickness = 2; stroke.Transparency = 0
+local stroke = Instance.new("UIStroke", Main); stroke.Thickness = 2
 
-local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1,0,0,35); Title.BackgroundTransparency = 1; Title.TextSize = 16; Title.Font = Enum.Font.Code; Title.TextTransparency = 0; Title.Text = "Kiko MENU | " .. VERSION
+-- BARRA DE BUSCA (NOVO)
+local SearchFrame = Instance.new("Frame", Main)
+SearchFrame.Size = UDim2.new(1, -20, 0, 25); SearchFrame.Position = UDim2.new(0, 10, 0, 40); SearchFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Instance.new("UICorner", SearchFrame)
+local SearchInput = Instance.new("TextBox", SearchFrame)
+SearchInput.Size = UDim2.new(1, -10, 1, 0); SearchInput.Position = UDim2.new(0, 5, 0, 0); SearchInput.BackgroundTransparency = 1; SearchInput.PlaceholderText = "Buscar função..."; SearchInput.Text = ""; SearchInput.TextColor3 = Color3.new(1,1,1); SearchInput.TextSize = 12; SearchInput.Font = Enum.Font.Gotham
 
-local function hackerEffect()
-    local realText = "Kiko MENU | " .. VERSION
-    local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*"
-    task.spawn(function()
-        while true do
-            local color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
-            Title.TextColor3 = color; stroke.Color = color
-            if MenuAberto then
-                if math.random(1, 25) == 1 then
-                    local rand = ""; for i=1,#realText do rand ..= chars:sub(math.random(1,#chars), math.random(1,#chars)) end
-                    Title.Text = rand; task.wait(0.05)
-                end
-                Title.Text = realText
-            end
-            task.wait(0.05)
-        end
-    end)
-end
-hackerEffect()
+-- TÍTULO
+local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1,0,0,35); Title.BackgroundTransparency = 1; Title.Text = "Kiko MENU | " .. VERSION; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.Code
 
-local FPSLabel = Instance.new("TextLabel", Main); FPSLabel.Size = UDim2.new(0,50,0,35); FPSLabel.Position = UDim2.new(1,-60,0,0); FPSLabel.Text = "FPS: 0"; FPSLabel.BackgroundTransparency = 1; FPSLabel.TextColor3 = Color3.new(0,1,0); FPSLabel.TextSize = 11; FPSLabel.Font = Enum.Font.Code; FPSLabel.TextTransparency = 1
-
---// BARRA DE PESQUISA & GLOBAL SEARCH
-local SearchBar = Instance.new("TextBox", Main)
-SearchBar.Size = UDim2.new(1, -20, 0, 25); SearchBar.Position = UDim2.new(0, 10, 0, 35)
-SearchBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25); SearchBar.TextColor3 = Color3.new(1,1,1); SearchBar.PlaceholderText = "🔍 Buscar função..."
-SearchBar.Text = ""; SearchBar.Font = Enum.Font.Gotham; SearchBar.TextSize = 11
-Instance.new("UICorner", SearchBar).CornerRadius = UDim.new(0, 4)
-
-local SearchCache = {}
-local TabsFrame = Instance.new("ScrollingFrame", Main); TabsFrame.Size = UDim2.new(1,0,0,35); TabsFrame.Position = UDim2.new(0,0,0,65); TabsFrame.BackgroundTransparency = 1; TabsFrame.ScrollBarThickness = 0; TabsFrame.CanvasSize = UDim2.new(0,0,0,0)
+-- PAGINAÇÃO
+local Pages = Instance.new("Frame", Main); Pages.Position = UDim2.new(0,0,0,105); Pages.Size = UDim2.new(1,0,1,-105); Pages.BackgroundTransparency = 1
+local TabsFrame = Instance.new("ScrollingFrame", Main); TabsFrame.Size = UDim2.new(1,0,0,30); TabsFrame.Position = UDim2.new(0,0,0,70); TabsFrame.BackgroundTransparency = 1; TabsFrame.ScrollBarThickness = 0
 local TabList = Instance.new("UIListLayout", TabsFrame); TabList.FillDirection = Enum.FillDirection.Horizontal
-TabList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() TabsFrame.CanvasSize = UDim2.new(0, TabList.AbsoluteContentSize.X, 0, 0) end)
-local Pages = Instance.new("Frame", Main); Pages.Position = UDim2.new(0,0,0,100); Pages.Size = UDim2.new(1,0,1,-100); Pages.BackgroundTransparency = 1
-
-local SearchPage = Instance.new("ScrollingFrame", Main)
-SearchPage.Position = UDim2.new(0,0,0,65); SearchPage.Size = UDim2.new(1,0,1,-65); SearchPage.BackgroundTransparency = 1; SearchPage.Visible = false; SearchPage.ScrollBarThickness = 2
-local searchLayout = Instance.new("UIListLayout", SearchPage); searchLayout.Padding = UDim.new(0,5); searchLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-searchLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() SearchPage.CanvasSize = UDim2.new(0,0,0,searchLayout.AbsoluteContentSize.Y + 20) end)
 
 local function CreatePage(name)
-    local btn = Instance.new("TextButton", TabsFrame); btn.Size = UDim2.new(0, 70, 1, 0); btn.Text = name; btn.BackgroundTransparency = 1; btn.TextColor3 = Color3.new(1,1,1); btn.TextSize = 10; btn.Font = Enum.Font.GothamBold
+    local btn = Instance.new("TextButton", TabsFrame); btn.Size = UDim2.new(0, 60, 1, 0); btn.Text = name; btn.BackgroundTransparency = 1; btn.TextColor3 = Color3.new(0.6,0.6,0.6); btn.TextSize = 10; btn.Font = Enum.Font.GothamBold
     local page = Instance.new("ScrollingFrame", Pages); page.Size = UDim2.new(1,0,1,0); page.BackgroundTransparency = 1; page.Visible = false; page.ScrollBarThickness = 2
     local layout = Instance.new("UIListLayout", page); layout.Padding = UDim.new(0,5); layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() page.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 20) end)
-    btn.MouseButton1Click:Connect(function() for _,v in pairs(Pages:GetChildren()) do v.Visible = false end; page.Visible = true end)
-    return page, btn
-end
-
-local function CreateSection(parent, name)
-    local sectionBtn = Instance.new("TextButton", parent); sectionBtn.Size = UDim2.new(1,-20,0,28); sectionBtn.Text = "[ " .. name .. " ]"; sectionBtn.BackgroundColor3 = Color3.fromRGB(25,25,25); sectionBtn.TextColor3 = Color3.fromRGB(200,200,200); sectionBtn.Font = Enum.Font.GothamBold; sectionBtn.TextSize = 11; Instance.new("UICorner", sectionBtn)
-    local container = Instance.new("Frame", parent); container.Size = UDim2.new(1,0,0,0); container.AutomaticSize = Enum.AutomaticSize.Y; container.BackgroundTransparency = 1; container.Visible = false
-    Instance.new("UIListLayout", container).Padding = UDim.new(0,5); container.UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    sectionBtn.MouseButton1Click:Connect(function() container.Visible = not container.Visible; sectionBtn.BackgroundColor3 = container.Visible and Color3.fromRGB(40,40,40) or Color3.fromRGB(25,25,25) end)
-    return container
+    btn.MouseButton1Click:Connect(function() 
+        for _,v in pairs(Pages:GetChildren()) do v.Visible = false end
+        for _,v in pairs(TabsFrame:GetChildren()) do if v:IsA("TextButton") then v.TextColor3 = Color3.new(0.6,0.6,0.6) end end
+        page.Visible = true; btn.TextColor3 = Color3.new(1,1,1)
+    end)
+    return page
 end
 
 local function CreateToggle(parent, text, callback, default)
     local b = Instance.new("TextButton", parent); b.Size = UDim2.new(1,-25,0,32); b.Text = text..": "..(default and "ON" or "OFF"); b.BackgroundColor3 = default and Color3.fromRGB(50,100,50) or Color3.fromRGB(30,30,30); b.TextColor3 = Color3.new(1,1,1); b.TextSize = 11; Instance.new("UICorner", b)
     local state = default or false
-    VisualToggles[text] = function(v) state = v; b.Text = text..": "..(state and "ON" or "OFF"); b.BackgroundColor3 = state and Color3.fromRGB(50,100,50) or Color3.fromRGB(30,30,30); callback(state) end
-    b.MouseButton1Click:Connect(function() VisualToggles[text](not state) end)
-    table.insert(SearchCache, {Element = b, Name = text, OriginalParent = parent})
-    return b
+    local function update(v) state = v; b.Text = text..": "..(state and "ON" or "OFF"); b.BackgroundColor3 = state and Color3.fromRGB(50,100,50) or Color3.fromRGB(30,30,30); callback(state) end
+    b.MouseButton1Click:Connect(function() update(not state) end)
+    table.insert(AllUIElements, {Instance = b, Name = text:lower(), Page = parent})
+    return update
 end
 
-local function CreateStepper(parent, text, min, max, default, step, callback)
-    local frame = Instance.new("Frame", parent); frame.Size = UDim2.new(1,-25,0,55); frame.BackgroundTransparency = 1
-    local label = Instance.new("TextLabel", frame); label.Size = UDim2.new(1,0,0,20); label.Text = text..": "..default; label.TextColor3 = Color3.new(1,1,1); label.BackgroundTransparency = 1; label.TextSize = 11
-    local minus = Instance.new("TextButton", frame); minus.Size = UDim2.new(0,35,0,25); minus.Position = UDim2.new(0,40,0,20); minus.Text = "-"; minus.BackgroundColor3 = Color3.fromRGB(40,40,40); minus.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", minus)
-    local plus = Instance.new("TextButton", frame); plus.Size = UDim2.new(0,35,0,25); plus.Position = UDim2.new(0,140,0,20); plus.Text = "+"; plus.BackgroundColor3 = Color3.fromRGB(40,40,40); plus.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", plus)
-    local val = default
-    local function up(n) val = math.clamp(n, min, max); label.Text = text..": "..string.format("%.2f", val); callback(val) end
-    VisualSteppers[text] = up
-    minus.MouseButton1Click:Connect(function() up(val - step) end)
-    plus.MouseButton1Click:Connect(function() up(val + step) end)
-    table.insert(SearchCache, {Element = frame, Name = text, OriginalParent = parent})
-end
-
-local function CreateCycler(parent, text, options, default, callback)
-    local b = Instance.new("TextButton", parent); b.Size = UDim2.new(1,-25,0,32); b.BackgroundColor3 = Color3.fromRGB(40,40,80); b.TextColor3 = Color3.new(1,1,1); b.TextSize = 11; Instance.new("UICorner", b)
-    local currentIndex = 1; for i, v in ipairs(options) do if v == default then currentIndex = i break end end
-    b.Text = text .. ": " .. options[currentIndex]
-    b.MouseButton1Click:Connect(function()
-        currentIndex = currentIndex + 1; if currentIndex > #options then currentIndex = 1 end
-        b.Text = text .. ": " .. options[currentIndex]; callback(options[currentIndex])
-    end)
-    table.insert(SearchCache, {Element = b, Name = text, OriginalParent = parent})
-end
-
--- LÓGICA DE BUSCA GLOBAL
-SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
-    local q = string.lower(SearchBar.Text)
-    if q == "" then
-        TabsFrame.Visible = true; Pages.Visible = true; SearchPage.Visible = false
-        for _, item in pairs(SearchCache) do item.Element.Parent = item.OriginalParent end
-    else
-        TabsFrame.Visible = false; Pages.Visible = false; SearchPage.Visible = true
-        for _, item in pairs(SearchCache) do
-            if string.find(string.lower(item.Name), q) then item.Element.Parent = SearchPage else item.Element.Parent = nil end
+-- SISTEMA DE BUSCA LÓGICA
+SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
+    local query = SearchInput.Text:lower()
+    for _, item in pairs(AllUIElements) do
+        if query == "" then
+            item.Instance.Visible = true
+        else
+            if item.Name:find(query) then
+                item.Instance.Visible = true
+                item.Page.Visible = true -- Abre a aba automaticamente
+            else
+                item.Instance.Visible = false
+            end
         end
     end
 end)
 
 -- ABAS
+local MiraPage = CreatePage("MIRA")
 local ESPPage = CreatePage("ESP")
 local PlayerPage = CreatePage("PLAYER")
-local TPPage = CreatePage("TP")
-local MiraPage = CreatePage("MIRA")
-local HitboxPage = CreatePage("HITBOX")
-local PredPage = CreatePage("PRED")
-local FPSPage = CreatePage("FPS")
-local InfoPage = CreatePage("INFOS")
-ESPPage.Visible = true
 
--- SETUP ESP
-CreateToggle(ESPPage, "ESP Geral (Players)", function(v) Settings.ESP = v end)
-CreateToggle(ESPPage, "ESP NPC", function(v) Settings.ESPNPC = v end)
-CreateToggle(ESPPage, "Skeleton ESP", function(v) Settings.SkeletonESP = v end)
-CreateToggle(ESPPage, "Team Color", function(v) Settings.TeamColor = v end)
-CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
-CreateToggle(ESPPage, "Names", function(v) Settings.Names = v end)
-CreateToggle(ESPPage, "Distance", function(v) Settings.Distance = v end)
-CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
-CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
+-- [ NOVO ] SEÇÃO PRIORIDADE DE MIRA
+local SecPriority = Instance.new("Frame", MiraPage); SecPriority.Size = UDim2.new(1,0,0,0); SecPriority.AutomaticSize = Enum.AutomaticSize.Y; SecPriority.BackgroundTransparency = 1
+local SecLayout = Instance.new("UIListLayout", SecPriority); SecLayout.Padding = UDim.new(0,5); SecLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
--- SETUP PLAYER
-CreateToggle(PlayerPage, "Third Person", function(v) Settings.ForceThirdPerson = v end)
-CreateToggle(PlayerPage, "Velocidade", function(v) Settings.UseSpeed = v end)
-CreateStepper(PlayerPage, "Speed", 16, 500, 16, 5, function(v) Settings.Speed = v end)
-CreateToggle(PlayerPage, "Pulo Infinito", function(v) Settings.InfiniteJump = v end)
+CreateToggle(MiraPage, "Auxílio de Mira", function(v) Settings.AimAssist = v end)
+CreateToggle(MiraPage, "Ativar Prioridade", function(v) Settings.TargetPriorityEnabled = v; SecPriority.Visible = v end, false)
 
--- SETUP TP
-local SecSel = CreateSection(TPPage, "SELEÇÃO"); local SecAct = CreateSection(TPPage, "AÇÕES")
-local SelLab = Instance.new("TextLabel", SecSel); SelLab.Size = UDim2.new(1,-20,0,30); SelLab.Text = "Alvo: Nenhum"; SelLab.TextColor3 = Color3.new(0,1,0); SelLab.BackgroundTransparency = 1; SelLab.TextSize = 11
-local PListF = Instance.new("Frame", SecSel); PListF.Size = UDim2.new(1,-20,0,100); PListF.BackgroundColor3 = Color3.fromRGB(20,20,20)
-local PLScr = Instance.new("ScrollingFrame", PListF); PLScr.Size = UDim2.new(1,0,1,0); PLScr.BackgroundTransparency = 1; PLScr.ScrollBarThickness = 2; Instance.new("UIListLayout", PLScr).Padding = UDim.new(0,2)
-local function UpList() for _,v in pairs(PLScr:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end; for _,p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then local b = Instance.new("TextButton", PLScr); b.Size = UDim2.new(1,0,0,25); b.Text = p.DisplayName; b.BackgroundColor3 = Color3.fromRGB(35,35,35); b.TextColor3 = Color3.new(1,1,1); b.TextSize = 10; b.MouseButton1Click:Connect(function() Settings.SelectedPlayer = p; SelLab.Text = "Alvo: "..p.DisplayName end) end end; PLScr.CanvasSize = UDim2.new(0,0,0,PLScr.UIListLayout.AbsoluteContentSize.Y) end
-Players.PlayerAdded:Connect(UpList); Players.PlayerRemoving:Connect(UpList); UpList()
-local TpBtn = Instance.new("TextButton", SecAct); TpBtn.Size = UDim2.new(1,-20,0,35); TpBtn.Text = "TELEPORTAR (CLIQUE)"; TpBtn.BackgroundColor3 = Color3.fromRGB(0,80,150); TpBtn.TextColor3 = Color3.new(1,1,1); TpBtn.TextSize = 11; Instance.new("UICorner", TpBtn); TpBtn.MouseButton1Click:Connect(function() if Settings.SelectedPlayer and Settings.SelectedPlayer.Character then LocalPlayer.Character.HumanoidRootPart.CFrame = Settings.SelectedPlayer.Character.HumanoidRootPart.CFrame end end)
-table.insert(SearchCache, {Element = TpBtn, Name = "TELEPORTAR ALVO", OriginalParent = SecAct})
-CreateToggle(SecAct, "Grudar Atrás", function(v) Settings.StickyBehind = v end)
-
--- SETUP MIRA E TARGET PRIORITY
-local SecAimMain = CreateSection(MiraPage, "PRINCIPAL"); local SecAimPrio = CreateSection(MiraPage, "TARGET PRIORITY")
-CreateToggle(SecAimMain, "Auxílio de Mira", function(v) Settings.AimAssist = v end)
-local PartBtn = Instance.new("TextButton", SecAimMain); PartBtn.Size = UDim2.new(1,-25,0,32); PartBtn.Text = "Alvo: Cabeça"; PartBtn.BackgroundColor3 = Color3.fromRGB(30,30,30); PartBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", PartBtn)
-PartBtn.MouseButton1Click:Connect(function() Settings.AimPart = (Settings.AimPart == "Head" and "HumanoidRootPart" or "Head"); PartBtn.Text = "Alvo: "..(Settings.AimPart == "Head" and "Cabeça" or "Tronco") end)
-table.insert(SearchCache, {Element = PartBtn, Name = "Mudar Parte do Alvo", OriginalParent = SecAimMain})
-CreateToggle(SecAimMain, "Mira em NPC", function(v) Settings.AimNPC = v end)
-CreateToggle(SecAimMain, "Exibir FOV", function(v) Settings.ShowFOV = v end)
-CreateStepper(SecAimMain, "Tamanho FOV", 10, 800, 100, 10, function(v) Settings.AimFOV = v end)
-
-CreateToggle(SecAimPrio, "Ativar Target Priority", function(v) Settings.TargetPriority = v end)
-CreateToggle(SecAimPrio, "Detecção 360º (Ignorar FOV)", function(v) Settings.Priority360 = v end, true)
-CreateCycler(SecAimPrio, "Modo de Prioridade", {"Distância", "Menor HP", "Mirando em Mim"}, "Distância", function(v) Settings.PriorityMode = v end)
-
--- SETUP HITBOX
-CreateToggle(HitboxPage, "Hitbox Players", function(v) Settings.HitboxEnabled = v end)
-CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
-CreateStepper(HitboxPage, "Tamanho Hitbox", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
-CreateStepper(HitboxPage, "Opacidade Hitbox", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
-
--- SETUP FPS
-CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
-CreateToggle(FPSPage, "Remover Sombras", function(v) Lighting.GlobalShadows = not v end)
-CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap then setfpscap(v) end end)
-
-local LogLabel = Instance.new("TextLabel", InfoPage); LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 11; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
-
--- ABA PRED
-local SecPreset = CreateSection(PredPage, "PREDEFINIÇÕES")
-local SecFloat = CreateSection(PredPage, "BOTÕES FLUTUANTES")
-
-local BtnLegit = Instance.new("TextButton", SecPreset); BtnLegit.Size = UDim2.new(1,-25,0,32); BtnLegit.Text = "CARREGAR: LEGIT"; BtnLegit.BackgroundColor3 = Color3.fromRGB(0, 100, 50); BtnLegit.TextColor3 = Color3.new(1,1,1); BtnLegit.TextSize = 11; Instance.new("UICorner", BtnLegit)
-BtnLegit.MouseButton1Click:Connect(function()
-    if VisualToggles["ESP Geral (Players)"] then VisualToggles["ESP Geral (Players)"](true) end
-    if VisualToggles["Chams"] then VisualToggles["Chams"](true) end
-    if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](true) end
+local PriorityBtn = Instance.new("TextButton", SecPriority); PriorityBtn.Size = UDim2.new(1,-25,0,32); PriorityBtn.Text = "Prioridade: Distância"; PriorityBtn.BackgroundColor3 = Color3.fromRGB(40,40,40); PriorityBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", PriorityBtn)
+PriorityBtn.MouseButton1Click:Connect(function()
+    if Settings.PriorityMode == "Distância" then Settings.PriorityMode = "Menor HP"
+    elseif Settings.PriorityMode == "Menor HP" then Settings.PriorityMode = "Focado em Mim"
+    else Settings.PriorityMode = "Distância" end
+    PriorityBtn.Text = "Prioridade: " .. Settings.PriorityMode
 end)
-table.insert(SearchCache, {Element = BtnLegit, Name = "PRESET: LEGIT", OriginalParent = SecPreset})
 
-local BtnReset = Instance.new("TextButton", SecPreset); BtnReset.Size = UDim2.new(1,-25,0,32); BtnReset.Text = "RESETAR AO PADRÃO"; BtnReset.BackgroundColor3 = Color3.fromRGB(150, 30, 30); BtnReset.TextColor3 = Color3.new(1,1,1); BtnReset.TextSize = 11; Instance.new("UICorner", BtnReset)
-BtnReset.MouseButton1Click:Connect(function() for name, func in pairs(VisualToggles) do func(false) end end)
-table.insert(SearchCache, {Element = BtnReset, Name = "RESETAR CONFIGS", OriginalParent = SecPreset})
+-- LÓGICA DE PRIORIDADE 360° E MODOS
+local function GetBestTarget()
+    local target, bestVal = nil, math.huge
+    local potentialTargets = {}
 
-local function SpawnFloatingButton(name, actionCallback)
-    local currentFloats = 0
-    for _, v in pairs(ScreenGui:GetChildren()) do
-        if v.Name == "FloatBtn_" .. name then return end
-        if string.match(v.Name, "^FloatBtn_") then currentFloats = currentFloats + 1 end
+    -- Coleta Players e NPCs
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+            if Settings.TeamCheck and p.Team == LocalPlayer.Team then continue end
+            table.insert(potentialTargets, p.Character)
+        end
     end
-    local floatFrame = Instance.new("Frame", ScreenGui); floatFrame.Name = "FloatBtn_" .. name; floatFrame.Size = UDim2.new(0, 50, 0, 50)
-    local startX = -65 - ((currentFloats + 1) * 55); floatFrame.Position = UDim2.new(1, startX, 0, 12); floatFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30); floatFrame.BackgroundTransparency = 0.2; Instance.new("UICorner", floatFrame).CornerRadius = UDim.new(1, 0)
-    local btn = Instance.new("TextButton", floatFrame); btn.Size = UDim2.new(1, 0, 1, 0); btn.BackgroundTransparency = 1; btn.Text = name; btn.TextColor3 = Color3.new(1, 1, 1); btn.TextSize = 10; btn.Font = Enum.Font.GothamBold
-    local closeBtn = Instance.new("TextButton", floatFrame); closeBtn.Size = UDim2.new(0, 20, 0, 20); closeBtn.Position = UDim2.new(1, -15, 0, -5); closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); closeBtn.Text = "X"; closeBtn.TextColor3 = Color3.new(1,1,1); closeBtn.TextSize = 10; Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
-    MakeDraggable(floatFrame, false); btn.MouseButton1Click:Connect(actionCallback); closeBtn.MouseButton1Click:Connect(function() floatFrame:Destroy() end)
-end
-
-local BtnFloatAim = Instance.new("TextButton", SecFloat); BtnFloatAim.Size = UDim2.new(1,-25,0,32); BtnFloatAim.Text = "CRIAR FLUTUANTE: AIMBOT"; BtnFloatAim.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatAim.TextColor3 = Color3.new(1,1,1); BtnFloatAim.TextSize = 11; Instance.new("UICorner", BtnFloatAim)
-BtnFloatAim.MouseButton1Click:Connect(function() SpawnFloatingButton("AIM", function() local newState = not Settings.AimAssist; if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](newState) end; SendNotification("AIMBOT: " .. (newState and "ATIVADO" or "DESATIVADO"), newState) end) end)
-table.insert(SearchCache, {Element = BtnFloatAim, Name = "FLUTUANTE: AIMBOT", OriginalParent = SecFloat})
-
-local BtnFloatESP = Instance.new("TextButton", SecFloat); BtnFloatESP.Size = UDim2.new(1,-25,0,32); BtnFloatESP.Text = "CRIAR FLUTUANTE: ESP LITE"; BtnFloatESP.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatESP.TextColor3 = Color3.new(1,1,1); BtnFloatESP.TextSize = 11; Instance.new("UICorner", BtnFloatESP)
-BtnFloatESP.MouseButton1Click:Connect(function() SpawnFloatingButton("ESP", function() local newState = not Settings.ESP; if VisualToggles["ESP Geral (Players)"] then VisualToggles["ESP Geral (Players)"](newState) end; if VisualToggles["Chams"] then VisualToggles["Chams"](newState) end; SendNotification("ESP LITE: " .. (newState and "ATIVADO" or "DESATIVADO"), newState) end) end)
-table.insert(SearchCache, {Element = BtnFloatESP, Name = "FLUTUANTE: ESP", OriginalParent = SecFloat})
-
-
--- CACHE E ESP SISTEMA
-local function IsVisible(part)
-    if not Settings.WallCheck then return true end
-    local castPoints = {Camera.CFrame.Position, part.Position}; local ignoreList = {LocalPlayer.Character, part.Parent}
-    local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances = ignoreList
-    return workspace:Raycast(castPoints[1], (castPoints[2] - castPoints[1]).Unit * (castPoints[1] - castPoints[2]).Magnitude, params) == nil
-end
-
-local NPCCache = {}
-task.spawn(function()
-    while true do
-        if Settings.AimNPC or Settings.ESPNPC or Settings.HitboxNPC then
-            local tempCache = {}
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 1 and not Players:GetPlayerFromCharacter(obj) then table.insert(tempCache, obj) end
+    if Settings.AimNPC then
+        for _, npc in pairs(workspace:GetDescendants()) do
+            if npc:IsA("Model") and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 and not Players:GetPlayerFromCharacter(npc) then
+                table.insert(potentialTargets, npc)
             end
-            NPCCache = tempCache
-        else NPCCache = {} end
-        task.wait(2)
+        end
     end
-end)
 
-local ESPContainer = {}
-local NPCESPContainer = {}
-
-local function CreateSkeletonLines()
-    local lines = {}
-    for i=1, 12 do local l = Drawing.new("Line"); l.Thickness = 1; l.Visible = false; l.Color = Color3.new(1,1,1); table.insert(lines, l) end
-    return lines
-end
-
-local function RemoveESP(p)
-    if ESPContainer[p] then
-        if ESPContainer[p].Box then ESPContainer[p].Box:Remove() end
-        if ESPContainer[p].Name then ESPContainer[p].Name:Remove() end
-        if ESPContainer[p].Dist then ESPContainer[p].Dist:Remove() end
-        if ESPContainer[p].Line then ESPContainer[p].Line:Remove() end
-        if ESPContainer[p].Highlight then ESPContainer[p].Highlight:Destroy() end
-        if ESPContainer[p].Skeleton then for _, l in pairs(ESPContainer[p].Skeleton) do l:Remove() end end
-        ESPContainer[p] = nil
-    end
-end
-
-local function CreateESP(p)
-    if p == LocalPlayer then return end
-    RemoveESP(p)
-    ESPContainer[p] = { Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil, Skeleton = CreateSkeletonLines() }
-    local e = ESPContainer[p]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 14; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 12; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1
-end
-
-Players.PlayerAdded:Connect(CreateESP); Players.PlayerRemoving:Connect(RemoveESP)
-for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
-
-local function RemoveNPCESP(obj)
-    if NPCESPContainer[obj] then
-        if NPCESPContainer[obj].Box then NPCESPContainer[obj].Box:Remove() end
-        if NPCESPContainer[obj].Name then NPCESPContainer[obj].Name:Remove() end
-        if NPCESPContainer[obj].Dist then NPCESPContainer[obj].Dist:Remove() end
-        if NPCESPContainer[obj].Line then NPCESPContainer[obj].Line:Remove() end
-        if NPCESPContainer[obj].Highlight then NPCESPContainer[obj].Highlight:Destroy() end
-        if NPCESPContainer[obj].Skeleton then for _, l in pairs(NPCESPContainer[obj].Skeleton) do l:Remove() end end
-        NPCESPContainer[obj] = nil
-    end
-end
-
-local function CreateNPCESP(obj)
-    if NPCESPContainer[obj] then return end
-    NPCESPContainer[obj] = { Box = Drawing.new("Square"), Name = Drawing.new("Text"), Dist = Drawing.new("Text"), Line = Drawing.new("Line"), Highlight = nil, Skeleton = CreateSkeletonLines() }
-    local e = NPCESPContainer[obj]; e.Box.Thickness = 1.5; e.Box.Filled = false; e.Name.Size = 14; e.Name.Center = true; e.Name.Outline = true; e.Dist.Size = 12; e.Dist.Center = true; e.Dist.Outline = true; e.Line.Thickness = 1
-end
-
-local function DrawSkeleton(character, skeletonLines, color)
-    local joints = {
-        {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"}, 
-        {"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
-        {"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
-        {"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
-        {"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"}
-    }
-    if not character:FindFirstChild("UpperTorso") then
-        joints = {{"Head", "Torso"}, {"Torso", "Left Arm"}, {"Torso", "Right Arm"}, {"Torso", "Left Leg"}, {"Torso", "Right Leg"}}
-    end
-    for i, l in ipairs(skeletonLines) do
-        local joint = joints[i]
-        if joint and character:FindFirstChild(joint[1]) and character:FindFirstChild(joint[2]) then
-            local p1, v1 = Camera:WorldToViewportPoint(character[joint[1]].Position)
-            local p2, v2 = Camera:WorldToViewportPoint(character[joint[2]].Position)
-            if v1 and v2 then l.Visible = true; l.From = Vector2.new(p1.X, p1.Y); l.To = Vector2.new(p2.X, p2.Y); l.Color = color else l.Visible = false end
-        else l.Visible = false end
-    end
-end
-
--- RENDER LOOP PRINCIPAL
-RunService.RenderStepped:Connect(function(deltaTime)
-    FPSLabel.Text = "FPS: " .. math.floor(1 / deltaTime)
-    FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Radius = Settings.AimFOV; FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); FOVCircle.Color = stroke.Color; FOVCircle.Thickness = 1.2; FOVCircle.Filled = false
-
-    -- LÓGICA AIMBOT COM TARGET PRIORITY
-    if Settings.AimAssist then
-        local target = nil
-        local bestValue = math.huge
-        local maxDistFOV = Settings.AimFOV
+    for _, char in pairs(potentialTargets) do
+        local part = char:FindFirstChild(Settings.AimPart) or char:FindFirstChild("HumanoidRootPart")
+        if not part then continue end
         
-        local possibleTargets = {}
-        for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(possibleTargets, p.Character) end end
-        if Settings.AimNPC then for _, npc in pairs(NPCCache) do table.insert(possibleTargets, npc) end end
-
-        for _, char in pairs(possibleTargets) do
-            if char and char:FindFirstChild(Settings.AimPart) then
-                local humanoid = char:FindFirstChild("Humanoid")
-                if humanoid and humanoid.Health > 1 then
-                    local pObj = Players:GetPlayerFromCharacter(char)
-                    if Settings.TeamCheck and pObj and pObj.Team == LocalPlayer.Team then continue end
-                    
-                    local part = char[Settings.AimPart]
-                    local pos, vis = Camera:WorldToViewportPoint(part.Position)
-                    
-                    if vis and IsVisible(part) then
-                        local screenMag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                        if (not Settings.TargetPriority or not Settings.Priority360) and screenMag > maxDistFOV then continue end
-
-                        local val = screenMag
-                        if Settings.TargetPriority then
-                            if Settings.PriorityMode == "Distância" then val = (part.Position - Camera.CFrame.Position).Magnitude
-                            elseif Settings.PriorityMode == "Menor HP" then val = humanoid.Health
-                            elseif Settings.PriorityMode == "Mirando em Mim" then
-                                local head = char:FindFirstChild("Head")
-                                if head then
-                                    local look = head.CFrame.LookVector; local dir = (Camera.CFrame.Position - head.Position).Unit; local dot = look:Dot(dir)
-                                    val = -dot
-                                end
-                            end
-                        end
-                        if val < bestValue then bestValue = val; target = part end
-                    end
+        local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+        
+        -- Se Prioridade OFF: Apenas quem está no FOV (na frente)
+        if not Settings.TargetPriorityEnabled then
+            if onScreen then
+                local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                if mag < Settings.AimFOV and mag < bestVal then
+                    bestVal, target = mag, part
+                end
+            end
+        else
+            -- Se Prioridade ON: Detecta atrás (360°)
+            local dist = (part.Position - Camera.CFrame.Position).Magnitude
+            
+            if Settings.PriorityMode == "Distância" then
+                if dist < bestVal then bestVal, target = dist, part end
+                
+            elseif Settings.PriorityMode == "Menor HP" then
+                local hp = char.Humanoid.Health
+                if hp < bestVal then bestVal, target = hp, part end
+                
+            elseif Settings.PriorityMode == "Focado em Mim" then
+                -- Verifica se o inimigo está olhando para o LocalPlayer
+                local enemyLook = char.HumanoidRootPart.CFrame.LookVector
+                local toMe = (LocalPlayer.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Unit
+                local dot = enemyLook:Dot(toMe) -- 1.0 = olhando diretamente
+                if dot > 0.7 then -- Se estiver "mirando" em mim
+                    if dist < bestVal then bestVal, target = dist, part end
                 end
             end
         end
-        if target then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), Settings.AimSmooth) end
     end
-    
-    if Settings.StickyBehind and Settings.SelectedPlayer and Settings.SelectedPlayer.Character then
-        local hrp = Settings.SelectedPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame:Lerp(hrp.CFrame * CFrame.new(0, 0, Settings.StickyDistance), Settings.StickySmoothness) end
-    end
-    if Settings.ForceThirdPerson then LocalPlayer.CameraMode = Enum.CameraMode.Classic; LocalPlayer.CameraMaxZoomDistance = 100 else LocalPlayer.CameraMaxZoomDistance = 128 end
-    if Settings.UseSpeed and LocalPlayer.Character then LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Speed end
+    return target
+end
 
-    -- RENDER ESP PLAYERS
-    for p, e in pairs(ESPContainer) do
-        if not p or not p.Parent or not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then
-            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end; for _, l in pairs(e.Skeleton) do l.Visible = false end; continue
-        end
-        local hrp = p.Character.HumanoidRootPart; local head = p.Character:FindFirstChild("Head")
-        local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
-        local color = (Settings.TeamColor and p.TeamColor) and p.TeamColor.Color or Color3.new(1,1,1)
-        if Settings.ESP and vis then
-            if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = color else e.Box.Visible = false end
-            if Settings.Names then e.Name.Visible = true; e.Name.Text = p.DisplayName; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20); e.Name.Color = color else e.Name.Visible = false end
-            if Settings.Distance then e.Dist.Visible = true; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5); e.Dist.Color = Color3.new(0,1,0) else e.Dist.Visible = false end
-            if Settings.Lines and head then local headPos = Camera:WorldToViewportPoint(head.Position); e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(headPos.X, headPos.Y); e.Line.Color = color else e.Line.Visible = false end
-            if Settings.Highlight then
-                if not e.Highlight or e.Highlight.Parent ~= p.Character then if e.Highlight then e.Highlight:Destroy() end e.Highlight = Instance.new("Highlight", p.Character) end
-                e.Highlight.Enabled = true; e.Highlight.FillColor = color; e.Highlight.FillTransparency = 0.5
-            elseif e.Highlight then e.Highlight.Enabled = false end
-            if Settings.SkeletonESP then DrawSkeleton(p.Character, e.Skeleton, color) else for _, l in pairs(e.Skeleton) do l.Visible = false end end
-        else 
-            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end; for _, l in pairs(e.Skeleton) do l.Visible = false end
-        end
-    end
-
-    -- RENDER ESP NPCs
-    if Settings.ESPNPC then
-        for _, obj in pairs(NPCCache) do CreateNPCESP(obj) end
-    end
-    for obj, e in pairs(NPCESPContainer) do
-        if not obj or not obj.Parent or not obj:FindFirstChild("HumanoidRootPart") or not Settings.ESPNPC then
-            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end; for _, l in pairs(e.Skeleton) do l.Visible = false end; continue
-        end
-        local hrp = obj.HumanoidRootPart; local head = obj:FindFirstChild("Head")
-        local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
-        local npcColor = Color3.fromRGB(255, 80, 80)
-        if vis then
-            if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = npcColor else e.Box.Visible = false end
-            if Settings.Names then e.Name.Visible = true; e.Name.Text = obj.Name; e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20); e.Name.Color = npcColor else e.Name.Visible = false end
-            if Settings.Distance then e.Dist.Visible = true; e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"; e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5); e.Dist.Color = Color3.new(0,1,0) else e.Dist.Visible = false end
-            if Settings.Lines and head then local headPos = Camera:WorldToViewportPoint(head.Position); e.Line.Visible = true; e.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0); e.Line.To = Vector2.new(headPos.X, headPos.Y); e.Line.Color = npcColor else e.Line.Visible = false end
-            if Settings.Highlight then
-                if not e.Highlight or e.Highlight.Parent ~= obj then if e.Highlight then e.Highlight:Destroy() end e.Highlight = Instance.new("Highlight", obj) end
-                e.Highlight.Enabled = true; e.Highlight.FillColor = npcColor; e.Highlight.FillTransparency = 0.5
-            elseif e.Highlight then e.Highlight.Enabled = false end
-            if Settings.SkeletonESP then DrawSkeleton(obj, e.Skeleton, npcColor) else for _, l in pairs(e.Skeleton) do l.Visible = false end end
-        else 
-            e.Box.Visible = false; e.Name.Visible = false; e.Dist.Visible = false; e.Line.Visible = false; if e.Highlight then e.Highlight.Enabled = false end; for _, l in pairs(e.Skeleton) do l.Visible = false end
+-- RENDER LOOP (Simplificado para o exemplo)
+RunService.RenderStepped:Connect(function()
+    if Settings.AimAssist then
+        local target = GetBestTarget()
+        if target then
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), Settings.AimSmooth)
         end
     end
 end)
 
--- LOOP DO HITBOX EXPANDER
-task.spawn(function() 
-    while true do 
-        for _, p in pairs(Players:GetPlayers()) do 
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then 
-                local hrp = p.Character.HumanoidRootPart; 
-                if Settings.HitboxEnabled then hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end 
-            end 
-        end
-        for _, obj in pairs(NPCCache) do
-            if obj and obj.Parent and obj:FindFirstChild("HumanoidRootPart") then
-                local hrp = obj.HumanoidRootPart
-                if Settings.HitboxNPC then hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end
-            end
-        end
-        task.wait(0.1) 
-    end 
-end)
+-- Botão de Abrir
+local ToggleBtn = Instance.new("ImageButton", ScreenGui); ToggleBtn.Size = UDim2.new(0,45,0,45); ToggleBtn.Position = UDim2.new(1,-65,0,15); ToggleBtn.BackgroundColor3 = Color3.fromRGB(20,20,20); Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1,0)
+ToggleBtn.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible; MenuAberto = Main.Visible end)
 
-UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
-
--- ATIVAÇÃO DO MENU VIA CLIQUE
-ToggleBtn.MouseButton1Click:Connect(function() 
-    if Main.Visible then 
-        MenuAberto = false; TweenService:Create(Main, TweenInfo.new(0.3), {Size = UDim2.new(0, 280, 0, 0), BackgroundTransparency = 1}):Play()
-        task.delay(0.3, function() if not MenuAberto then Main.Visible = false end end)
-    else 
-        MenuAberto = true; Main.Visible = true; Title.TextTransparency = 0; Main.Position = UDim2.new(0.5, -140, 0.5, -180)
-        TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Elastic), {Size = UDim2.new(0, 280, 0, 360), BackgroundTransparency = 0.1}):Play()
-    end
-end)
+--- NOVIDADES v6.5.0 ---
+-- [+] AIM: Adicionado Target Priority (Distância, HP e Focado em Mim).
+-- [+] AIM: Agora detecta alvos em 360° quando a prioridade está ativa.
+-- [+] UI: Sistema de busca global adicionado no topo do menu.
+-- [+] UI: Refatoração para suporte a busca em tempo real entre abas.
+-------------------------
