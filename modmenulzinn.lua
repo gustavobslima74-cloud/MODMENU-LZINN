@@ -20,18 +20,19 @@ getgenv().Settings = {
     AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
     AimNPC = false, ESPNPC = false, SkeletonESP = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
-    TeamCheck2 = false -- NOVO: Team Check Customizado
+    TeamCheck2 = false,
+    ColorAimbot = false, ColorAimbotTarget = nil -- NOVO: Aimbot de Cor
 }
 
-local VERSION = "v6.9.0"
+local VERSION = "v6.10.0"
 local CHANGELOG_TEXT = [[
---- NOVIDADES v6.9.0 ---
-[+] REMOVIDO: Funções experimentais de arma (Munição, Speedfire, etc) devido a bloqueios FE do servidor.
-[+] TESTE: Adicionado Team Check 2.0.
-[+] LÓGICA: O Team Check 2.0 escaneia cores de Nicknames customizados ou roupas (Vermelho/Azul) para jogos que não usam o sistema padrão do Roblox. O Aimbot e o ESP agora respeitam essa nova cor.
+--- NOVIDADES v6.10.0 ---
+[+] TESTE: Adicionado "Aimbot de Cor".
+[+] LÓGICA: Nova lista detecta as cores exatas (nicks/roupas) dos jogadores vivos na partida.
+[+] MIRA: O Aimbot agora pode ser configurado para atirar EXCLUSIVAMENTE em uma cor específica detectada, ignorando todo o resto.
 -------------------------
---- NOVIDADES v6.8.1 ---
-[+] CORREÇÃO: Código base e renderizadores estabilizados.
+--- NOVIDADES v6.9.0 ---
+[+] TESTE: Adicionado Team Check 2.0 (Filtro por cor de nickname/roupa customizada).
 -------------------------]]
 
 local MenuAberto = false
@@ -39,6 +40,31 @@ local FOVCircle = Drawing.new("Circle")
 
 --// GUI PRINCIPAL
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+
+-- FUNÇÃO GLOBAL: IDENTIFICADOR DE TIME CUSTOMIZADO (Movido para cima para ser acessível globalmente)
+local function GetCustomTeamColor(p)
+    if not p or not p.Character then return Color3.new(1,1,1) end
+    local char = p.Character
+
+    local head = char:FindFirstChild("Head")
+    if head then
+        for _, v in pairs(head:GetDescendants()) do
+            if v:IsA("TextLabel") and v.Text ~= "" then return v.TextColor3 end
+        end
+    end
+
+    for _, v in pairs(char:GetDescendants()) do
+        if v:IsA("TextLabel") and (string.find(string.lower(v.Text), string.lower(p.Name)) or string.find(string.lower(v.Text), string.lower(p.DisplayName))) then
+            return v.TextColor3
+        end
+    end
+
+    local bodyColors = char:FindFirstChildOfClass("BodyColors")
+    if bodyColors then return bodyColors.TorsoColor3 end
+
+    if p.TeamColor then return p.TeamColor.Color end
+    return Color3.new(1,1,1)
+end
 
 --// SISTEMA DE NOTIFICAÇÕES
 local NotifContainer = Instance.new("Frame", ScreenGui)
@@ -324,42 +350,53 @@ CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
 
--- SETUP TESTE (TEAM CHECK 2.0)
+-- SETUP TESTE (TEAM CHECK 2.0 & AIMBOT DE COR)
 CreateSection(TestePage, "FILTROS AVANÇADOS")
 CreateToggle(TestePage, "Team Check 2.0 (Custom)", function(v) Settings.TeamCheck2 = v end)
 
--- FUNÇÃO: IDENTIFICADOR DE TIME CUSTOMIZADO
-local function GetCustomTeamColor(p)
-    if not p or not p.Character then return Color3.new(1,1,1) end
-    local char = p.Character
+local SecAimbotCor = CreateSection(TestePage, "AIMBOT DE COR")
+CreateToggle(SecAimbotCor, "Aimbot por Cor (Filtro)", function(v) Settings.ColorAimbot = v end)
 
-    -- 1. Procura na cabeça por TextLabels com a cor do Nick
-    local head = char:FindFirstChild("Head")
-    if head then
-        for _, v in pairs(head:GetDescendants()) do
-            if v:IsA("TextLabel") and v.Text ~= "" then
-                return v.TextColor3
+local ColorSelLab = Instance.new("TextLabel", SecAimbotCor); 
+ColorSelLab.Size = UDim2.new(1,-20,0,30); ColorSelLab.Text = "Alvo Atual: Nenhuma cor"; ColorSelLab.TextColor3 = Color3.new(1,1,1); ColorSelLab.BackgroundTransparency = 1; ColorSelLab.TextSize = 11
+
+local CListF = Instance.new("Frame", SecAimbotCor); CListF.Size = UDim2.new(1,-20,0,100); CListF.BackgroundColor3 = Color3.fromRGB(20,20,20)
+local CLScr = Instance.new("ScrollingFrame", CListF); CLScr.Size = UDim2.new(1,0,1,0); CLScr.BackgroundTransparency = 1; CLScr.ScrollBarThickness = 2; Instance.new("UIListLayout", CLScr).Padding = UDim.new(0,2)
+
+local UpdColBtn = Instance.new("TextButton", SecAimbotCor); UpdColBtn.Size = UDim2.new(1,-20,0,35); UpdColBtn.Text = "ATUALIZAR CORES (CLIQUE)"; UpdColBtn.BackgroundColor3 = Color3.fromRGB(0,80,150); UpdColBtn.TextColor3 = Color3.new(1,1,1); UpdColBtn.TextSize = 11; Instance.new("UICorner", UpdColBtn)
+
+local function UpColorList()
+    for _,v in pairs(CLScr:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    local uniqueColors = {}
+    
+    for _,p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local c = GetCustomTeamColor(p)
+            local cId = math.floor(c.R*255).."_"..math.floor(c.G*255).."_"..math.floor(c.B*255)
+            
+            if not uniqueColors[cId] then
+                uniqueColors[cId] = true
+                local b = Instance.new("TextButton", CLScr)
+                b.Size = UDim2.new(1,0,0,25)
+                b.Text = "Detectado: RGB(" .. cId:gsub("_", ",") .. ")"
+                b.BackgroundColor3 = Color3.fromRGB(35,35,35)
+                b.TextColor3 = c
+                b.TextSize = 10
+                b.Font = Enum.Font.GothamBold
+                
+                b.MouseButton1Click:Connect(function() 
+                    Settings.ColorAimbotTarget = c
+                    ColorSelLab.Text = "Alvo Atual: RGB(" .. cId:gsub("_", ",") .. ")"
+                    ColorSelLab.TextColor3 = c
+                    SendNotification("Cor Alvo Definida!", true)
+                end)
             end
         end
     end
-
-    -- 2. Procura em todo o char se falhar na cabeça
-    for _, v in pairs(char:GetDescendants()) do
-        if v:IsA("TextLabel") and (string.find(string.lower(v.Text), string.lower(p.Name)) or string.find(string.lower(v.Text), string.lower(p.DisplayName))) then
-            return v.TextColor3
-        end
-    end
-
-    -- 3. Procura cor do Torso (BodyColors)
-    local bodyColors = char:FindFirstChildOfClass("BodyColors")
-    if bodyColors then
-        return bodyColors.TorsoColor3
-    end
-
-    -- 4. Retorna o padrão do Roblox se nada der certo
-    if p.TeamColor then return p.TeamColor.Color end
-    return Color3.new(1,1,1)
+    CLScr.CanvasSize = UDim2.new(0,0,0,CLScr.UIListLayout.AbsoluteContentSize.Y)
 end
+UpdColBtn.MouseButton1Click:Connect(UpColorList)
+RegisterSearchable(UpdColBtn, "Atualizar Cores")
 
 -- SETUP FPS
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
@@ -586,18 +623,27 @@ RunService.RenderStepped:Connect(function()
 
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
-                -- LÓGICA DE TEAM CHECK 1 E 2
-                if Settings.TeamCheck2 then
+                
+                -- LÓGICA DE AIMBOT POR COR (Prioridade Máxima de Filtro)
+                if Settings.ColorAimbot and Settings.ColorAimbotTarget then
+                    local targetColor = GetCustomTeamColor(p)
+                    local diffR = math.abs(Settings.ColorAimbotTarget.R - targetColor.R)
+                    local diffG = math.abs(Settings.ColorAimbotTarget.G - targetColor.G)
+                    local diffB = math.abs(Settings.ColorAimbotTarget.B - targetColor.B)
+                    
+                    if (diffR + diffG + diffB) > 0.1 then continue end -- IGNORA se não for a cor alvo
+                
+                -- LÓGICA DE TEAM CHECK 2.0 (Ignora Aliados)
+                elseif Settings.TeamCheck2 then
                     local myColor = GetCustomTeamColor(LocalPlayer)
                     local targetColor = GetCustomTeamColor(p)
-                    
-                    -- Se a cor (vermelha ou azul) for idêntica (margem de tolerância pequena), ignora
                     local diffR = math.abs(myColor.R - targetColor.R)
                     local diffG = math.abs(myColor.G - targetColor.G)
                     local diffB = math.abs(myColor.B - targetColor.B)
                     
                     if (diffR + diffG + diffB) < 0.1 then continue end
                     
+                -- LÓGICA DE TEAM CHECK PADRÃO
                 elseif Settings.TeamCheck and p.Team == LocalPlayer.Team then 
                     continue 
                 end
@@ -638,7 +684,7 @@ RunService.RenderStepped:Connect(function()
             local hrp = character.HumanoidRootPart; local head = character:FindFirstChild("Head")
             local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
             
-            -- LÓGICA DE COR DO ESP (TEAM CHECK 2.0 / PADRÃO / NPC)
+            -- LÓGICA DE COR DO ESP
             local color = Color3.new(1,1,1)
             if isNPC then
                 color = Color3.fromRGB(255, 80, 80)
