@@ -20,21 +20,18 @@ getgenv().Settings = {
     AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
     AimNPC = false, ESPNPC = false, SkeletonESP = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
-    InfAmmo = false, Speedfire = false, NoRecoil = false, NoSpread = false
+    TeamCheck2 = false -- NOVO: Team Check Customizado
 }
 
-local VERSION = "v6.8.1"
+local VERSION = "v6.9.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.9.0 ---
+[+] REMOVIDO: Funções experimentais de arma (Munição, Speedfire, etc) devido a bloqueios FE do servidor.
+[+] TESTE: Adicionado Team Check 2.0.
+[+] LÓGICA: O Team Check 2.0 escaneia cores de Nicknames customizados ou roupas (Vermelho/Azul) para jogos que não usam o sistema padrão do Roblox. O Aimbot e o ESP agora respeitam essa nova cor.
+-------------------------
 --- NOVIDADES v6.8.1 ---
-[+] CORREÇÃO: Código base restaurado sem cortes (ESP, Aimbot e Hitbox 100% funcionais novamente).
-[+] COMBATE: Lógica de Speedfire e No Recoil expandida para detectar mais variáveis (firerate, cooldown, recoil, etc).
--------------------------
---- NOVIDADES v6.8.0 ---
-[+] ABA TESTE: Funções experimentais (Munição Infinita, Speedfire, Sem Recuo, Sem Espalhamento).
--------------------------
---- NOVIDADES v6.7.0 ---
-[+] PRED: Novo Preset NPC e botões flutuantes automáticos.
-[+] UI: Adicionado botão para criar Flutuante de Hitbox NPC.
+[+] CORREÇÃO: Código base e renderizadores estabilizados.
 -------------------------]]
 
 local MenuAberto = false
@@ -315,7 +312,7 @@ PartBtn.MouseButton1Click:Connect(function() Settings.AimPart = (Settings.AimPar
 RegisterSearchable(PartBtn, "Alvo Mira Corpo/Cabeca")
 
 CreateToggle(MiraPage, "Mira em NPC", function(v) Settings.AimNPC = v end)
-CreateToggle(MiraPage, "Team Check", function(v) Settings.TeamCheck = v end)
+CreateToggle(MiraPage, "Team Check (Padrão)", function(v) Settings.TeamCheck = v end)
 CreateToggle(MiraPage, "Wall Check", function(v) Settings.WallCheck = v end)
 CreateToggle(MiraPage, "Exibir FOV", function(v) Settings.ShowFOV = v end)
 CreateStepper(MiraPage, "Tamanho FOV", 10, 800, 100, 10, function(v) Settings.AimFOV = v end)
@@ -327,54 +324,42 @@ CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
 
--- SETUP TESTE (MUNIÇÃO, FIRE, RECOIL)
-CreateSection(TestePage, "MODIFICAÇÕES DE ARMA")
-CreateToggle(TestePage, "Munição Infinita", function(v) Settings.InfAmmo = v end)
-CreateToggle(TestePage, "Speedfire", function(v) Settings.Speedfire = v end)
-CreateToggle(TestePage, "Sem Recuo", function(v) Settings.NoRecoil = v end)
-CreateToggle(TestePage, "Sem Espalhamento", function(v) Settings.NoSpread = v end)
+-- SETUP TESTE (TEAM CHECK 2.0)
+CreateSection(TestePage, "FILTROS AVANÇADOS")
+CreateToggle(TestePage, "Team Check 2.0 (Custom)", function(v) Settings.TeamCheck2 = v end)
 
-task.spawn(function()
-    while task.wait(0.1) do
-        if not (Settings.InfAmmo or Settings.Speedfire or Settings.NoRecoil or Settings.NoSpread) then continue end
-        local char = LocalPlayer.Character
-        if not char then continue end
-        local tool = char:FindFirstChildOfClass("Tool")
-        if not tool then continue end
+-- FUNÇÃO: IDENTIFICADOR DE TIME CUSTOMIZADO
+local function GetCustomTeamColor(p)
+    if not p or not p.Character then return Color3.new(1,1,1) end
+    local char = p.Character
 
-        for _, v in pairs(tool:GetDescendants()) do
-            local name = string.lower(v.Name)
-            
-            -- Munição Infinita
-            if Settings.InfAmmo and (v:IsA("IntVariable") or v:IsA("IntValue") or v:IsA("NumberValue")) then
-                if string.find(name, "ammo") or string.find(name, "mag") or string.find(name, "clip") then
-                    v.Value = 999
-                end
-            end
-            
-            -- Speedfire
-            if Settings.Speedfire and (v:IsA("NumberValue") or v:IsA("IntValue")) then
-                if string.find(name, "firerate") or string.find(name, "rate") or string.find(name, "delay") or string.find(name, "cooldown") then
-                    v.Value = 0.01
-                end
-            end
-            
-            -- No Recoil
-            if Settings.NoRecoil and (v:IsA("NumberValue") or v:IsA("IntValue") or v:IsA("Vector3Value")) then
-                if string.find(name, "recoil") or string.find(name, "kick") then
-                    if v:IsA("Vector3Value") then v.Value = Vector3.new(0,0,0) else v.Value = 0 end
-                end
-            end
-            
-            -- No Spread
-            if Settings.NoSpread and (v:IsA("NumberValue") or v:IsA("IntValue")) then
-                if string.find(name, "spread") or string.find(name, "accuracy") or string.find(name, "dispersion") then
-                    if string.find(name, "accuracy") then v.Value = 100 else v.Value = 0 end
-                end
+    -- 1. Procura na cabeça por TextLabels com a cor do Nick
+    local head = char:FindFirstChild("Head")
+    if head then
+        for _, v in pairs(head:GetDescendants()) do
+            if v:IsA("TextLabel") and v.Text ~= "" then
+                return v.TextColor3
             end
         end
     end
-end)
+
+    -- 2. Procura em todo o char se falhar na cabeça
+    for _, v in pairs(char:GetDescendants()) do
+        if v:IsA("TextLabel") and (string.find(string.lower(v.Text), string.lower(p.Name)) or string.find(string.lower(v.Text), string.lower(p.DisplayName))) then
+            return v.TextColor3
+        end
+    end
+
+    -- 3. Procura cor do Torso (BodyColors)
+    local bodyColors = char:FindFirstChildOfClass("BodyColors")
+    if bodyColors then
+        return bodyColors.TorsoColor3
+    end
+
+    -- 4. Retorna o padrão do Roblox se nada der certo
+    if p.TeamColor then return p.TeamColor.Color end
+    return Color3.new(1,1,1)
+end
 
 -- SETUP FPS
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
@@ -601,7 +586,22 @@ RunService.RenderStepped:Connect(function()
 
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
-                if Settings.TeamCheck and p.Team == LocalPlayer.Team then continue end
+                -- LÓGICA DE TEAM CHECK 1 E 2
+                if Settings.TeamCheck2 then
+                    local myColor = GetCustomTeamColor(LocalPlayer)
+                    local targetColor = GetCustomTeamColor(p)
+                    
+                    -- Se a cor (vermelha ou azul) for idêntica (margem de tolerância pequena), ignora
+                    local diffR = math.abs(myColor.R - targetColor.R)
+                    local diffG = math.abs(myColor.G - targetColor.G)
+                    local diffB = math.abs(myColor.B - targetColor.B)
+                    
+                    if (diffR + diffG + diffB) < 0.1 then continue end
+                    
+                elseif Settings.TeamCheck and p.Team == LocalPlayer.Team then 
+                    continue 
+                end
+                
                 CheckTarget(p.Character[Settings.AimPart], p.Character:FindFirstChild("Humanoid"), false)
             end
         end
@@ -637,7 +637,16 @@ RunService.RenderStepped:Connect(function()
 
             local hrp = character.HumanoidRootPart; local head = character:FindFirstChild("Head")
             local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
-            local color = isNPC and Color3.fromRGB(255, 80, 80) or ((Settings.TeamColor and obj.TeamColor) and obj.TeamColor.Color or Color3.new(1,1,1))
+            
+            -- LÓGICA DE COR DO ESP (TEAM CHECK 2.0 / PADRÃO / NPC)
+            local color = Color3.new(1,1,1)
+            if isNPC then
+                color = Color3.fromRGB(255, 80, 80)
+            elseif Settings.TeamCheck2 then
+                color = GetCustomTeamColor(obj)
+            elseif Settings.TeamColor and obj.TeamColor then
+                color = obj.TeamColor.Color
+            end
             
             if (isNPC and vis) or (not isNPC and Settings.ESP and vis) then
                 if Settings.Boxes then e.Box.Visible = true; e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z); e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2); e.Box.Color = color else e.Box.Visible = false end
