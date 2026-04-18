@@ -22,8 +22,12 @@ getgenv().Settings = {
     TargetPriority = false, PriorityMode = "Mais Próximo" -- "Mais Próximo", "Menor HP", "Mirando em Mim"
 }
 
-local VERSION = "v6.6.0"
+local VERSION = "v6.7.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.7.0 ---
+[+] PRED: Novo Preset NPC (Configura Aimbot/ESP para NPCs e abre os flutuantes automaticamente).
+[+] UI: Adicionado botão para criar Flutuante de Hitbox NPC.
+-------------------------
 --- NOVIDADES v6.6.0 ---
 [+] UI: Adicionado botão para criar Flutuante de Hitbox.
 -------------------------
@@ -291,7 +295,7 @@ CreateStepper(SecAct, "Distância", 1, 20, 3, 1, function(v) Settings.StickyDist
 -- SETUP MIRA
 CreateToggle(MiraPage, "Auxílio de Mira", function(v) Settings.AimAssist = v end)
 
--- NOVO: TARGET PRIORITY
+-- TARGET PRIORITY
 CreateToggle(MiraPage, "Target Priority (360°)", function(v) Settings.TargetPriority = v end)
 local Modes = {"Mais Próximo", "Menor HP", "Mirando em Mim"}
 local ModeBtn = Instance.new("TextButton", MiraPage)
@@ -333,29 +337,9 @@ CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap 
 
 local LogLabel = Instance.new("TextLabel", InfoPage); LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 11; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
 
--- ABA PRED
+-- ABA PRED E BOTÕES FLUTUANTES
 local SecPreset = CreateSection(PredPage, "PREDEFINIÇÕES")
 local SecFloat = CreateSection(PredPage, "BOTÕES FLUTUANTES")
-
-local BtnLegit = Instance.new("TextButton", SecPreset); BtnLegit.Size = UDim2.new(1,-25,0,32); BtnLegit.Text = "CARREGAR: LEGIT"; BtnLegit.BackgroundColor3 = Color3.fromRGB(0, 100, 50); BtnLegit.TextColor3 = Color3.new(1,1,1); BtnLegit.TextSize = 11; Instance.new("UICorner", BtnLegit)
-BtnLegit.MouseButton1Click:Connect(function()
-    if VisualToggles["ESP Geral (Players)"] then VisualToggles["ESP Geral (Players)"](true) end
-    if VisualToggles["Chams"] then VisualToggles["Chams"](true) end
-    if VisualToggles["Team Color"] then VisualToggles["Team Color"](true) end
-    if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](true) end
-    if VisualToggles["Wall Check"] then VisualToggles["Wall Check"](true) end
-    if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](20) end
-    if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.2) end
-end)
-RegisterSearchable(BtnLegit, "Carregar Preset Legit")
-
-local BtnReset = Instance.new("TextButton", SecPreset); BtnReset.Size = UDim2.new(1,-25,0,32); BtnReset.Text = "RESETAR AO PADRÃO"; BtnReset.BackgroundColor3 = Color3.fromRGB(150, 30, 30); BtnReset.TextColor3 = Color3.new(1,1,1); BtnReset.TextSize = 11; Instance.new("UICorner", BtnReset)
-BtnReset.MouseButton1Click:Connect(function()
-    for name, func in pairs(VisualToggles) do func(false) end
-    if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](100) end
-    if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.1) end
-end)
-RegisterSearchable(BtnReset, "Resetar ao Padrao")
 
 local function SpawnFloatingButton(name, actionCallback)
     local currentFloats = 0
@@ -371,6 +355,53 @@ local function SpawnFloatingButton(name, actionCallback)
     btn.MouseButton1Click:Connect(actionCallback)
     closeBtn.MouseButton1Click:Connect(function() floatFrame:Destroy() end)
 end
+
+local BtnLegit = Instance.new("TextButton", SecPreset); BtnLegit.Size = UDim2.new(1,-25,0,32); BtnLegit.Text = "CARREGAR: LEGIT"; BtnLegit.BackgroundColor3 = Color3.fromRGB(0, 100, 50); BtnLegit.TextColor3 = Color3.new(1,1,1); BtnLegit.TextSize = 11; Instance.new("UICorner", BtnLegit)
+BtnLegit.MouseButton1Click:Connect(function()
+    if VisualToggles["ESP Geral (Players)"] then VisualToggles["ESP Geral (Players)"](true) end
+    if VisualToggles["Chams"] then VisualToggles["Chams"](true) end
+    if VisualToggles["Team Color"] then VisualToggles["Team Color"](true) end
+    if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](true) end
+    if VisualToggles["Wall Check"] then VisualToggles["Wall Check"](true) end
+    if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](20) end
+    if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.2) end
+end)
+RegisterSearchable(BtnLegit, "Carregar Preset Legit")
+
+-- NOVO: PRESET NPC
+local BtnPresetNPC = Instance.new("TextButton", SecPreset); BtnPresetNPC.Size = UDim2.new(1,-25,0,32); BtnPresetNPC.Text = "CARREGAR: PRESET NPC"; BtnPresetNPC.BackgroundColor3 = Color3.fromRGB(150, 50, 0); BtnPresetNPC.TextColor3 = Color3.new(1,1,1); BtnPresetNPC.TextSize = 11; Instance.new("UICorner", BtnPresetNPC)
+BtnPresetNPC.MouseButton1Click:Connect(function()
+    if VisualToggles["ESP NPC"] then VisualToggles["ESP NPC"](true) end
+    if VisualToggles["Chams"] then VisualToggles["Chams"](true) end
+    if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](true) end
+    if VisualToggles["Mira em NPC"] then VisualToggles["Mira em NPC"](true) end
+    if VisualToggles["Target Priority (360°)"] then VisualToggles["Target Priority (360°)"](true) end
+    if VisualToggles["Wall Check"] then VisualToggles["Wall Check"](true) end
+    if VisualToggles["Hitbox NPC"] then VisualToggles["Hitbox NPC"](true) end
+    if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.25) end
+    if VisualSteppers["Opacidade"] then VisualSteppers["Opacidade"](1.0) end
+
+    -- Abre os botões flutuantes automaticamente
+    SpawnFloatingButton("AIM", function()
+        local newState = not Settings.AimAssist
+        if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](newState) end
+        SendNotification("AIMBOT: " .. (newState and "ATIVADO" or "DESATIVADO"), newState)
+    end)
+    SpawnFloatingButton("HB-NPC", function()
+        local newState = not Settings.HitboxNPC
+        if VisualToggles["Hitbox NPC"] then VisualToggles["Hitbox NPC"](newState) end
+        SendNotification("HITBOX NPC: " .. (newState and "ATIVADO" or "DESATIVADO"), newState)
+    end)
+end)
+RegisterSearchable(BtnPresetNPC, "Carregar Preset NPC")
+
+local BtnReset = Instance.new("TextButton", SecPreset); BtnReset.Size = UDim2.new(1,-25,0,32); BtnReset.Text = "RESETAR AO PADRÃO"; BtnReset.BackgroundColor3 = Color3.fromRGB(150, 30, 30); BtnReset.TextColor3 = Color3.new(1,1,1); BtnReset.TextSize = 11; Instance.new("UICorner", BtnReset)
+BtnReset.MouseButton1Click:Connect(function()
+    for name, func in pairs(VisualToggles) do func(false) end
+    if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](100) end
+    if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.1) end
+end)
+RegisterSearchable(BtnReset, "Resetar ao Padrao")
 
 local BtnFloatAim = Instance.new("TextButton", SecFloat); BtnFloatAim.Size = UDim2.new(1,-25,0,32); BtnFloatAim.Text = "CRIAR FLUTUANTE: AIMBOT"; BtnFloatAim.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatAim.TextColor3 = Color3.new(1,1,1); BtnFloatAim.TextSize = 11; Instance.new("UICorner", BtnFloatAim)
 BtnFloatAim.MouseButton1Click:Connect(function()
@@ -393,7 +424,6 @@ BtnFloatESP.MouseButton1Click:Connect(function()
 end)
 RegisterSearchable(BtnFloatESP, "Criar Flutuante ESP Lite")
 
--- NOVO: BOTÃO FLUTUANTE DE HITBOX
 local BtnFloatHitbox = Instance.new("TextButton", SecFloat); BtnFloatHitbox.Size = UDim2.new(1,-25,0,32); BtnFloatHitbox.Text = "CRIAR FLUTUANTE: HITBOX"; BtnFloatHitbox.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatHitbox.TextColor3 = Color3.new(1,1,1); BtnFloatHitbox.TextSize = 11; Instance.new("UICorner", BtnFloatHitbox)
 BtnFloatHitbox.MouseButton1Click:Connect(function()
     SpawnFloatingButton("HITBOX", function()
@@ -403,6 +433,17 @@ BtnFloatHitbox.MouseButton1Click:Connect(function()
     end)
 end)
 RegisterSearchable(BtnFloatHitbox, "Criar Flutuante Hitbox")
+
+-- NOVO: BOTÃO FLUTUANTE DE HITBOX NPC
+local BtnFloatHitboxNPC = Instance.new("TextButton", SecFloat); BtnFloatHitboxNPC.Size = UDim2.new(1,-25,0,32); BtnFloatHitboxNPC.Text = "CRIAR FLUTUANTE: HITBOX NPC"; BtnFloatHitboxNPC.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatHitboxNPC.TextColor3 = Color3.new(1,1,1); BtnFloatHitboxNPC.TextSize = 11; Instance.new("UICorner", BtnFloatHitboxNPC)
+BtnFloatHitboxNPC.MouseButton1Click:Connect(function()
+    SpawnFloatingButton("HB-NPC", function()
+        local newState = not Settings.HitboxNPC
+        if VisualToggles["Hitbox NPC"] then VisualToggles["Hitbox NPC"](newState) end
+        SendNotification("HITBOX NPC: " .. (newState and "ATIVADO" or "DESATIVADO"), newState)
+    end)
+end)
+RegisterSearchable(BtnFloatHitboxNPC, "Criar Flutuante Hitbox NPC")
 
 -- LÓGICA DE VISIBILIDADE E SKELETON
 local function IsVisible(part)
