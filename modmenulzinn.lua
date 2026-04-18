@@ -22,16 +22,15 @@ getgenv().Settings = {
     TargetPriority = false, PriorityMode = "Mais Próximo" -- "Mais Próximo", "Menor HP", "Mirando em Mim"
 }
 
-local VERSION = "v6.5.0"
+local VERSION = "v6.6.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.6.0 ---
+[+] UI: Adicionado botão para criar Flutuante de Hitbox.
+-------------------------
 --- NOVIDADES v6.5.0 ---
 [+] MIRA: Target Priority adicionado (busca em 360° fora do FOV).
 [+] MIRA: Sub-modos de prioridade (Mais Próximo, Menor HP, Mirando em Mim).
 [+] UI: Sistema de busca global adicionado no topo do menu.
--------------------------
---- NOVIDADES v6.4.0 ---
-[+] ESP: Adicionado suporte completo para NPCs.
-[+] HITBOX: Adicionado Hitbox Expander para NPCs.
 -------------------------]]
 
 local MenuAberto = false
@@ -393,6 +392,17 @@ BtnFloatESP.MouseButton1Click:Connect(function()
     end)
 end)
 RegisterSearchable(BtnFloatESP, "Criar Flutuante ESP Lite")
+
+-- NOVO: BOTÃO FLUTUANTE DE HITBOX
+local BtnFloatHitbox = Instance.new("TextButton", SecFloat); BtnFloatHitbox.Size = UDim2.new(1,-25,0,32); BtnFloatHitbox.Text = "CRIAR FLUTUANTE: HITBOX"; BtnFloatHitbox.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatHitbox.TextColor3 = Color3.new(1,1,1); BtnFloatHitbox.TextSize = 11; Instance.new("UICorner", BtnFloatHitbox)
+BtnFloatHitbox.MouseButton1Click:Connect(function()
+    SpawnFloatingButton("HITBOX", function()
+        local newState = not Settings.HitboxEnabled
+        if VisualToggles["Hitbox Players"] then VisualToggles["Hitbox Players"](newState) end
+        SendNotification("HITBOX: " .. (newState and "ATIVADO" or "DESATIVADO"), newState)
+    end)
+end)
+RegisterSearchable(BtnFloatHitbox, "Criar Flutuante Hitbox")
 
 -- LÓGICA DE VISIBILIDADE E SKELETON
 local function IsVisible(part)
