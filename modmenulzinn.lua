@@ -20,19 +20,22 @@ getgenv().Settings = {
     AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
     AimNPC = false, ESPNPC = false, SkeletonESP = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
-    TeamCheck2 = false,
-    ColorAimbot = false, ColorAimbotTarget = nil,
-    KillAura = false, AuraRadius = 15 -- NOVO: Kill Aura
+    AutoTeamColorCheck = false, -- NOVO: Auto TeamColor Integrado
+    KillAura = false, AuraRadius = 15, KillAuraDirectDamage = false
 }
 
-local VERSION = "v6.11.0"
+-- COLOQUE O NOME DO SEU REMOTE EVENT AQUI (Se souber)
+local REMOTE_EVENT_DANO = "NOME_DO_EVENTO_AQUI" 
+
+local VERSION = "v6.12.0"
 local CHANGELOG_TEXT = [[
---- NOVIDADES v6.11.0 ---
-[+] TESTE: Adicionado Kill Aura (Auto-Ataque).
-[+] LÓGICA: Ataca automaticamente jogadores ou NPCs dentro do raio definido usando a ferramenta equipada, respeitando os filtros de time.
+--- NOVIDADES v6.12.0 ---
+[+] MIRA/ESP: Adicionado "Auto TeamColor Check". Identifica sua cor automaticamente e não atira/mira em aliados com a mesma cor.
+[+] COMBATE: Kill Aura reformulado. Opção de "Dano Direto" adicionada (Requer que você insira o nome do RemoteEvent do jogo direto no código).
+[+] REMOVIDO: Seleção manual de cores.
 -------------------------
---- NOVIDADES v6.10.0 ---
-[+] TESTE: Adicionado "Aimbot de Cor" para focar em cores específicas detectadas na partida.
+--- NOVIDADES v6.11.0 ---
+[+] TESTE: Kill Aura Base (Auto-Ataque) adicionado.
 -------------------------]]
 
 local MenuAberto = false
@@ -338,7 +341,7 @@ PartBtn.MouseButton1Click:Connect(function() Settings.AimPart = (Settings.AimPar
 RegisterSearchable(PartBtn, "Alvo Mira Corpo/Cabeca")
 
 CreateToggle(MiraPage, "Mira em NPC", function(v) Settings.AimNPC = v end)
-CreateToggle(MiraPage, "Team Check (Padrão)", function(v) Settings.TeamCheck = v end)
+CreateToggle(MiraPage, "Team Check (Roblox Padrão)", function(v) Settings.TeamCheck = v end)
 CreateToggle(MiraPage, "Wall Check", function(v) Settings.WallCheck = v end)
 CreateToggle(MiraPage, "Exibir FOV", function(v) Settings.ShowFOV = v end)
 CreateStepper(MiraPage, "Tamanho FOV", 10, 800, 100, 10, function(v) Settings.AimFOV = v end)
@@ -350,57 +353,13 @@ CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
 
--- SETUP TESTE (FILTROS E KILL AURA)
-CreateSection(TestePage, "FILTROS AVANÇADOS")
-CreateToggle(TestePage, "Team Check 2.0 (Custom)", function(v) Settings.TeamCheck2 = v end)
+-- SETUP TESTE (AUTO TEAM CHECK E KILL AURA)
+local SecFiltros = CreateSection(TestePage, "FILTROS AVANÇADOS")
+CreateToggle(SecFiltros, "Auto TeamColor Check", function(v) Settings.AutoTeamColorCheck = v end)
 
-local SecAimbotCor = CreateSection(TestePage, "AIMBOT DE COR")
-CreateToggle(SecAimbotCor, "Aimbot por Cor (Filtro)", function(v) Settings.ColorAimbot = v end)
-
-local ColorSelLab = Instance.new("TextLabel", SecAimbotCor); 
-ColorSelLab.Size = UDim2.new(1,-20,0,30); ColorSelLab.Text = "Alvo Atual: Nenhuma cor"; ColorSelLab.TextColor3 = Color3.new(1,1,1); ColorSelLab.BackgroundTransparency = 1; ColorSelLab.TextSize = 11
-
-local CListF = Instance.new("Frame", SecAimbotCor); CListF.Size = UDim2.new(1,-20,0,100); CListF.BackgroundColor3 = Color3.fromRGB(20,20,20)
-local CLScr = Instance.new("ScrollingFrame", CListF); CLScr.Size = UDim2.new(1,0,1,0); CLScr.BackgroundTransparency = 1; CLScr.ScrollBarThickness = 2; Instance.new("UIListLayout", CLScr).Padding = UDim.new(0,2)
-
-local UpdColBtn = Instance.new("TextButton", SecAimbotCor); UpdColBtn.Size = UDim2.new(1,-20,0,35); UpdColBtn.Text = "ATUALIZAR CORES (CLIQUE)"; UpdColBtn.BackgroundColor3 = Color3.fromRGB(0,80,150); UpdColBtn.TextColor3 = Color3.new(1,1,1); UpdColBtn.TextSize = 11; Instance.new("UICorner", UpdColBtn)
-
-local function UpColorList()
-    for _,v in pairs(CLScr:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
-    local uniqueColors = {}
-    
-    for _,p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            local c = GetCustomTeamColor(p)
-            local cId = math.floor(c.R*255).."_"..math.floor(c.G*255).."_"..math.floor(c.B*255)
-            
-            if not uniqueColors[cId] then
-                uniqueColors[cId] = true
-                local b = Instance.new("TextButton", CLScr)
-                b.Size = UDim2.new(1,0,0,25)
-                b.Text = "Detectado: RGB(" .. cId:gsub("_", ",") .. ")"
-                b.BackgroundColor3 = Color3.fromRGB(35,35,35)
-                b.TextColor3 = c
-                b.TextSize = 10
-                b.Font = Enum.Font.GothamBold
-                
-                b.MouseButton1Click:Connect(function() 
-                    Settings.ColorAimbotTarget = c
-                    ColorSelLab.Text = "Alvo Atual: RGB(" .. cId:gsub("_", ",") .. ")"
-                    ColorSelLab.TextColor3 = c
-                    SendNotification("Cor Alvo Definida!", true)
-                end)
-            end
-        end
-    end
-    CLScr.CanvasSize = UDim2.new(0,0,0,CLScr.UIListLayout.AbsoluteContentSize.Y)
-end
-UpdColBtn.MouseButton1Click:Connect(UpColorList)
-RegisterSearchable(UpdColBtn, "Atualizar Cores")
-
--- NOVO: KILL AURA
 local SecKillAura = CreateSection(TestePage, "COMBATE AUTOMÁTICO")
-CreateToggle(SecKillAura, "Kill Aura (Auto-Ataque)", function(v) Settings.KillAura = v end)
+CreateToggle(SecKillAura, "Kill Aura (Auto-Atirar/Bater)", function(v) Settings.KillAura = v end)
+CreateToggle(SecKillAura, "Usar Dano Direto (RemoteEvent)", function(v) Settings.KillAuraDirectDamage = v end)
 CreateStepper(SecKillAura, "Raio Kill Aura", 5, 50, 15, 5, function(v) Settings.AuraRadius = v end)
 
 -- SETUP FPS
@@ -410,7 +369,7 @@ CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap 
 
 local LogLabel = Instance.new("TextLabel", InfoPage); LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 11; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
 
--- ABA PRED
+-- ABA PRED E BOTÕES FLUTUANTES
 local SecPreset = CreateSection(PredPage, "PREDEFINIÇÕES")
 local SecFloat = CreateSection(PredPage, "BOTÕES FLUTUANTES")
 
@@ -439,7 +398,6 @@ BtnLegit.MouseButton1Click:Connect(function()
     if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](20) end
     if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.2) end
 end)
-RegisterSearchable(BtnLegit, "Carregar Preset Legit")
 
 local BtnPresetNPC = Instance.new("TextButton", SecPreset); BtnPresetNPC.Size = UDim2.new(1,-25,0,32); BtnPresetNPC.Text = "CARREGAR: PRESET NPC"; BtnPresetNPC.BackgroundColor3 = Color3.fromRGB(150, 50, 0); BtnPresetNPC.TextColor3 = Color3.new(1,1,1); BtnPresetNPC.TextSize = 11; Instance.new("UICorner", BtnPresetNPC)
 BtnPresetNPC.MouseButton1Click:Connect(function()
@@ -453,26 +411,12 @@ BtnPresetNPC.MouseButton1Click:Connect(function()
     if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.25) end
     if VisualSteppers["Opacidade"] then VisualSteppers["Opacidade"](1.0) end
 
-    SpawnFloatingButton("AIM", function()
-        local newState = not Settings.AimAssist
-        if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](newState) end
-        SendNotification("AIMBOT: " .. (newState and "ATIVADO" or "DESATIVADO"), newState)
-    end)
-    SpawnFloatingButton("HB-NPC", function()
-        local newState = not Settings.HitboxNPC
-        if VisualToggles["Hitbox NPC"] then VisualToggles["Hitbox NPC"](newState) end
-        SendNotification("HITBOX NPC: " .. (newState and "ATIVADO" or "DESATIVADO"), newState)
-    end)
+    SpawnFloatingButton("AIM", function() local n = not Settings.AimAssist; if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](n) end; SendNotification("AIM: "..(n and "ON" or "OFF"), n) end)
+    SpawnFloatingButton("HB-NPC", function() local n = not Settings.HitboxNPC; if VisualToggles["Hitbox NPC"] then VisualToggles["Hitbox NPC"](n) end; SendNotification("HB-NPC: "..(n and "ON" or "OFF"), n) end)
 end)
-RegisterSearchable(BtnPresetNPC, "Carregar Preset NPC")
 
 local BtnReset = Instance.new("TextButton", SecPreset); BtnReset.Size = UDim2.new(1,-25,0,32); BtnReset.Text = "RESETAR AO PADRÃO"; BtnReset.BackgroundColor3 = Color3.fromRGB(150, 30, 30); BtnReset.TextColor3 = Color3.new(1,1,1); BtnReset.TextSize = 11; Instance.new("UICorner", BtnReset)
-BtnReset.MouseButton1Click:Connect(function()
-    for name, func in pairs(VisualToggles) do func(false) end
-    if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](100) end
-    if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.1) end
-end)
-RegisterSearchable(BtnReset, "Resetar ao Padrao")
+BtnReset.MouseButton1Click:Connect(function() for name, func in pairs(VisualToggles) do func(false) end; if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](100) end; if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.1) end end)
 
 local BtnFloatAim = Instance.new("TextButton", SecFloat); BtnFloatAim.Size = UDim2.new(1,-25,0,32); BtnFloatAim.Text = "CRIAR FLUTUANTE: AIMBOT"; BtnFloatAim.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatAim.TextColor3 = Color3.new(1,1,1); BtnFloatAim.TextSize = 11; Instance.new("UICorner", BtnFloatAim)
 BtnFloatAim.MouseButton1Click:Connect(function() SpawnFloatingButton("AIM", function() local n = not Settings.AimAssist; if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](n) end; SendNotification("AIM: "..(n and "ON" or "OFF"), n) end) end)
@@ -590,18 +534,17 @@ task.spawn(function()
         local char = LocalPlayer.Character
         if not char or not char:FindFirstChild("HumanoidRootPart") then continue end
         
-        -- Precisa de uma ferramenta na mão para clicar
         local tool = char:FindFirstChildOfClass("Tool")
-        if not tool then continue end
+        if not tool and not Settings.KillAuraDirectDamage then continue end -- Requer ferramenta se não for Dano Direto
 
-        local achouAlvo = false
+        local targetToHit = nil
 
-        -- Checa Jogadores
+        -- Procura Alvo no Raio
         for _, p in pairs(Players:GetPlayers()) do
             if p == LocalPlayer or not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then continue end
             
-            -- Filtros de Time (Respeitando TeamCheck e TeamCheck2.0)
-            if Settings.TeamCheck2 then
+            -- Filtro Auto TeamColor
+            if Settings.AutoTeamColorCheck then
                 local myC = GetCustomTeamColor(LocalPlayer)
                 local tC = GetCustomTeamColor(p)
                 local diff = math.abs(myC.R - tC.R) + math.abs(myC.G - tC.G) + math.abs(myC.B - tC.B)
@@ -614,21 +557,20 @@ task.spawn(function()
             if dist <= Settings.AuraRadius then
                 local hum = p.Character:FindFirstChild("Humanoid")
                 if hum and hum.Health > 0 then
-                    achouAlvo = true
+                    targetToHit = hum
                     break
                 end
             end
         end
 
-        -- Checa NPCs
-        if not achouAlvo then
+        if not targetToHit then
             for _, obj in pairs(NPCCache) do
                 if obj and obj.Parent and obj:FindFirstChild("HumanoidRootPart") then
                     local dist = (obj.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
                     if dist <= Settings.AuraRadius then
                         local hum = obj:FindFirstChild("Humanoid")
                         if hum and hum.Health > 0 then
-                            achouAlvo = true
+                            targetToHit = hum
                             break
                         end
                     end
@@ -636,9 +578,19 @@ task.spawn(function()
             end
         end
 
-        -- Se alguém estiver no raio, "clica" com a ferramenta
-        if achouAlvo then
-            tool:Activate()
+        if targetToHit then
+            if Settings.KillAuraDirectDamage then
+                -- DANO DIRETO (REMOTE EVENT)
+                -- Tenta encontrar o evento em ReplicatedStorage como base
+                local rs = game:GetService("ReplicatedStorage")
+                local evento = rs:FindFirstChild(REMOTE_EVENT_DANO, true)
+                if evento and evento:IsA("RemoteEvent") then
+                    evento:FireServer(targetToHit, 50) -- 50 é um valor de dano genérico
+                end
+            elseif tool then
+                -- AUTO-ATAQUE NORMAL (Tool)
+                tool:Activate()
+            end
         end
     end
 end)
@@ -689,17 +641,8 @@ RunService.RenderStepped:Connect(function()
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
                 
-                -- LÓGICA DE AIMBOT POR COR
-                if Settings.ColorAimbot and Settings.ColorAimbotTarget then
-                    local targetColor = GetCustomTeamColor(p)
-                    local diffR = math.abs(Settings.ColorAimbotTarget.R - targetColor.R)
-                    local diffG = math.abs(Settings.ColorAimbotTarget.G - targetColor.G)
-                    local diffB = math.abs(Settings.ColorAimbotTarget.B - targetColor.B)
-                    
-                    if (diffR + diffG + diffB) > 0.1 then continue end
-                
-                -- LÓGICA DE TEAM CHECK 2.0
-                elseif Settings.TeamCheck2 then
+                -- AUTO TEAMCOLOR CHECK
+                if Settings.AutoTeamColorCheck then
                     local myColor = GetCustomTeamColor(LocalPlayer)
                     local targetColor = GetCustomTeamColor(p)
                     local diffR = math.abs(myColor.R - targetColor.R)
@@ -708,7 +651,7 @@ RunService.RenderStepped:Connect(function()
                     
                     if (diffR + diffG + diffB) < 0.1 then continue end
                     
-                -- LÓGICA DE TEAM CHECK PADRÃO
+                -- TEAM CHECK PADRÃO
                 elseif Settings.TeamCheck and p.Team == LocalPlayer.Team then 
                     continue 
                 end
@@ -752,7 +695,7 @@ RunService.RenderStepped:Connect(function()
             local color = Color3.new(1,1,1)
             if isNPC then
                 color = Color3.fromRGB(255, 80, 80)
-            elseif Settings.TeamCheck2 then
+            elseif Settings.AutoTeamColorCheck then
                 color = GetCustomTeamColor(obj)
             elseif Settings.TeamColor and obj.TeamColor then
                 color = obj.TeamColor.Color
