@@ -21,18 +21,18 @@ getgenv().Settings = {
     AimNPC = false, ESPNPC = false, SkeletonESP = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
     TeamCheck2 = false,
-    ColorAimbot = false, ColorAimbotTarget = nil -- NOVO: Aimbot de Cor
+    ColorAimbot = false, ColorAimbotTarget = nil,
+    KillAura = false, AuraRadius = 15 -- NOVO: Kill Aura
 }
 
-local VERSION = "v6.10.0"
+local VERSION = "v6.11.0"
 local CHANGELOG_TEXT = [[
---- NOVIDADES v6.10.0 ---
-[+] TESTE: Adicionado "Aimbot de Cor".
-[+] LÓGICA: Nova lista detecta as cores exatas (nicks/roupas) dos jogadores vivos na partida.
-[+] MIRA: O Aimbot agora pode ser configurado para atirar EXCLUSIVAMENTE em uma cor específica detectada, ignorando todo o resto.
+--- NOVIDADES v6.11.0 ---
+[+] TESTE: Adicionado Kill Aura (Auto-Ataque).
+[+] LÓGICA: Ataca automaticamente jogadores ou NPCs dentro do raio definido usando a ferramenta equipada, respeitando os filtros de time.
 -------------------------
---- NOVIDADES v6.9.0 ---
-[+] TESTE: Adicionado Team Check 2.0 (Filtro por cor de nickname/roupa customizada).
+--- NOVIDADES v6.10.0 ---
+[+] TESTE: Adicionado "Aimbot de Cor" para focar em cores específicas detectadas na partida.
 -------------------------]]
 
 local MenuAberto = false
@@ -41,7 +41,7 @@ local FOVCircle = Drawing.new("Circle")
 --// GUI PRINCIPAL
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 
--- FUNÇÃO GLOBAL: IDENTIFICADOR DE TIME CUSTOMIZADO (Movido para cima para ser acessível globalmente)
+-- FUNÇÃO GLOBAL: IDENTIFICADOR DE TIME CUSTOMIZADO
 local function GetCustomTeamColor(p)
     if not p or not p.Character then return Color3.new(1,1,1) end
     local char = p.Character
@@ -350,7 +350,7 @@ CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
 
--- SETUP TESTE (TEAM CHECK 2.0 & AIMBOT DE COR)
+-- SETUP TESTE (FILTROS E KILL AURA)
 CreateSection(TestePage, "FILTROS AVANÇADOS")
 CreateToggle(TestePage, "Team Check 2.0 (Custom)", function(v) Settings.TeamCheck2 = v end)
 
@@ -397,6 +397,11 @@ local function UpColorList()
 end
 UpdColBtn.MouseButton1Click:Connect(UpColorList)
 RegisterSearchable(UpdColBtn, "Atualizar Cores")
+
+-- NOVO: KILL AURA
+local SecKillAura = CreateSection(TestePage, "COMBATE AUTOMÁTICO")
+CreateToggle(SecKillAura, "Kill Aura (Auto-Ataque)", function(v) Settings.KillAura = v end)
+CreateStepper(SecKillAura, "Raio Kill Aura", 5, 50, 15, 5, function(v) Settings.AuraRadius = v end)
 
 -- SETUP FPS
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
@@ -557,9 +562,10 @@ Players.PlayerAdded:Connect(function(p) CreateESPObj(ESPContainer, p) end)
 Players.PlayerRemoving:Connect(function(p) RemoveESP(ESPContainer, p) end)
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateESPObj(ESPContainer, p) end end
 
+-- LOOP DE ATUALIZAÇÃO DO CACHE DE NPCS
 task.spawn(function()
     while true do
-        if Settings.AimNPC or Settings.ESPNPC or Settings.HitboxNPC then
+        if Settings.AimNPC or Settings.ESPNPC or Settings.HitboxNPC or Settings.KillAura then
             local tempCache = {}; local currentNPCs = {}
             for _, obj in pairs(workspace:GetDescendants()) do
                 if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 1 and not Players:GetPlayerFromCharacter(obj) then
@@ -577,6 +583,65 @@ task.spawn(function()
     end
 end)
 
+-- LOOP DO KILL AURA
+task.spawn(function()
+    while task.wait(0.1) do
+        if not Settings.KillAura then continue end
+        local char = LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then continue end
+        
+        -- Precisa de uma ferramenta na mão para clicar
+        local tool = char:FindFirstChildOfClass("Tool")
+        if not tool then continue end
+
+        local achouAlvo = false
+
+        -- Checa Jogadores
+        for _, p in pairs(Players:GetPlayers()) do
+            if p == LocalPlayer or not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then continue end
+            
+            -- Filtros de Time (Respeitando TeamCheck e TeamCheck2.0)
+            if Settings.TeamCheck2 then
+                local myC = GetCustomTeamColor(LocalPlayer)
+                local tC = GetCustomTeamColor(p)
+                local diff = math.abs(myC.R - tC.R) + math.abs(myC.G - tC.G) + math.abs(myC.B - tC.B)
+                if diff < 0.1 then continue end
+            elseif Settings.TeamCheck and p.Team == LocalPlayer.Team then
+                continue
+            end
+
+            local dist = (p.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+            if dist <= Settings.AuraRadius then
+                local hum = p.Character:FindFirstChild("Humanoid")
+                if hum and hum.Health > 0 then
+                    achouAlvo = true
+                    break
+                end
+            end
+        end
+
+        -- Checa NPCs
+        if not achouAlvo then
+            for _, obj in pairs(NPCCache) do
+                if obj and obj.Parent and obj:FindFirstChild("HumanoidRootPart") then
+                    local dist = (obj.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                    if dist <= Settings.AuraRadius then
+                        local hum = obj:FindFirstChild("Humanoid")
+                        if hum and hum.Health > 0 then
+                            achouAlvo = true
+                            break
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Se alguém estiver no raio, "clica" com a ferramenta
+        if achouAlvo then
+            tool:Activate()
+        end
+    end
+end)
 
 -- RENDER LOOP PRINCIPAL (AIMBOT E ESP)
 RunService.RenderStepped:Connect(function()
@@ -624,16 +689,16 @@ RunService.RenderStepped:Connect(function()
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
                 
-                -- LÓGICA DE AIMBOT POR COR (Prioridade Máxima de Filtro)
+                -- LÓGICA DE AIMBOT POR COR
                 if Settings.ColorAimbot and Settings.ColorAimbotTarget then
                     local targetColor = GetCustomTeamColor(p)
                     local diffR = math.abs(Settings.ColorAimbotTarget.R - targetColor.R)
                     local diffG = math.abs(Settings.ColorAimbotTarget.G - targetColor.G)
                     local diffB = math.abs(Settings.ColorAimbotTarget.B - targetColor.B)
                     
-                    if (diffR + diffG + diffB) > 0.1 then continue end -- IGNORA se não for a cor alvo
+                    if (diffR + diffG + diffB) > 0.1 then continue end
                 
-                -- LÓGICA DE TEAM CHECK 2.0 (Ignora Aliados)
+                -- LÓGICA DE TEAM CHECK 2.0
                 elseif Settings.TeamCheck2 then
                     local myColor = GetCustomTeamColor(LocalPlayer)
                     local targetColor = GetCustomTeamColor(p)
@@ -684,7 +749,6 @@ RunService.RenderStepped:Connect(function()
             local hrp = character.HumanoidRootPart; local head = character:FindFirstChild("Head")
             local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
             
-            -- LÓGICA DE COR DO ESP
             local color = Color3.new(1,1,1)
             if isNPC then
                 color = Color3.fromRGB(255, 80, 80)
