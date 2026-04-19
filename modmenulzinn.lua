@@ -20,22 +20,20 @@ getgenv().Settings = {
     AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
     AimNPC = false, ESPNPC = false, SkeletonESP = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
-    AutoTeamColorCheck = false, -- NOVO: Auto TeamColor Integrado
-    KillAura = false, AuraRadius = 15, KillAuraDirectDamage = false
+    AutoTeamColorCheck = false,
+    ColorAimbot = false, ColorAimbotTarget = nil,
+    AimPrediction = false, PredictionVelocity = 0.1 -- NOVO: Predição de Mira
 }
 
--- COLOQUE O NOME DO SEU REMOTE EVENT AQUI (Se souber)
-local REMOTE_EVENT_DANO = "NOME_DO_EVENTO_AQUI" 
-
-local VERSION = "v6.12.0"
+local VERSION = "v6.13.0"
 local CHANGELOG_TEXT = [[
---- NOVIDADES v6.12.0 ---
-[+] MIRA/ESP: Adicionado "Auto TeamColor Check". Identifica sua cor automaticamente e não atira/mira em aliados com a mesma cor.
-[+] COMBATE: Kill Aura reformulado. Opção de "Dano Direto" adicionada (Requer que você insira o nome do RemoteEvent do jogo direto no código).
-[+] REMOVIDO: Seleção manual de cores.
+--- NOVIDADES v6.13.0 ---
+[+] REMOVIDO: Kill Aura.
+[+] CORREÇÃO: "Auto TeamColor Check" aprimorado. O script agora possui planos de contingência para identificar o seu próprio time, evitando focar nos aliados.
+[+] TESTE: Adicionado "Aim Prediction" (Predição de Mira). O Aimbot agora pode calcular o movimento do alvo e mirar adiantado.
 -------------------------
---- NOVIDADES v6.11.0 ---
-[+] TESTE: Kill Aura Base (Auto-Ataque) adicionado.
+--- NOVIDADES v6.12.0 ---
+[+] MIRA/ESP: Adicionado "Auto TeamColor Check".
 -------------------------]]
 
 local MenuAberto = false
@@ -44,11 +42,12 @@ local FOVCircle = Drawing.new("Circle")
 --// GUI PRINCIPAL
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 
--- FUNÇÃO GLOBAL: IDENTIFICADOR DE TIME CUSTOMIZADO
+-- FUNÇÃO GLOBAL: IDENTIFICADOR DE TIME CUSTOMIZADO APRIMORADO
 local function GetCustomTeamColor(p)
     if not p or not p.Character then return Color3.new(1,1,1) end
     local char = p.Character
 
+    -- 1. Tenta ler o Nickname acima da cabeça
     local head = char:FindFirstChild("Head")
     if head then
         for _, v in pairs(head:GetDescendants()) do
@@ -56,16 +55,21 @@ local function GetCustomTeamColor(p)
         end
     end
 
+    -- 2. Tenta ler qualquer TextLabel no personagem
     for _, v in pairs(char:GetDescendants()) do
         if v:IsA("TextLabel") and (string.find(string.lower(v.Text), string.lower(p.Name)) or string.find(string.lower(v.Text), string.lower(p.DisplayName))) then
             return v.TextColor3
         end
     end
 
+    -- 3. Tenta ler a cor da roupa (BodyColors)
     local bodyColors = char:FindFirstChildOfClass("BodyColors")
     if bodyColors then return bodyColors.TorsoColor3 end
 
+    -- 4. Plano B de Segurança (Garante que o LocalPlayer tenha uma cor)
+    if p.Team then return p.Team.TeamColor.Color end
     if p.TeamColor then return p.TeamColor.Color end
+
     return Color3.new(1,1,1)
 end
 
@@ -353,14 +357,48 @@ CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
 
--- SETUP TESTE (AUTO TEAM CHECK E KILL AURA)
+-- SETUP TESTE (TEAM CHECK 2.0, AIMBOT DE COR & AIM PREDICTION)
 local SecFiltros = CreateSection(TestePage, "FILTROS AVANÇADOS")
 CreateToggle(SecFiltros, "Auto TeamColor Check", function(v) Settings.AutoTeamColorCheck = v end)
 
-local SecKillAura = CreateSection(TestePage, "COMBATE AUTOMÁTICO")
-CreateToggle(SecKillAura, "Kill Aura (Auto-Atirar/Bater)", function(v) Settings.KillAura = v end)
-CreateToggle(SecKillAura, "Usar Dano Direto (RemoteEvent)", function(v) Settings.KillAuraDirectDamage = v end)
-CreateStepper(SecKillAura, "Raio Kill Aura", 5, 50, 15, 5, function(v) Settings.AuraRadius = v end)
+local SecAimbotCor = CreateSection(TestePage, "AIMBOT DE COR")
+CreateToggle(SecAimbotCor, "Aimbot por Cor Exclusiva", function(v) Settings.ColorAimbot = v end)
+
+local ColorSelLab = Instance.new("TextLabel", SecAimbotCor); 
+ColorSelLab.Size = UDim2.new(1,-20,0,30); ColorSelLab.Text = "Alvo Atual: Nenhuma cor"; ColorSelLab.TextColor3 = Color3.new(1,1,1); ColorSelLab.BackgroundTransparency = 1; ColorSelLab.TextSize = 11
+
+local CListF = Instance.new("Frame", SecAimbotCor); CListF.Size = UDim2.new(1,-20,0,100); CListF.BackgroundColor3 = Color3.fromRGB(20,20,20)
+local CLScr = Instance.new("ScrollingFrame", CListF); CLScr.Size = UDim2.new(1,0,1,0); CLScr.BackgroundTransparency = 1; CLScr.ScrollBarThickness = 2; Instance.new("UIListLayout", CLScr).Padding = UDim.new(0,2)
+
+local UpdColBtn = Instance.new("TextButton", SecAimbotCor); UpdColBtn.Size = UDim2.new(1,-20,0,35); UpdColBtn.Text = "ATUALIZAR CORES (CLIQUE)"; UpdColBtn.BackgroundColor3 = Color3.fromRGB(0,80,150); UpdColBtn.TextColor3 = Color3.new(1,1,1); UpdColBtn.TextSize = 11; Instance.new("UICorner", UpdColBtn)
+
+local function UpColorList()
+    for _,v in pairs(CLScr:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    local uniqueColors = {}
+    for _,p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local c = GetCustomTeamColor(p)
+            local cId = math.floor(c.R*255).."_"..math.floor(c.G*255).."_"..math.floor(c.B*255)
+            if not uniqueColors[cId] then
+                uniqueColors[cId] = true
+                local b = Instance.new("TextButton", CLScr); b.Size = UDim2.new(1,0,0,25)
+                b.Text = "Detectado: RGB(" .. cId:gsub("_", ",") .. ")"
+                b.BackgroundColor3 = Color3.fromRGB(35,35,35); b.TextColor3 = c; b.TextSize = 10; b.Font = Enum.Font.GothamBold
+                b.MouseButton1Click:Connect(function() 
+                    Settings.ColorAimbotTarget = c; ColorSelLab.Text = "Alvo Atual: RGB(" .. cId:gsub("_", ",") .. ")"; ColorSelLab.TextColor3 = c
+                    SendNotification("Cor Alvo Definida!", true)
+                end)
+            end
+        end
+    end
+    CLScr.CanvasSize = UDim2.new(0,0,0,CLScr.UIListLayout.AbsoluteContentSize.Y)
+end
+UpdColBtn.MouseButton1Click:Connect(UpColorList)
+RegisterSearchable(UpdColBtn, "Atualizar Cores")
+
+local SecPrediction = CreateSection(TestePage, "MIRA AVANÇADA")
+CreateToggle(SecPrediction, "Aim Prediction (Movimento)", function(v) Settings.AimPrediction = v end)
+CreateStepper(SecPrediction, "Força da Predição", 0.05, 1, 0.1, 0.05, function(v) Settings.PredictionVelocity = v end)
 
 -- SETUP FPS
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
@@ -509,7 +547,7 @@ for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateESPObj
 -- LOOP DE ATUALIZAÇÃO DO CACHE DE NPCS
 task.spawn(function()
     while true do
-        if Settings.AimNPC or Settings.ESPNPC or Settings.HitboxNPC or Settings.KillAura then
+        if Settings.AimNPC or Settings.ESPNPC or Settings.HitboxNPC then
             local tempCache = {}; local currentNPCs = {}
             for _, obj in pairs(workspace:GetDescendants()) do
                 if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 1 and not Players:GetPlayerFromCharacter(obj) then
@@ -527,111 +565,51 @@ task.spawn(function()
     end
 end)
 
--- LOOP DO KILL AURA
-task.spawn(function()
-    while task.wait(0.1) do
-        if not Settings.KillAura then continue end
-        local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then continue end
-        
-        local tool = char:FindFirstChildOfClass("Tool")
-        if not tool and not Settings.KillAuraDirectDamage then continue end -- Requer ferramenta se não for Dano Direto
-
-        local targetToHit = nil
-
-        -- Procura Alvo no Raio
-        for _, p in pairs(Players:GetPlayers()) do
-            if p == LocalPlayer or not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then continue end
-            
-            -- Filtro Auto TeamColor
-            if Settings.AutoTeamColorCheck then
-                local myC = GetCustomTeamColor(LocalPlayer)
-                local tC = GetCustomTeamColor(p)
-                local diff = math.abs(myC.R - tC.R) + math.abs(myC.G - tC.G) + math.abs(myC.B - tC.B)
-                if diff < 0.1 then continue end
-            elseif Settings.TeamCheck and p.Team == LocalPlayer.Team then
-                continue
-            end
-
-            local dist = (p.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
-            if dist <= Settings.AuraRadius then
-                local hum = p.Character:FindFirstChild("Humanoid")
-                if hum and hum.Health > 0 then
-                    targetToHit = hum
-                    break
-                end
-            end
-        end
-
-        if not targetToHit then
-            for _, obj in pairs(NPCCache) do
-                if obj and obj.Parent and obj:FindFirstChild("HumanoidRootPart") then
-                    local dist = (obj.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
-                    if dist <= Settings.AuraRadius then
-                        local hum = obj:FindFirstChild("Humanoid")
-                        if hum and hum.Health > 0 then
-                            targetToHit = hum
-                            break
-                        end
-                    end
-                end
-            end
-        end
-
-        if targetToHit then
-            if Settings.KillAuraDirectDamage then
-                -- DANO DIRETO (REMOTE EVENT)
-                -- Tenta encontrar o evento em ReplicatedStorage como base
-                local rs = game:GetService("ReplicatedStorage")
-                local evento = rs:FindFirstChild(REMOTE_EVENT_DANO, true)
-                if evento and evento:IsA("RemoteEvent") then
-                    evento:FireServer(targetToHit, 50) -- 50 é um valor de dano genérico
-                end
-            elseif tool then
-                -- AUTO-ATAQUE NORMAL (Tool)
-                tool:Activate()
-            end
-        end
-    end
-end)
-
 -- RENDER LOOP PRINCIPAL (AIMBOT E ESP)
 RunService.RenderStepped:Connect(function()
     FPSLabel.Text = "FPS: " .. math.floor(1/RunService.RenderStepped:Wait())
     FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Radius = Settings.AimFOV; FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); FOVCircle.Color = stroke.Color; FOVCircle.Thickness = 1.2; FOVCircle.Filled = false
 
-    -- LÓGICA AIMBOT + TARGET PRIORITY
+    -- LÓGICA AIMBOT + TARGET PRIORITY + PREDICTION
     if Settings.AimAssist then
         local target = nil
+        local targetPredPos = nil
         local bestValue = math.huge
 
         local function CheckTarget(part, humanoid, isNPC)
             if humanoid and humanoid.Health > 1 and IsVisible(part) then
+                
+                -- PREDIÇÃO DE MIRA (Aim Prediction)
+                local predPos = part.Position
+                if Settings.AimPrediction then
+                    predPos = predPos + (part.AssemblyLinearVelocity * Settings.PredictionVelocity)
+                end
+
                 if Settings.TargetPriority then
-                    -- Ignora FOV e busca em 360 Graus
+                    -- Ignora FOV e busca em 360 Graus baseando-se na posição prevista
                     if Settings.PriorityMode == "Mais Próximo" then
-                        local dist = (part.Position - Camera.CFrame.Position).Magnitude
-                        if dist < bestValue then bestValue = dist; target = part end
+                        local dist = (predPos - Camera.CFrame.Position).Magnitude
+                        if dist < bestValue then bestValue = dist; target = part; targetPredPos = predPos end
                         
                     elseif Settings.PriorityMode == "Menor HP" then
                         local hp = humanoid.Health
-                        if hp < bestValue then bestValue = hp; target = part end
+                        if hp < bestValue then bestValue = hp; target = part; targetPredPos = predPos end
                         
                     elseif Settings.PriorityMode == "Mirando em Mim" then
-                        local dirToMe = (Camera.CFrame.Position - part.Position).Unit
+                        local dirToMe = (Camera.CFrame.Position - predPos).Unit
                         local dot = part.CFrame.LookVector:Dot(dirToMe)
                         if dot > 0.85 then 
-                            local dist = (part.Position - Camera.CFrame.Position).Magnitude
-                            if dist < bestValue then bestValue = dist; target = part end
+                            local dist = (predPos - Camera.CFrame.Position).Magnitude
+                            if dist < bestValue then bestValue = dist; target = part; targetPredPos = predPos end
                         end
                     end
                 else
-                    -- Normal por FOV
-                    local pos, vis = Camera:WorldToViewportPoint(part.Position)
+                    -- Normal por FOV (Calculando se a posição prevista está no FOV)
+                    local pos, vis = Camera:WorldToViewportPoint(predPos)
                     if vis then
                         local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
                         if mag < Settings.AimFOV and mag < bestValue then
-                            bestValue = mag; target = part
+                            bestValue = mag; target = part; targetPredPos = predPos
                         end
                     end
                 end
@@ -641,15 +619,22 @@ RunService.RenderStepped:Connect(function()
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
                 
-                -- AUTO TEAMCOLOR CHECK
-                if Settings.AutoTeamColorCheck then
+                -- LÓGICA DE AIMBOT POR COR (Prioridade Máxima)
+                if Settings.ColorAimbot and Settings.ColorAimbotTarget then
+                    local targetColor = GetCustomTeamColor(p)
+                    local diffR = math.abs(Settings.ColorAimbotTarget.R - targetColor.R)
+                    local diffG = math.abs(Settings.ColorAimbotTarget.G - targetColor.G)
+                    local diffB = math.abs(Settings.ColorAimbotTarget.B - targetColor.B)
+                    if (diffR + diffG + diffB) > 0.2 then continue end
+                
+                -- AUTO TEAMCOLOR CHECK (Ignora Aliados)
+                elseif Settings.AutoTeamColorCheck then
                     local myColor = GetCustomTeamColor(LocalPlayer)
                     local targetColor = GetCustomTeamColor(p)
                     local diffR = math.abs(myColor.R - targetColor.R)
                     local diffG = math.abs(myColor.G - targetColor.G)
                     local diffB = math.abs(myColor.B - targetColor.B)
-                    
-                    if (diffR + diffG + diffB) < 0.1 then continue end
+                    if (diffR + diffG + diffB) < 0.2 then continue end
                     
                 -- TEAM CHECK PADRÃO
                 elseif Settings.TeamCheck and p.Team == LocalPlayer.Team then 
@@ -668,7 +653,10 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        if target then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), Settings.AimSmooth) end
+        -- Aplica a Mira na posição prevista
+        if target and targetPredPos then 
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPredPos), Settings.AimSmooth) 
+        end
     end
 
     if Settings.StickyBehind and Settings.SelectedPlayer and Settings.SelectedPlayer.Character then
