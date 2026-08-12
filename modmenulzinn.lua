@@ -22,7 +22,8 @@ getgenv().Settings = {
     TargetPriority = false, PriorityMode = "Mais Próximo",
     AutoTeamColorCheck = false,
     ColorAimbot = false, ColorAimbotTarget = nil,
-    AimPrediction = false, PredictionVelocity = 0.1 -- NOVO: Predição de Mira
+    AimPrediction = false, PredictionVelocity = 0.1, -- NOVO: Predição de Mira
+    Whitelist = {} -- NOVO: Tabela para salvar quem não deve ser focado
 }
 
 local VERSION = "v6.13.0"
@@ -351,6 +352,41 @@ CreateToggle(MiraPage, "Exibir FOV", function(v) Settings.ShowFOV = v end)
 CreateStepper(MiraPage, "Tamanho FOV", 10, 800, 100, 10, function(v) Settings.AimFOV = v end)
 CreateStepper(MiraPage, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) Settings.AimSmooth = v end)
 
+-- NOVO: SETUP WHITELIST (Sub-seção na Mira)
+local SecWhitelist = CreateSection(MiraPage, "WHITELIST (IGNORAR JOGADORES)")
+local WLListF = Instance.new("Frame", SecWhitelist)
+WLListF.Size = UDim2.new(1,-20,0,120)
+WLListF.BackgroundColor3 = Color3.fromRGB(20,20,20)
+local WLScr = Instance.new("ScrollingFrame", WLListF)
+WLScr.Size = UDim2.new(1,0,1,0)
+WLScr.BackgroundTransparency = 1
+WLScr.ScrollBarThickness = 2
+Instance.new("UIListLayout", WLScr).Padding = UDim.new(0,2)
+
+local function UpdWhitelistList()
+    for _,v in pairs(WLScr:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    for _,p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local b = Instance.new("TextButton", WLScr)
+            b.Size = UDim2.new(1,0,0,25)
+            local isWl = Settings.Whitelist[p.UserId]
+            b.Text = p.DisplayName .. (isWl and " [SALVO]" or "")
+            b.BackgroundColor3 = isWl and Color3.fromRGB(0, 100, 50) or Color3.fromRGB(35,35,35)
+            b.TextColor3 = Color3.new(1,1,1)
+            b.TextSize = 10
+            b.Font = Enum.Font.GothamBold
+            b.MouseButton1Click:Connect(function()
+                Settings.Whitelist[p.UserId] = not Settings.Whitelist[p.UserId]
+                UpdWhitelistList()
+            end)
+        end
+    end
+    WLScr.CanvasSize = UDim2.new(0,0,0,WLScr.UIListLayout.AbsoluteContentSize.Y)
+end
+Players.PlayerAdded:Connect(UpdWhitelistList)
+Players.PlayerRemoving:Connect(UpdWhitelistList)
+UpdWhitelistList()
+
 -- SETUP HITBOX
 CreateToggle(HitboxPage, "Hitbox Players", function(v) Settings.HitboxEnabled = v end)
 CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
@@ -619,6 +655,9 @@ RunService.RenderStepped:Connect(function()
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
                 
+                -- NOVO: Se o jogador estiver na Whitelist, ignora ele.
+                if Settings.Whitelist[p.UserId] then continue end 
+                
                 -- LÓGICA DE AIMBOT POR COR (Prioridade Máxima)
                 if Settings.ColorAimbot and Settings.ColorAimbotTarget then
                     local targetColor = GetCustomTeamColor(p)
@@ -717,8 +756,12 @@ task.spawn(function()
         for _, p in pairs(Players:GetPlayers()) do 
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then 
                 local hrp = p.Character.HumanoidRootPart; 
-                if Settings.HitboxEnabled then hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false 
-                else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end 
+                -- NOVO: Verifica se o Hitbox tá ativo E se o cara NÃO tá na whitelist
+                if Settings.HitboxEnabled and not Settings.Whitelist[p.UserId] then 
+                    hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false 
+                else 
+                    hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 
+                end 
             end 
         end
         for _, obj in pairs(NPCCache) do
