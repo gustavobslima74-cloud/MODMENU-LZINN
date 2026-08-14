@@ -26,17 +26,18 @@ getgenv().Settings = {
     Whitelist = {} -- Tabela para salvar quem não deve ser focado
 }
 
-local VERSION = "v6.15.0"
+local VERSION = "v6.16.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.16.0 ---
+[+] NOVA ABA: DEFUSAL adicionada. Focada em partidas de times.
+[+] MODIFICADO: "Auto TeamColor Check" movido para DEFUSAL e renomeado para "ESP TEAM".
+[+] MODIFICADO: Aimbot de Cor movido para DEFUSAL com foco exclusivo nos Times Azul e Vermelho.
+-------------------------
 --- NOVIDADES v6.15.0 ---
-[+] MELHORIA: O mouse agora é forçado a aparecer e ficar livre na tela sempre que o menu for aberto, evitando que o jogo o trave.
+[+] MELHORIA: O mouse agora é forçado a aparecer e ficar livre na tela sempre que o menu for aberto.
 -------------------------
 --- NOVIDADES v6.14.0 ---
 [+] ADICIONADO: Atalho no teclado. Agora você pode abrir/fechar o menu usando a tecla Delete (Del).
--------------------------
---- NOVIDADES v6.13.0 ---
-[+] REMOVIDO: Kill Aura.
-[+] CORREÇÃO: "Auto TeamColor Check" aprimorado.
 -------------------------]]
 
 local MenuAberto = false
@@ -285,6 +286,7 @@ local PlayerPage = CreatePage("PLAYER")
 local TPPage = CreatePage("TP")
 local MiraPage = CreatePage("MIRA")
 local HitboxPage = CreatePage("HITBOX")
+local DefusalPage = CreatePage("DEFUSAL") -- NOVA ABA
 local TestePage = CreatePage("TESTE")
 local FPSPage = CreatePage("FPS")
 local PredPage = CreatePage("PRED")
@@ -395,45 +397,44 @@ CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
 
--- SETUP TESTE (TEAM CHECK 2.0, AIMBOT DE COR & AIM PREDICTION)
-local SecFiltros = CreateSection(TestePage, "FILTROS AVANÇADOS")
-CreateToggle(SecFiltros, "Auto TeamColor Check", function(v) Settings.AutoTeamColorCheck = v end)
+-- NOVA ABA: SETUP DEFUSAL
+local SecDefESP = CreateSection(DefusalPage, "ESP")
+CreateToggle(SecDefESP, "ESP TEAM", function(v) Settings.AutoTeamColorCheck = v end)
 
-local SecAimbotCor = CreateSection(TestePage, "AIMBOT DE COR")
-CreateToggle(SecAimbotCor, "Aimbot por Cor Exclusiva", function(v) Settings.ColorAimbot = v end)
+local SecDefAim = CreateSection(DefusalPage, "AIMBOT")
+CreateToggle(SecDefAim, "Aimbot por Time Inimigo", function(v) Settings.ColorAimbot = v end)
 
-local ColorSelLab = Instance.new("TextLabel", SecAimbotCor); 
-ColorSelLab.Size = UDim2.new(1,-20,0,30); ColorSelLab.Text = "Alvo Atual: Nenhuma cor"; ColorSelLab.TextColor3 = Color3.new(1,1,1); ColorSelLab.BackgroundTransparency = 1; ColorSelLab.TextSize = 11
+local DefColorSelLab = Instance.new("TextLabel", SecDefAim)
+DefColorSelLab.Size = UDim2.new(1,-20,0,30)
+DefColorSelLab.Text = "Alvo Inimigo: Nenhum"
+DefColorSelLab.TextColor3 = Color3.new(1,1,1)
+DefColorSelLab.BackgroundTransparency = 1
+DefColorSelLab.TextSize = 11
 
-local CListF = Instance.new("Frame", SecAimbotCor); CListF.Size = UDim2.new(1,-20,0,100); CListF.BackgroundColor3 = Color3.fromRGB(20,20,20)
-local CLScr = Instance.new("ScrollingFrame", CListF); CLScr.Size = UDim2.new(1,0,1,0); CLScr.BackgroundTransparency = 1; CLScr.ScrollBarThickness = 2; Instance.new("UIListLayout", CLScr).Padding = UDim.new(0,2)
+local BtnTimeAzul = Instance.new("TextButton", SecDefAim)
+BtnTimeAzul.Size = UDim2.new(1,-20,0,30); BtnTimeAzul.Text = "Focar Inimigo: TIME AZUL"
+BtnTimeAzul.BackgroundColor3 = Color3.fromRGB(72, 171, 229); BtnTimeAzul.TextColor3 = Color3.new(1,1,1); BtnTimeAzul.TextSize = 11; BtnTimeAzul.Font = Enum.Font.GothamBold; Instance.new("UICorner", BtnTimeAzul)
+BtnTimeAzul.MouseButton1Click:Connect(function()
+    Settings.ColorAimbotTarget = Color3.fromRGB(72, 171, 229)
+    DefColorSelLab.Text = "Alvo Inimigo: TIME AZUL"
+    DefColorSelLab.TextColor3 = Color3.fromRGB(72, 171, 229)
+    SendNotification("Alvo definido: TIME AZUL", true)
+end)
 
-local UpdColBtn = Instance.new("TextButton", SecAimbotCor); UpdColBtn.Size = UDim2.new(1,-20,0,35); UpdColBtn.Text = "ATUALIZAR CORES (CLIQUE)"; UpdColBtn.BackgroundColor3 = Color3.fromRGB(0,80,150); UpdColBtn.TextColor3 = Color3.new(1,1,1); UpdColBtn.TextSize = 11; Instance.new("UICorner", UpdColBtn)
+local BtnTimeVerm = Instance.new("TextButton", SecDefAim)
+BtnTimeVerm.Size = UDim2.new(1,-20,0,30); BtnTimeVerm.Text = "Focar Inimigo: TIME VERMELHO"
+BtnTimeVerm.BackgroundColor3 = Color3.fromRGB(229, 72, 72); BtnTimeVerm.TextColor3 = Color3.new(1,1,1); BtnTimeVerm.TextSize = 11; BtnTimeVerm.Font = Enum.Font.GothamBold; Instance.new("UICorner", BtnTimeVerm)
+BtnTimeVerm.MouseButton1Click:Connect(function()
+    Settings.ColorAimbotTarget = Color3.fromRGB(229, 72, 72)
+    DefColorSelLab.Text = "Alvo Inimigo: TIME VERMELHO"
+    DefColorSelLab.TextColor3 = Color3.fromRGB(229, 72, 72)
+    SendNotification("Alvo definido: TIME VERMELHO", true)
+end)
 
-local function UpColorList()
-    for _,v in pairs(CLScr:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
-    local uniqueColors = {}
-    for _,p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            local c = GetCustomTeamColor(p)
-            local cId = math.floor(c.R*255).."_"..math.floor(c.G*255).."_"..math.floor(c.B*255)
-            if not uniqueColors[cId] then
-                uniqueColors[cId] = true
-                local b = Instance.new("TextButton", CLScr); b.Size = UDim2.new(1,0,0,25)
-                b.Text = "Detectado: RGB(" .. cId:gsub("_", ",") .. ")"
-                b.BackgroundColor3 = Color3.fromRGB(35,35,35); b.TextColor3 = c; b.TextSize = 10; b.Font = Enum.Font.GothamBold
-                b.MouseButton1Click:Connect(function() 
-                    Settings.ColorAimbotTarget = c; ColorSelLab.Text = "Alvo Atual: RGB(" .. cId:gsub("_", ",") .. ")"; ColorSelLab.TextColor3 = c
-                    SendNotification("Cor Alvo Definida!", true)
-                end)
-            end
-        end
-    end
-    CLScr.CanvasSize = UDim2.new(0,0,0,CLScr.UIListLayout.AbsoluteContentSize.Y)
-end
-UpdColBtn.MouseButton1Click:Connect(UpColorList)
-RegisterSearchable(UpdColBtn, "Atualizar Cores")
+RegisterSearchable(BtnTimeAzul, "Focar Time Azul")
+RegisterSearchable(BtnTimeVerm, "Focar Time Vermelho")
 
+-- SETUP TESTE (MANTÉM APENAS A PREDIÇÃO DE MIRA)
 local SecPrediction = CreateSection(TestePage, "MIRA AVANÇADA")
 CreateToggle(SecPrediction, "Aim Prediction (Movimento)", function(v) Settings.AimPrediction = v end)
 CreateStepper(SecPrediction, "Força da Predição", 0.05, 1, 0.1, 0.05, function(v) Settings.PredictionVelocity = v end)
@@ -605,7 +606,7 @@ end)
 
 -- RENDER LOOP PRINCIPAL (AIMBOT E ESP)
 RunService.RenderStepped:Connect(function()
-    -- NOVO: Força o mouse a aparecer e destrava se o menu estiver aberto
+    -- Força o mouse a aparecer e destrava se o menu estiver aberto
     if MenuAberto then
         UIS.MouseIconEnabled = true
         UIS.MouseBehavior = Enum.MouseBehavior.Default
@@ -666,7 +667,7 @@ RunService.RenderStepped:Connect(function()
                 -- Se o jogador estiver na Whitelist, ignora ele.
                 if Settings.Whitelist[p.UserId] then continue end 
                 
-                -- LÓGICA DE AIMBOT POR COR (Prioridade Máxima)
+                -- LÓGICA DE AIMBOT POR COR (Prioridade Máxima para aba Defusal)
                 if Settings.ColorAimbot and Settings.ColorAimbotTarget then
                     local targetColor = GetCustomTeamColor(p)
                     local diffR = math.abs(Settings.ColorAimbotTarget.R - targetColor.R)
