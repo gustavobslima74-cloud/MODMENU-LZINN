@@ -22,19 +22,19 @@ getgenv().Settings = {
     TargetPriority = false, PriorityMode = "Mais Próximo",
     AutoTeamColorCheck = false,
     ColorAimbot = false, ColorAimbotTarget = nil,
-    AimPrediction = false, PredictionVelocity = 0.1, -- NOVO: Predição de Mira
-    Whitelist = {} -- NOVO: Tabela para salvar quem não deve ser focado
+    AimPrediction = false, PredictionVelocity = 0.1,
+    Whitelist = {} -- Tabela para salvar quem não deve ser focado
 }
 
-local VERSION = "v6.13.0"
+local VERSION = "v6.14.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.14.0 ---
+[+] ADICIONADO: Atalho no teclado. Agora você pode abrir/fechar o menu usando a tecla Delete (Del).
+-------------------------
 --- NOVIDADES v6.13.0 ---
 [+] REMOVIDO: Kill Aura.
-[+] CORREÇÃO: "Auto TeamColor Check" aprimorado. O script agora possui planos de contingência para identificar o seu próprio time, evitando focar nos aliados.
-[+] TESTE: Adicionado "Aim Prediction" (Predição de Mira). O Aimbot agora pode calcular o movimento do alvo e mirar adiantado.
--------------------------
---- NOVIDADES v6.12.0 ---
-[+] MIRA/ESP: Adicionado "Auto TeamColor Check".
+[+] CORREÇÃO: "Auto TeamColor Check" aprimorado.
+[+] TESTE: Adicionado "Aim Prediction" (Predição de Mira).
 -------------------------]]
 
 local MenuAberto = false
@@ -777,11 +777,22 @@ end)
 
 UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
 
-ToggleBtn.MouseButton1Up:Connect(function() 
+-- FUNÇÃO GLOBAL DE ABRIR/FECHAR O MENU
+local function ToggleMenu()
     if Main.Visible then 
         MenuAberto = false; local tw = TweenInfo.new(0.3); local anim = TweenService:Create(Main, tw, {Size = UDim2.new(0, 280, 0, 0), BackgroundTransparency = 1}); anim:Play(); anim.Completed:Connect(function() Main.Visible = false end)
     else 
         MenuAberto = true; Main.Visible = true; Title.TextTransparency = 0; Main.Position = UDim2.new(0.5, -140, 0.5, -180)
         TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Elastic), {Size = UDim2.new(0, 280, 0, 360), BackgroundTransparency = 0.1}):Play()
+    end
+end
+
+-- CLIQUE NO BOTÃO
+ToggleBtn.MouseButton1Up:Connect(ToggleMenu)
+
+-- TECLA DELETE NO TECLADO
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Delete then
+        ToggleMenu()
     end
 end)
