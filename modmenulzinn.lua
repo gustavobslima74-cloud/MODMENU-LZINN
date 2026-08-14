@@ -26,15 +26,17 @@ getgenv().Settings = {
     Whitelist = {} -- Tabela para salvar quem não deve ser focado
 }
 
-local VERSION = "v6.14.0"
+local VERSION = "v6.15.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.15.0 ---
+[+] MELHORIA: O mouse agora é forçado a aparecer e ficar livre na tela sempre que o menu for aberto, evitando que o jogo o trave.
+-------------------------
 --- NOVIDADES v6.14.0 ---
 [+] ADICIONADO: Atalho no teclado. Agora você pode abrir/fechar o menu usando a tecla Delete (Del).
 -------------------------
 --- NOVIDADES v6.13.0 ---
 [+] REMOVIDO: Kill Aura.
 [+] CORREÇÃO: "Auto TeamColor Check" aprimorado.
-[+] TESTE: Adicionado "Aim Prediction" (Predição de Mira).
 -------------------------]]
 
 local MenuAberto = false
@@ -352,7 +354,7 @@ CreateToggle(MiraPage, "Exibir FOV", function(v) Settings.ShowFOV = v end)
 CreateStepper(MiraPage, "Tamanho FOV", 10, 800, 100, 10, function(v) Settings.AimFOV = v end)
 CreateStepper(MiraPage, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) Settings.AimSmooth = v end)
 
--- NOVO: SETUP WHITELIST (Sub-seção na Mira)
+-- SETUP WHITELIST (Sub-seção na Mira)
 local SecWhitelist = CreateSection(MiraPage, "WHITELIST (IGNORAR JOGADORES)")
 local WLListF = Instance.new("Frame", SecWhitelist)
 WLListF.Size = UDim2.new(1,-20,0,120)
@@ -603,6 +605,12 @@ end)
 
 -- RENDER LOOP PRINCIPAL (AIMBOT E ESP)
 RunService.RenderStepped:Connect(function()
+    -- NOVO: Força o mouse a aparecer e destrava se o menu estiver aberto
+    if MenuAberto then
+        UIS.MouseIconEnabled = true
+        UIS.MouseBehavior = Enum.MouseBehavior.Default
+    end
+
     FPSLabel.Text = "FPS: " .. math.floor(1/RunService.RenderStepped:Wait())
     FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Radius = Settings.AimFOV; FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); FOVCircle.Color = stroke.Color; FOVCircle.Thickness = 1.2; FOVCircle.Filled = false
 
@@ -655,7 +663,7 @@ RunService.RenderStepped:Connect(function()
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
                 
-                -- NOVO: Se o jogador estiver na Whitelist, ignora ele.
+                -- Se o jogador estiver na Whitelist, ignora ele.
                 if Settings.Whitelist[p.UserId] then continue end 
                 
                 -- LÓGICA DE AIMBOT POR COR (Prioridade Máxima)
@@ -756,7 +764,7 @@ task.spawn(function()
         for _, p in pairs(Players:GetPlayers()) do 
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then 
                 local hrp = p.Character.HumanoidRootPart; 
-                -- NOVO: Verifica se o Hitbox tá ativo E se o cara NÃO tá na whitelist
+                -- Verifica se o Hitbox tá ativo E se o cara NÃO tá na whitelist
                 if Settings.HitboxEnabled and not Settings.Whitelist[p.UserId] then 
                     hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false 
                 else 
@@ -787,10 +795,10 @@ local function ToggleMenu()
     end
 end
 
--- CLIQUE NO BOTÃO
+-- CLIQUE NO BOTÃO DA TELA
 ToggleBtn.MouseButton1Up:Connect(ToggleMenu)
 
--- TECLA DELETE NO TECLADO
+-- ATALHO DE TECLADO (DELETE)
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.Delete then
         ToggleMenu()
