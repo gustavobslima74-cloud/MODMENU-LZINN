@@ -6,6 +6,7 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
+local GuiService = game:GetService("GuiService") -- Adicionado para checar o menu do Roblox
 
 --// UNLOCK FPS
 if setfpscap then setfpscap(120) end
@@ -26,20 +27,19 @@ getgenv().Settings = {
     Whitelist = {} -- Tabela para salvar quem não deve ser focado
 }
 
-local VERSION = "v6.17.0"
+local VERSION = "v6.18.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.18.0 ---
+[+] CORRIGIDO: Auto Fire agora dá toques humanos (cooldown) e ignora alvos se o menu do Roblox ou o Mod Menu estiverem abertos.
+-------------------------
 --- NOVIDADES v6.17.0 ---
 [+] ADICIONADO: Auto Fire na aba MIRA.
 [+] CORRIGIDO: Auto Próximo na aba TP agora funciona e atualiza o alvo continuamente.
--------------------------
---- NOVIDADES v6.16.0 ---
-[+] NOVA ABA: DEFUSAL adicionada. Focada em partidas de times.
-[+] MODIFICADO: "Auto TeamColor Check" movido para DEFUSAL e renomeado para "ESP TEAM".
-[+] MODIFICADO: Aimbot de Cor movido para DEFUSAL com foco exclusivo nos Times Azul e Vermelho.
 -------------------------]]
 
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
+local lastFireTime = 0 -- Variável de controle para o Auto Fire humano
 
 --// GUI PRINCIPAL
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
@@ -49,7 +49,6 @@ local function GetCustomTeamColor(p)
     if not p or not p.Character then return Color3.new(1,1,1) end
     local char = p.Character
 
-    -- 1. Tenta ler o Nickname acima da cabeça
     local head = char:FindFirstChild("Head")
     if head then
         for _, v in pairs(head:GetDescendants()) do
@@ -57,18 +56,15 @@ local function GetCustomTeamColor(p)
         end
     end
 
-    -- 2. Tenta ler qualquer TextLabel no personagem
     for _, v in pairs(char:GetDescendants()) do
         if v:IsA("TextLabel") and (string.find(string.lower(v.Text), string.lower(p.Name)) or string.find(string.lower(v.Text), string.lower(p.DisplayName))) then
             return v.TextColor3
         end
     end
 
-    -- 3. Tenta ler a cor da roupa (BodyColors)
     local bodyColors = char:FindFirstChildOfClass("BodyColors")
     if bodyColors then return bodyColors.TorsoColor3 end
 
-    -- 4. Plano B de Segurança (Garante que o LocalPlayer tenha uma cor)
     if p.Team then return p.Team.TeamColor.Color end
     if p.TeamColor then return p.TeamColor.Color end
 
@@ -284,7 +280,7 @@ local PlayerPage = CreatePage("PLAYER")
 local TPPage = CreatePage("TP")
 local MiraPage = CreatePage("MIRA")
 local HitboxPage = CreatePage("HITBOX")
-local DefusalPage = CreatePage("DEFUSAL") -- NOVA ABA
+local DefusalPage = CreatePage("DEFUSAL")
 local TestePage = CreatePage("TESTE")
 local FPSPage = CreatePage("FPS")
 local PredPage = CreatePage("PRED")
@@ -325,7 +321,7 @@ CreateStepper(SecAct, "Distância", 1, 20, 3, 1, function(v) Settings.StickyDist
 
 -- SETUP MIRA
 CreateToggle(MiraPage, "Auxílio de Mira", function(v) Settings.AimAssist = v end)
-CreateToggle(MiraPage, "Auto Fire (TriggerBot)", function(v) Settings.AutoFire = v end) -- NOVO RECURSO ADICIONADO
+CreateToggle(MiraPage, "Auto Fire (TriggerBot)", function(v) Settings.AutoFire = v end)
 CreateToggle(MiraPage, "Target Priority (360°)", function(v) Settings.TargetPriority = v end)
 local Modes = {"Mais Próximo", "Menor HP", "Mirando em Mim"}
 local ModeBtn = Instance.new("TextButton", MiraPage)
@@ -355,7 +351,7 @@ CreateToggle(MiraPage, "Exibir FOV", function(v) Settings.ShowFOV = v end)
 CreateStepper(MiraPage, "Tamanho FOV", 10, 800, 100, 10, function(v) Settings.AimFOV = v end)
 CreateStepper(MiraPage, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) Settings.AimSmooth = v end)
 
--- SETUP WHITELIST (Sub-seção na Mira)
+-- SETUP WHITELIST
 local SecWhitelist = CreateSection(MiraPage, "WHITELIST (IGNORAR JOGADORES)")
 local WLListF = Instance.new("Frame", SecWhitelist)
 WLListF.Size = UDim2.new(1,-20,0,120)
@@ -433,7 +429,7 @@ end)
 RegisterSearchable(BtnTimeAzul, "Focar Time Azul")
 RegisterSearchable(BtnTimeVerm, "Focar Time Vermelho")
 
--- SETUP TESTE (MANTÉM APENAS A PREDIÇÃO DE MIRA)
+-- SETUP TESTE
 local SecPrediction = CreateSection(TestePage, "MIRA AVANÇADA")
 CreateToggle(SecPrediction, "Aim Prediction (Movimento)", function(v) Settings.AimPrediction = v end)
 CreateStepper(SecPrediction, "Força da Predição", 0.05, 1, 0.1, 0.05, function(v) Settings.PredictionVelocity = v end)
@@ -493,18 +489,6 @@ end)
 
 local BtnReset = Instance.new("TextButton", SecPreset); BtnReset.Size = UDim2.new(1,-25,0,32); BtnReset.Text = "RESETAR AO PADRÃO"; BtnReset.BackgroundColor3 = Color3.fromRGB(150, 30, 30); BtnReset.TextColor3 = Color3.new(1,1,1); BtnReset.TextSize = 11; Instance.new("UICorner", BtnReset)
 BtnReset.MouseButton1Click:Connect(function() for name, func in pairs(VisualToggles) do func(false) end; if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](100) end; if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.1) end end)
-
-local BtnFloatAim = Instance.new("TextButton", SecFloat); BtnFloatAim.Size = UDim2.new(1,-25,0,32); BtnFloatAim.Text = "CRIAR FLUTUANTE: AIMBOT"; BtnFloatAim.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatAim.TextColor3 = Color3.new(1,1,1); BtnFloatAim.TextSize = 11; Instance.new("UICorner", BtnFloatAim)
-BtnFloatAim.MouseButton1Click:Connect(function() SpawnFloatingButton("AIM", function() local n = not Settings.AimAssist; if VisualToggles["Auxílio de Mira"] then VisualToggles["Auxílio de Mira"](n) end; SendNotification("AIM: "..(n and "ON" or "OFF"), n) end) end)
-
-local BtnFloatESP = Instance.new("TextButton", SecFloat); BtnFloatESP.Size = UDim2.new(1,-25,0,32); BtnFloatESP.Text = "CRIAR FLUTUANTE: ESP LITE"; BtnFloatESP.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatESP.TextColor3 = Color3.new(1,1,1); BtnFloatESP.TextSize = 11; Instance.new("UICorner", BtnFloatESP)
-BtnFloatESP.MouseButton1Click:Connect(function() SpawnFloatingButton("ESP", function() local n = not Settings.ESP; if VisualToggles["ESP Geral (Players)"] then VisualToggles["ESP Geral (Players)"](n) end; if VisualToggles["Chams"] then VisualToggles["Chams"](n) end; SendNotification("ESP: "..(n and "ON" or "OFF"), n) end) end)
-
-local BtnFloatHitbox = Instance.new("TextButton", SecFloat); BtnFloatHitbox.Size = UDim2.new(1,-25,0,32); BtnFloatHitbox.Text = "CRIAR FLUTUANTE: HITBOX"; BtnFloatHitbox.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatHitbox.TextColor3 = Color3.new(1,1,1); BtnFloatHitbox.TextSize = 11; Instance.new("UICorner", BtnFloatHitbox)
-BtnFloatHitbox.MouseButton1Click:Connect(function() SpawnFloatingButton("HITBOX", function() local n = not Settings.HitboxEnabled; if VisualToggles["Hitbox Players"] then VisualToggles["Hitbox Players"](n) end; SendNotification("HITBOX: "..(n and "ON" or "OFF"), n) end) end)
-
-local BtnFloatHitboxNPC = Instance.new("TextButton", SecFloat); BtnFloatHitboxNPC.Size = UDim2.new(1,-25,0,32); BtnFloatHitboxNPC.Text = "CRIAR FLUTUANTE: HITBOX NPC"; BtnFloatHitboxNPC.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatHitboxNPC.TextColor3 = Color3.new(1,1,1); BtnFloatHitboxNPC.TextSize = 11; Instance.new("UICorner", BtnFloatHitboxNPC)
-BtnFloatHitboxNPC.MouseButton1Click:Connect(function() SpawnFloatingButton("HB-NPC", function() local n = not Settings.HitboxNPC; if VisualToggles["Hitbox NPC"] then VisualToggles["Hitbox NPC"](n) end; SendNotification("HB-NPC: "..(n and "ON" or "OFF"), n) end) end)
 
 -- LÓGICA DE VISIBILIDADE E SKELETON
 local function IsVisible(part)
@@ -623,14 +607,13 @@ RunService.RenderStepped:Connect(function()
         local function CheckTarget(part, humanoid, isNPC)
             if humanoid and humanoid.Health > 1 and IsVisible(part) then
                 
-                -- PREDIÇÃO DE MIRA (Aim Prediction)
+                -- PREDIÇÃO DE MIRA
                 local predPos = part.Position
                 if Settings.AimPrediction then
                     predPos = predPos + (part.AssemblyLinearVelocity * Settings.PredictionVelocity)
                 end
 
                 if Settings.TargetPriority then
-                    -- Ignora FOV e busca em 360 Graus baseando-se na posição prevista
                     if Settings.PriorityMode == "Mais Próximo" then
                         local dist = (predPos - Camera.CFrame.Position).Magnitude
                         if dist < bestValue then bestValue = dist; target = part; targetPredPos = predPos end
@@ -648,7 +631,6 @@ RunService.RenderStepped:Connect(function()
                         end
                     end
                 else
-                    -- Normal por FOV (Calculando se a posição prevista está no FOV)
                     local pos, vis = Camera:WorldToViewportPoint(predPos)
                     if vis then
                         local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
@@ -662,11 +644,8 @@ RunService.RenderStepped:Connect(function()
 
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
-                
-                -- Se o jogador estiver na Whitelist, ignora ele.
                 if Settings.Whitelist[p.UserId] then continue end 
                 
-                -- LÓGICA DE AIMBOT POR COR (Prioridade Máxima para aba Defusal)
                 if Settings.ColorAimbot and Settings.ColorAimbotTarget then
                     local targetColor = GetCustomTeamColor(p)
                     local diffR = math.abs(Settings.ColorAimbotTarget.R - targetColor.R)
@@ -674,7 +653,6 @@ RunService.RenderStepped:Connect(function()
                     local diffB = math.abs(Settings.ColorAimbotTarget.B - targetColor.B)
                     if (diffR + diffG + diffB) > 0.2 then continue end
                 
-                -- AUTO TEAMCOLOR CHECK (Ignora Aliados)
                 elseif Settings.AutoTeamColorCheck then
                     local myColor = GetCustomTeamColor(LocalPlayer)
                     local targetColor = GetCustomTeamColor(p)
@@ -683,7 +661,6 @@ RunService.RenderStepped:Connect(function()
                     local diffB = math.abs(myColor.B - targetColor.B)
                     if (diffR + diffG + diffB) < 0.2 then continue end
                     
-                -- TEAM CHECK PADRÃO
                 elseif Settings.TeamCheck and p.Team == LocalPlayer.Team then 
                     continue 
                 end
@@ -691,6 +668,7 @@ RunService.RenderStepped:Connect(function()
                 CheckTarget(p.Character[Settings.AimPart], p.Character:FindFirstChild("Humanoid"), false)
             end
         end
+        
         if Settings.AimNPC then
             for _, obj in pairs(NPCCache) do
                 if obj and obj.Parent and obj:FindFirstChild("Humanoid") then
@@ -700,13 +678,20 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        -- Aplica a Mira na posição prevista
+        -- Aplica a Mira
         if target and targetPredPos then 
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPredPos), Settings.AimSmooth) 
             
-            -- LÓGICA AUTO FIRE ADICIONADA AQUI
+            -- LÓGICA AUTO FIRE CORRIGIDA AQUI
             if Settings.AutoFire and mouse1click then
-                mouse1click()
+                -- Checa se nenhum menu (modmenu ou roblox) está aberto
+                if not MenuAberto and not GuiService.MenuIsOpen then
+                    -- Delay de toque humano (~0.15s)
+                    if tick() - lastFireTime > 0.15 then
+                        lastFireTime = tick()
+                        mouse1click()
+                    end
+                end
             end
         end
     end
@@ -769,7 +754,6 @@ task.spawn(function()
         for _, p in pairs(Players:GetPlayers()) do 
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then 
                 local hrp = p.Character.HumanoidRootPart; 
-                -- Verifica se o Hitbox tá ativo E se o cara NÃO tá na whitelist
                 if Settings.HitboxEnabled and not Settings.Whitelist[p.UserId] then 
                     hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false 
                 else 
@@ -788,7 +772,7 @@ task.spawn(function()
     end 
 end)
 
--- LOOP DO AUTO SELECIONAR PRÓXIMO (TP CORRIGIDO)
+-- LOOP DO AUTO SELECIONAR PRÓXIMO (TP)
 task.spawn(function()
     while true do
         if Settings.AutoNearest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -798,7 +782,6 @@ task.spawn(function()
 
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                    -- Ignorar jogadores salvos na Whitelist e garantir que estejam vivos
                     if not Settings.Whitelist[p.UserId] and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
                         local distance = (p.Character.HumanoidRootPart.Position - myPos).Magnitude
                         if distance < minDistance then
@@ -809,7 +792,6 @@ task.spawn(function()
                 end
             end
 
-            -- Se encontrar alguém e for diferente do selecionado no momento, ele troca automaticamente
             if closestPlayer and Settings.SelectedPlayer ~= closestPlayer then
                 Settings.SelectedPlayer = closestPlayer
                 if SelLab then
@@ -817,7 +799,7 @@ task.spawn(function()
                 end
             end
         end
-        task.wait(0.2) -- Atualiza 5 vezes por segundo para evitar sobrecarga no client
+        task.wait(0.2)
     end
 end)
 
