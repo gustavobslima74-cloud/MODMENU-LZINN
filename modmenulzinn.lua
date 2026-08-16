@@ -24,7 +24,7 @@ getgenv().Settings = {
     AutoTeamColorCheck = false,
     ColorAimbot = false, ColorAimbotTarget = nil,
     AimPrediction = false, PredictionVelocity = 0.1,
-    TriggerBot = false, -- O TriggerBot agora segura até limpar os inimigos próximos
+    TriggerBot = false,
     Whitelist = {},
     
     -- SISTEMA DE ATALHOS
@@ -35,24 +35,27 @@ getgenv().Settings = {
     }
 }
 
-local VERSION = "v6.20.0"
+local VERSION = "v6.21.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.21.0 ---
+[+] CORREÇÃO: Ordem original das abas restaurada (ESP como principal).
+[+] CORREÇÃO: Função 'Auto Próximo' do TP consertada e funcionando.
+[+] CORREÇÃO: Aba PRED (Predefinições e Flutuantes) restaurada.
+-------------------------
 --- NOVIDADES v6.20.0 ---
 [+] NOVA ABA: ATALHOS! Configure teclas e combinações como quiser.
-[+] MODIFICADO: Atalhos padrão alterados para Alt+2, Alt+3 e Alt+4.
-[+] MELHORIA EXTREMA: TriggerBot otimizado. Ele agora segura o tiro continuamente enquanto houver alvos vivos na mira (mata um e já emenda no próximo).
+[+] MELHORIA EXTREMA: TriggerBot otimizado para segurar o tiro continuamente.
 -------------------------]]
 
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
-
--- Variáveis de controle do TriggerBot
 local isHoldingTarget = false
 
 --// GUI PRINCIPAL
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "KikoMenuGUI"
 
--- FUNÇÃO GLOBAL: IDENTIFICADOR DE TIME CUSTOMIZADO APRIMORADO
+-- FUNÇÃO GLOBAL: IDENTIFICADOR DE TIME
 local function GetCustomTeamColor(p)
     if not p or not p.Character then return Color3.new(1,1,1) end
     local char = p.Character
@@ -218,7 +221,7 @@ local function CreateToggle(parent, text, callback, default)
     end
     b.MouseButton1Click:Connect(function() VisualToggles[text](not state) end)
     RegisterSearchable(b, text)
-    return b -- Retorna o botão para podermos atualizar o texto com atalhos depois
+    return b 
 end
 
 local function CreateStepper(parent, text, min, max, default, step, callback)
@@ -244,24 +247,63 @@ SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     end
 end)
 
--- ABAS
-local MiraPage = CreatePage("MIRA")
+-- ORDEM DAS ABAS RESTAURADA
 local ESPPage = CreatePage("ESP")
-local HitboxPage = CreatePage("HITBOX")
 local PlayerPage = CreatePage("PLAYER")
 local TPPage = CreatePage("TP")
+local MiraPage = CreatePage("MIRA")
+local HitboxPage = CreatePage("HITBOX")
 local DefusalPage = CreatePage("DEFUSAL")
 local TestePage = CreatePage("TESTE")
-local BindsPage = CreatePage("ATALHOS") -- NOVA ABA
+local BindsPage = CreatePage("ATALHOS") 
 local FPSPage = CreatePage("FPS")
 local PredPage = CreatePage("PRED")
 local InfoPage = CreatePage("INFOS")
-MiraPage.Visible = true; ActivePage = MiraPage
 
--- REFERÊNCIAS PARA BOTÕES (PARA DESTACAR OS ATALHOS)
+ESPPage.Visible = true; ActivePage = ESPPage
+
 local aimbotBtn, espBtn, hitboxBtn
 
+-- ====================
+-- SETUP ESP
+-- ====================
+espBtn = CreateToggle(ESPPage, "ESP Geral (Players) [Alt+3]", function(v) Settings.ESP = v end)
+CreateToggle(ESPPage, "ESP NPC", function(v) Settings.ESPNPC = v end)
+CreateToggle(ESPPage, "Skeleton ESP", function(v) Settings.SkeletonESP = v end)
+CreateToggle(ESPPage, "Team Color", function(v) Settings.TeamColor = v end)
+CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
+CreateToggle(ESPPage, "Names", function(v) Settings.Names = v end)
+CreateToggle(ESPPage, "Distance", function(v) Settings.Distance = v end)
+CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
+CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
+
+-- ====================
+-- SETUP PLAYER
+-- ====================
+CreateToggle(PlayerPage, "Third Person", function(v) Settings.ForceThirdPerson = v end)
+CreateToggle(PlayerPage, "Velocidade", function(v) Settings.UseSpeed = v end)
+CreateStepper(PlayerPage, "Speed", 16, 500, 16, 5, function(v) Settings.Speed = v end)
+CreateToggle(PlayerPage, "Pulo Infinito", function(v) Settings.InfiniteJump = v end)
+
+-- ====================
+-- SETUP TP
+-- ====================
+local SecSel = CreateSection(TPPage, "SELEÇÃO"); local SecAct = CreateSection(TPPage, "AÇÕES")
+local SelLab = Instance.new("TextLabel", SecSel); SelLab.Size = UDim2.new(1,-20,0,30); SelLab.Text = "Alvo: Nenhum"; SelLab.TextColor3 = Color3.new(0,1,0); SelLab.BackgroundTransparency = 1; SelLab.TextSize = 11
+local PListF = Instance.new("Frame", SecSel); PListF.Size = UDim2.new(1,-20,0,100); PListF.BackgroundColor3 = Color3.fromRGB(20,20,20)
+local PLScr = Instance.new("ScrollingFrame", PListF); PLScr.Size = UDim2.new(1,0,1,0); PLScr.BackgroundTransparency = 1; PLScr.ScrollBarThickness = 2; Instance.new("UIListLayout", PLScr).Padding = UDim.new(0,2)
+local function UpList() for _,v in pairs(PLScr:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end; for _,p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then local b = Instance.new("TextButton", PLScr); b.Size = UDim2.new(1,0,0,25); b.Text = p.DisplayName; b.BackgroundColor3 = Color3.fromRGB(35,35,35); b.TextColor3 = Color3.new(1,1,1); b.TextSize = 10; b.MouseButton1Click:Connect(function() Settings.SelectedPlayer = p; SelLab.Text = "Alvo: "..p.DisplayName end) end end; PLScr.CanvasSize = UDim2.new(0,0,0,PLScr.UIListLayout.AbsoluteContentSize.Y) end
+Players.PlayerAdded:Connect(UpList); Players.PlayerRemoving:Connect(UpList); UpList()
+
+local TpBtn = Instance.new("TextButton", SecAct); TpBtn.Size = UDim2.new(1,-20,0,35); TpBtn.Text = "TELEPORTAR (CLIQUE)"; TpBtn.BackgroundColor3 = Color3.fromRGB(0,80,150); TpBtn.TextColor3 = Color3.new(1,1,1); TpBtn.TextSize = 11; Instance.new("UICorner", TpBtn); TpBtn.MouseButton1Click:Connect(function() if Settings.SelectedPlayer and Settings.SelectedPlayer.Character then LocalPlayer.Character.HumanoidRootPart.CFrame = Settings.SelectedPlayer.Character.HumanoidRootPart.CFrame end end)
+CreateToggle(SecSel, "Auto Próximo", function(v) Settings.AutoNearest = v end)
+CreateToggle(SecAct, "Grudar Atrás", function(v) Settings.StickyBehind = v end)
+CreateStepper(SecAct, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) Settings.StickySmoothness = v end)
+CreateStepper(SecAct, "Distância", 1, 20, 3, 1, function(v) Settings.StickyDistance = v end)
+
+-- ====================
 -- SETUP MIRA
+-- ====================
 aimbotBtn = CreateToggle(MiraPage, "Auxílio de Mira [Alt+2]", function(v) Settings.AimAssist = v end)
 CreateToggle(MiraPage, "Target Priority (360°)", function(v) Settings.TargetPriority = v end)
 local Modes = {"Mais Próximo", "Menor HP", "Mirando em Mim"}
@@ -276,7 +318,7 @@ CreateToggle(MiraPage, "Exibir FOV", function(v) Settings.ShowFOV = v end)
 CreateStepper(MiraPage, "Tamanho FOV", 10, 800, 100, 10, function(v) Settings.AimFOV = v end)
 CreateStepper(MiraPage, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) Settings.AimSmooth = v end)
 
--- WHITELIST (Mira)
+-- WHITELIST (Na aba Mira)
 local SecWhitelist = CreateSection(MiraPage, "WHITELIST (IGNORAR JOGADORES)")
 local WLListF = Instance.new("Frame", SecWhitelist); WLListF.Size = UDim2.new(1,-20,0,120); WLListF.BackgroundColor3 = Color3.fromRGB(20,20,20)
 local WLScr = Instance.new("ScrollingFrame", WLListF); WLScr.Size = UDim2.new(1,0,1,0); WLScr.BackgroundTransparency = 1; WLScr.ScrollBarThickness = 2; Instance.new("UIListLayout", WLScr).Padding = UDim.new(0,2)
@@ -292,24 +334,30 @@ local function UpdWhitelistList()
 end
 Players.PlayerAdded:Connect(UpdWhitelistList); Players.PlayerRemoving:Connect(UpdWhitelistList); UpdWhitelistList()
 
--- SETUP ESP
-espBtn = CreateToggle(ESPPage, "ESP Geral (Players) [Alt+3]", function(v) Settings.ESP = v end)
-CreateToggle(ESPPage, "ESP NPC", function(v) Settings.ESPNPC = v end)
-CreateToggle(ESPPage, "Skeleton ESP", function(v) Settings.SkeletonESP = v end)
-CreateToggle(ESPPage, "Team Color", function(v) Settings.TeamColor = v end)
-CreateToggle(ESPPage, "Boxes", function(v) Settings.Boxes = v end)
-CreateToggle(ESPPage, "Names", function(v) Settings.Names = v end)
-CreateToggle(ESPPage, "Distance", function(v) Settings.Distance = v end)
-CreateToggle(ESPPage, "Lines", function(v) Settings.Lines = v end)
-CreateToggle(ESPPage, "Chams", function(v) Settings.Highlight = v end)
-
+-- ====================
 -- SETUP HITBOX
+-- ====================
 hitboxBtn = CreateToggle(HitboxPage, "Hitbox Players [Alt+4]", function(v) Settings.HitboxEnabled = v end)
 CreateToggle(HitboxPage, "Hitbox NPC", function(v) Settings.HitboxNPC = v end)
 CreateStepper(HitboxPage, "Tamanho", 2, 100, 20, 5, function(v) Settings.Hitbox = v end)
 CreateStepper(HitboxPage, "Opacidade", 0, 1, 0.6, 0.1, function(v) Settings.HitboxTransparency = v end)
 
--- SETUP TESTE E TRIGGERBOT MELHORADO
+-- ====================
+-- SETUP DEFUSAL
+-- ====================
+local SecDefESP = CreateSection(DefusalPage, "ESP")
+CreateToggle(SecDefESP, "ESP TEAM", function(v) Settings.AutoTeamColorCheck = v end)
+local SecDefAim = CreateSection(DefusalPage, "AIMBOT")
+CreateToggle(SecDefAim, "Aimbot por Time Inimigo", function(v) Settings.ColorAimbot = v end)
+local DefColorSelLab = Instance.new("TextLabel", SecDefAim); DefColorSelLab.Size = UDim2.new(1,-20,0,30); DefColorSelLab.Text = "Alvo Inimigo: Nenhum"; DefColorSelLab.TextColor3 = Color3.new(1,1,1); DefColorSelLab.BackgroundTransparency = 1; DefColorSelLab.TextSize = 11
+local BtnTimeAzul = Instance.new("TextButton", SecDefAim); BtnTimeAzul.Size = UDim2.new(1,-20,0,30); BtnTimeAzul.Text = "Focar Inimigo: TIME AZUL"; BtnTimeAzul.BackgroundColor3 = Color3.fromRGB(72, 171, 229); BtnTimeAzul.TextColor3 = Color3.new(1,1,1); BtnTimeAzul.TextSize = 11; BtnTimeAzul.Font = Enum.Font.GothamBold; Instance.new("UICorner", BtnTimeAzul)
+BtnTimeAzul.MouseButton1Click:Connect(function() Settings.ColorAimbotTarget = Color3.fromRGB(72, 171, 229); DefColorSelLab.Text = "Alvo Inimigo: TIME AZUL"; DefColorSelLab.TextColor3 = Color3.fromRGB(72, 171, 229); SendNotification("Alvo definido: TIME AZUL", true) end)
+local BtnTimeVerm = Instance.new("TextButton", SecDefAim); BtnTimeVerm.Size = UDim2.new(1,-20,0,30); BtnTimeVerm.Text = "Focar Inimigo: TIME VERMELHO"; BtnTimeVerm.BackgroundColor3 = Color3.fromRGB(229, 72, 72); BtnTimeVerm.TextColor3 = Color3.new(1,1,1); BtnTimeVerm.TextSize = 11; BtnTimeVerm.Font = Enum.Font.GothamBold; Instance.new("UICorner", BtnTimeVerm)
+BtnTimeVerm.MouseButton1Click:Connect(function() Settings.ColorAimbotTarget = Color3.fromRGB(229, 72, 72); DefColorSelLab.Text = "Alvo Inimigo: TIME VERMELHO"; DefColorSelLab.TextColor3 = Color3.fromRGB(229, 72, 72); SendNotification("Alvo definido: TIME VERMELHO", true) end)
+
+-- ====================
+-- SETUP TESTE E TRIGGERBOT
+-- ====================
 local SecPrediction = CreateSection(TestePage, "MIRA AVANÇADA")
 CreateToggle(SecPrediction, "Aim Prediction (Movimento)", function(v) Settings.AimPrediction = v end)
 CreateStepper(SecPrediction, "Força da Predição", 0.05, 1, 0.1, 0.05, function(v) Settings.PredictionVelocity = v end)
@@ -318,7 +366,9 @@ local SecTrigger = CreateSection(TestePage, "TRIGGERBOT AUTO-HOLD")
 CreateToggle(SecTrigger, "Ativar TriggerBot", function(v) Settings.TriggerBot = v end)
 local TrigDesc = Instance.new("TextLabel", SecTrigger); TrigDesc.Size = UDim2.new(1,-20,0,30); TrigDesc.BackgroundTransparency = 1; TrigDesc.Text = "O Trigger segura o tiro automaticamente enquanto houver um alvo vivo na mira."; TrigDesc.TextColor3 = Color3.fromRGB(150,150,150); TrigDesc.TextWrapped = true; TrigDesc.TextSize = 9
 
--- SETUP ABA ATALHOS (KEYBINDS)
+-- ====================
+-- SETUP ABA ATALHOS
+-- ====================
 local listeningBind = nil
 local function GetKeyName(mod, key)
     local modStr = ""
@@ -331,7 +381,6 @@ end
 local function UpdateToggleText(btn, baseText, bindKey)
     local bind = Settings.Binds[bindKey]
     if bind then
-        -- Remove o colchete antigo e coloca o novo
         local textLimpo = string.match(btn.Text, "^(.-)%s*%[") or string.match(btn.Text, "^(.-)%s*:") or baseText
         local stateStr = Settings[bindKey] and "ON" or "OFF"
         if bindKey == "AimAssist" then stateStr = Settings.AimAssist and "ON" or "OFF"
@@ -361,11 +410,95 @@ CreateBindConfig(SecBinds, "Aimbot", "AimAssist", aimbotBtn)
 CreateBindConfig(SecBinds, "ESP (Geral)", "Visuals", espBtn)
 CreateBindConfig(SecBinds, "Hitbox", "Hitbox", hitboxBtn)
 
--- LÓGICA DE CAPTURA E USO DE ATALHOS
+-- ====================
+-- SETUP FPS
+-- ====================
+CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
+CreateToggle(FPSPage, "Remover Sombras", function(v) Lighting.GlobalShadows = not v end)
+CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap then setfpscap(v) end end)
+
+-- ====================
+-- SETUP PRED E FLUTUANTES (RESTAURADOS)
+-- ====================
+local SecPreset = CreateSection(PredPage, "PREDEFINIÇÕES")
+local SecFloat = CreateSection(PredPage, "BOTÕES FLUTUANTES")
+
+local function SpawnFloatingButton(name, actionCallback)
+    local currentFloats = 0
+    for _, v in pairs(ScreenGui:GetChildren()) do
+        if v.Name == "FloatBtn_" .. name then return end
+        if string.match(v.Name, "^FloatBtn_") then currentFloats = currentFloats + 1 end
+    end
+    local floatFrame = Instance.new("Frame", ScreenGui); floatFrame.Name = "FloatBtn_" .. name; floatFrame.Size = UDim2.new(0, 50, 0, 50)
+    local startX = -65 - ((currentFloats + 1) * 55); floatFrame.Position = UDim2.new(1, startX, 0, 12); floatFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30); floatFrame.BackgroundTransparency = 0.2; Instance.new("UICorner", floatFrame).CornerRadius = UDim.new(1, 0)
+    local btn = Instance.new("TextButton", floatFrame); btn.Size = UDim2.new(1, 0, 1, 0); btn.BackgroundTransparency = 1; btn.Text = name; btn.TextColor3 = Color3.new(1, 1, 1); btn.TextSize = 10; btn.Font = Enum.Font.GothamBold
+    local closeBtn = Instance.new("TextButton", floatFrame); closeBtn.Size = UDim2.new(0, 20, 0, 20); closeBtn.Position = UDim2.new(1, -15, 0, -5); closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); closeBtn.Text = "X"; closeBtn.TextColor3 = Color3.new(1,1,1); closeBtn.TextSize = 10; Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+    MakeDraggable(floatFrame, false)
+    btn.MouseButton1Click:Connect(actionCallback)
+    closeBtn.MouseButton1Click:Connect(function() floatFrame:Destroy() end)
+end
+
+local BtnLegit = Instance.new("TextButton", SecPreset); BtnLegit.Size = UDim2.new(1,-25,0,32); BtnLegit.Text = "CARREGAR: LEGIT"; BtnLegit.BackgroundColor3 = Color3.fromRGB(0, 100, 50); BtnLegit.TextColor3 = Color3.new(1,1,1); BtnLegit.TextSize = 11; Instance.new("UICorner", BtnLegit)
+BtnLegit.MouseButton1Click:Connect(function()
+    if VisualToggles["ESP Geral (Players) [Alt+3]"] then VisualToggles["ESP Geral (Players) [Alt+3]"](true) end
+    if VisualToggles["Chams"] then VisualToggles["Chams"](true) end
+    if VisualToggles["Team Color"] then VisualToggles["Team Color"](true) end
+    if VisualToggles["Auxílio de Mira [Alt+2]"] then VisualToggles["Auxílio de Mira [Alt+2]"](true) end
+    if VisualToggles["Wall Check"] then VisualToggles["Wall Check"](true) end
+    if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](20) end
+    if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.2) end
+end)
+
+local BtnPresetNPC = Instance.new("TextButton", SecPreset); BtnPresetNPC.Size = UDim2.new(1,-25,0,32); BtnPresetNPC.Text = "CARREGAR: PRESET NPC"; BtnPresetNPC.BackgroundColor3 = Color3.fromRGB(150, 50, 0); BtnPresetNPC.TextColor3 = Color3.new(1,1,1); BtnPresetNPC.TextSize = 11; Instance.new("UICorner", BtnPresetNPC)
+BtnPresetNPC.MouseButton1Click:Connect(function()
+    if VisualToggles["ESP NPC"] then VisualToggles["ESP NPC"](true) end
+    if VisualToggles["Chams"] then VisualToggles["Chams"](true) end
+    if VisualToggles["Auxílio de Mira [Alt+2]"] then VisualToggles["Auxílio de Mira [Alt+2]"](true) end
+    if VisualToggles["Mira em NPC"] then VisualToggles["Mira em NPC"](true) end
+    if VisualToggles["Target Priority (360°)"] then VisualToggles["Target Priority (360°)"](true) end
+    if VisualToggles["Wall Check"] then VisualToggles["Wall Check"](true) end
+    if VisualToggles["Hitbox NPC"] then VisualToggles["Hitbox NPC"](true) end
+    if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.25) end
+    if VisualSteppers["Opacidade"] then VisualSteppers["Opacidade"](1.0) end
+
+    SpawnFloatingButton("AIM", function() local n = not Settings.AimAssist; if VisualToggles["Auxílio de Mira [Alt+2]"] then VisualToggles["Auxílio de Mira [Alt+2]"](n) end; SendNotification("AIM: "..(n and "ON" or "OFF"), n) end)
+    SpawnFloatingButton("HB-NPC", function() local n = not Settings.HitboxNPC; if VisualToggles["Hitbox NPC"] then VisualToggles["Hitbox NPC"](n) end; SendNotification("HB-NPC: "..(n and "ON" or "OFF"), n) end)
+end)
+
+local BtnReset = Instance.new("TextButton", SecPreset); BtnReset.Size = UDim2.new(1,-25,0,32); BtnReset.Text = "RESETAR AO PADRÃO"; BtnReset.BackgroundColor3 = Color3.fromRGB(150, 30, 30); BtnReset.TextColor3 = Color3.new(1,1,1); BtnReset.TextSize = 11; Instance.new("UICorner", BtnReset)
+BtnReset.MouseButton1Click:Connect(function() for name, func in pairs(VisualToggles) do func(false) end; if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](100) end; if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.1) end end)
+
+local BtnFloatAim = Instance.new("TextButton", SecFloat); BtnFloatAim.Size = UDim2.new(1,-25,0,32); BtnFloatAim.Text = "CRIAR FLUTUANTE: AIMBOT"; BtnFloatAim.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatAim.TextColor3 = Color3.new(1,1,1); BtnFloatAim.TextSize = 11; Instance.new("UICorner", BtnFloatAim)
+BtnFloatAim.MouseButton1Click:Connect(function() SpawnFloatingButton("AIM", function() local n = not Settings.AimAssist; if VisualToggles["Auxílio de Mira [Alt+2]"] then VisualToggles["Auxílio de Mira [Alt+2]"](n) end; SendNotification("AIM: "..(n and "ON" or "OFF"), n) end) end)
+
+local BtnFloatESP = Instance.new("TextButton", SecFloat); BtnFloatESP.Size = UDim2.new(1,-25,0,32); BtnFloatESP.Text = "CRIAR FLUTUANTE: ESP LITE"; BtnFloatESP.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatESP.TextColor3 = Color3.new(1,1,1); BtnFloatESP.TextSize = 11; Instance.new("UICorner", BtnFloatESP)
+BtnFloatESP.MouseButton1Click:Connect(function() SpawnFloatingButton("ESP", function() local n = not Settings.ESP; if VisualToggles["ESP Geral (Players) [Alt+3]"] then VisualToggles["ESP Geral (Players) [Alt+3]"](n) end; if VisualToggles["Chams"] then VisualToggles["Chams"](n) end; SendNotification("ESP: "..(n and "ON" or "OFF"), n) end) end)
+
+local BtnFloatHitbox = Instance.new("TextButton", SecFloat); BtnFloatHitbox.Size = UDim2.new(1,-25,0,32); BtnFloatHitbox.Text = "CRIAR FLUTUANTE: HITBOX"; BtnFloatHitbox.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatHitbox.TextColor3 = Color3.new(1,1,1); BtnFloatHitbox.TextSize = 11; Instance.new("UICorner", BtnFloatHitbox)
+BtnFloatHitbox.MouseButton1Click:Connect(function() SpawnFloatingButton("HITBOX", function() local n = not Settings.HitboxEnabled; if VisualToggles["Hitbox Players [Alt+4]"] then VisualToggles["Hitbox Players [Alt+4]"](n) end; SendNotification("HITBOX: "..(n and "ON" or "OFF"), n) end) end)
+
+-- ====================
+-- SETUP INFOS
+-- ====================
+local LogLabel = Instance.new("TextLabel", InfoPage); LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 11; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
+
+-- ====================
+-- LÓGICA DO MENU / INPUTS
+-- ====================
+local function ToggleMenu()
+    if Main.Visible then 
+        MenuAberto = false; local tw = TweenInfo.new(0.3); local anim = TweenService:Create(Main, tw, {Size = UDim2.new(0, 280, 0, 0), BackgroundTransparency = 1}); anim:Play(); anim.Completed:Connect(function() Main.Visible = false end)
+    else 
+        MenuAberto = true; Main.Visible = true; Title.TextTransparency = 0; Main.Position = UDim2.new(0.5, -140, 0.5, -180)
+        TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Elastic), {Size = UDim2.new(0, 280, 0, 360), BackgroundTransparency = 0.1}):Play()
+    end
+end
+
+ToggleBtn.MouseButton1Click:Connect(ToggleMenu) 
+
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.Delete then ToggleMenu(); return end
     
-    -- Capturando nova bind
     if listeningBind and input.UserInputType == Enum.UserInputType.Keyboard then
         if input.KeyCode == Enum.KeyCode.Escape then
             listeningBind.UI.Text = GetKeyName(Settings.Binds[listeningBind.Key].Mod, Settings.Binds[listeningBind.Key].Key)
@@ -373,11 +506,7 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
             listeningBind = nil
             return
         end
-        
-        -- Ignora se pressionou apenas um modificador isolado, espera a próxima tecla
-        if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt or input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
-            return
-        end
+        if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt or input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then return end
         
         local mod = nil
         if UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.RightAlt) then mod = Enum.KeyCode.LeftAlt
@@ -387,7 +516,6 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         Settings.Binds[listeningBind.Key] = {Mod = mod, Key = input.KeyCode}
         listeningBind.UI.Text = GetKeyName(mod, input.KeyCode)
         listeningBind.UI.TextColor3 = Color3.new(0, 1, 0)
-        
         UpdateToggleText(listeningBind.ToggleBtn, listeningBind.Label, listeningBind.Key)
         SendNotification("Atalho de " .. listeningBind.Label .. " alterado!", true)
         listeningBind = nil
@@ -396,7 +524,6 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
     
     if gameProcessed or listeningBind then return end
 
-    -- Executando binds salvas
     for bindKey, bindInfo in pairs(Settings.Binds) do
         if input.KeyCode == bindInfo.Key then
             local modMatch = true
@@ -429,41 +556,9 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- (O RESTANTE DO CÓDIGO PERMANECE IGUAL: DEFUSAL, PLAYER, FPS, PRESETS, DESENHO DO ESP, ETC.)
--- Apenas pulei a re-declaração dos menus básicos para focar na renderização abaixo.
-CreateToggle(PlayerPage, "Third Person", function(v) Settings.ForceThirdPerson = v end)
-CreateToggle(PlayerPage, "Velocidade", function(v) Settings.UseSpeed = v end)
-CreateStepper(PlayerPage, "Speed", 16, 500, 16, 5, function(v) Settings.Speed = v end)
-CreateToggle(PlayerPage, "Pulo Infinito", function(v) Settings.InfiniteJump = v end)
-
-local SecSel = CreateSection(TPPage, "SELEÇÃO"); local SecAct = CreateSection(TPPage, "AÇÕES")
-local SelLab = Instance.new("TextLabel", SecSel); SelLab.Size = UDim2.new(1,-20,0,30); SelLab.Text = "Alvo: Nenhum"; SelLab.TextColor3 = Color3.new(0,1,0); SelLab.BackgroundTransparency = 1; SelLab.TextSize = 11
-local PListF = Instance.new("Frame", SecSel); PListF.Size = UDim2.new(1,-20,0,100); PListF.BackgroundColor3 = Color3.fromRGB(20,20,20)
-local PLScr = Instance.new("ScrollingFrame", PListF); PLScr.Size = UDim2.new(1,0,1,0); PLScr.BackgroundTransparency = 1; PLScr.ScrollBarThickness = 2; Instance.new("UIListLayout", PLScr).Padding = UDim.new(0,2)
-local function UpList() for _,v in pairs(PLScr:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end; for _,p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then local b = Instance.new("TextButton", PLScr); b.Size = UDim2.new(1,0,0,25); b.Text = p.DisplayName; b.BackgroundColor3 = Color3.fromRGB(35,35,35); b.TextColor3 = Color3.new(1,1,1); b.TextSize = 10; b.MouseButton1Click:Connect(function() Settings.SelectedPlayer = p; SelLab.Text = "Alvo: "..p.DisplayName end) end end; PLScr.CanvasSize = UDim2.new(0,0,0,PLScr.UIListLayout.AbsoluteContentSize.Y) end
-Players.PlayerAdded:Connect(UpList); Players.PlayerRemoving:Connect(UpList); UpList()
-local TpBtn = Instance.new("TextButton", SecAct); TpBtn.Size = UDim2.new(1,-20,0,35); TpBtn.Text = "TELEPORTAR (CLIQUE)"; TpBtn.BackgroundColor3 = Color3.fromRGB(0,80,150); TpBtn.TextColor3 = Color3.new(1,1,1); TpBtn.TextSize = 11; Instance.new("UICorner", TpBtn); TpBtn.MouseButton1Click:Connect(function() if Settings.SelectedPlayer and Settings.SelectedPlayer.Character then LocalPlayer.Character.HumanoidRootPart.CFrame = Settings.SelectedPlayer.Character.HumanoidRootPart.CFrame end end)
-CreateToggle(SecSel, "Auto Próximo", function(v) Settings.AutoNearest = v end)
-CreateToggle(SecAct, "Grudar Atrás", function(v) Settings.StickyBehind = v end)
-CreateStepper(SecAct, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) Settings.StickySmoothness = v end)
-CreateStepper(SecAct, "Distância", 1, 20, 3, 1, function(v) Settings.StickyDistance = v end)
-
-local SecDefESP = CreateSection(DefusalPage, "ESP")
-CreateToggle(SecDefESP, "ESP TEAM", function(v) Settings.AutoTeamColorCheck = v end)
-local SecDefAim = CreateSection(DefusalPage, "AIMBOT")
-CreateToggle(SecDefAim, "Aimbot por Time Inimigo", function(v) Settings.ColorAimbot = v end)
-local DefColorSelLab = Instance.new("TextLabel", SecDefAim); DefColorSelLab.Size = UDim2.new(1,-20,0,30); DefColorSelLab.Text = "Alvo Inimigo: Nenhum"; DefColorSelLab.TextColor3 = Color3.new(1,1,1); DefColorSelLab.BackgroundTransparency = 1; DefColorSelLab.TextSize = 11
-local BtnTimeAzul = Instance.new("TextButton", SecDefAim); BtnTimeAzul.Size = UDim2.new(1,-20,0,30); BtnTimeAzul.Text = "Focar Inimigo: TIME AZUL"; BtnTimeAzul.BackgroundColor3 = Color3.fromRGB(72, 171, 229); BtnTimeAzul.TextColor3 = Color3.new(1,1,1); BtnTimeAzul.TextSize = 11; BtnTimeAzul.Font = Enum.Font.GothamBold; Instance.new("UICorner", BtnTimeAzul)
-BtnTimeAzul.MouseButton1Click:Connect(function() Settings.ColorAimbotTarget = Color3.fromRGB(72, 171, 229); DefColorSelLab.Text = "Alvo Inimigo: TIME AZUL"; DefColorSelLab.TextColor3 = Color3.fromRGB(72, 171, 229); SendNotification("Alvo definido: TIME AZUL", true) end)
-local BtnTimeVerm = Instance.new("TextButton", SecDefAim); BtnTimeVerm.Size = UDim2.new(1,-20,0,30); BtnTimeVerm.Text = "Focar Inimigo: TIME VERMELHO"; BtnTimeVerm.BackgroundColor3 = Color3.fromRGB(229, 72, 72); BtnTimeVerm.TextColor3 = Color3.new(1,1,1); BtnTimeVerm.TextSize = 11; BtnTimeVerm.Font = Enum.Font.GothamBold; Instance.new("UICorner", BtnTimeVerm)
-BtnTimeVerm.MouseButton1Click:Connect(function() Settings.ColorAimbotTarget = Color3.fromRGB(229, 72, 72); DefColorSelLab.Text = "Alvo Inimigo: TIME VERMELHO"; DefColorSelLab.TextColor3 = Color3.fromRGB(229, 72, 72); SendNotification("Alvo definido: TIME VERMELHO", true) end)
-
-CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
-CreateToggle(FPSPage, "Remover Sombras", function(v) Lighting.GlobalShadows = not v end)
-CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap then setfpscap(v) end end)
-
-local LogLabel = Instance.new("TextLabel", InfoPage); LogLabel.Size = UDim2.new(1,-20,0,0); LogLabel.AutomaticSize = Enum.AutomaticSize.Y; LogLabel.BackgroundTransparency = 1; LogLabel.TextColor3 = Color3.fromRGB(200,200,200); LogLabel.TextSize = 11; LogLabel.Font = Enum.Font.Code; LogLabel.Text = CHANGELOG_TEXT; LogLabel.TextXAlignment = Enum.TextXAlignment.Left; LogLabel.TextWrapped = true
-
+-- ====================
+-- SISTEMA DE ESP E CACHE
+-- ====================
 local function IsVisible(part)
     if not Settings.WallCheck then return true end
     local castPoints = {Camera.CFrame.Position, part.Position}
@@ -485,7 +580,29 @@ Players.PlayerAdded:Connect(function(p) CreateESPObj(ESPContainer, p) end)
 Players.PlayerRemoving:Connect(function(p) RemoveESP(ESPContainer, p) end)
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateESPObj(ESPContainer, p) end end
 
--- RENDER LOOP PRINCIPAL
+task.spawn(function()
+    while true do
+        if Settings.AimNPC or Settings.ESPNPC or Settings.HitboxNPC then
+            local tempCache = {}; local currentNPCs = {}
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 1 and not Players:GetPlayerFromCharacter(obj) then
+                    table.insert(tempCache, obj); currentNPCs[obj] = true
+                    if Settings.ESPNPC then CreateESPObj(NPCESPContainer, obj) end
+                end
+            end
+            NPCCache = tempCache
+            for obj, _ in pairs(NPCESPContainer) do if not currentNPCs[obj] then RemoveESP(NPCESPContainer, obj) end end
+        else
+            NPCCache = {}
+            for obj, _ in pairs(NPCESPContainer) do RemoveESP(NPCESPContainer, obj) end
+        end
+        task.wait(2)
+    end
+end)
+
+-- ====================
+-- MAIN RENDER LOOP (AIMBOT E ESP)
+-- ====================
 RunService.RenderStepped:Connect(function()
     if MenuAberto then UIS.MouseIconEnabled = true; UIS.MouseBehavior = Enum.MouseBehavior.Default end
     FPSLabel.Text = "FPS: " .. math.floor(1/RunService.RenderStepped:Wait())
@@ -493,7 +610,6 @@ RunService.RenderStepped:Connect(function()
 
     local targetFoundThisFrame = false
 
-    -- LÓGICA AIMBOT
     if Settings.AimAssist then
         local target = nil
         local targetPredPos = nil
@@ -540,11 +656,19 @@ RunService.RenderStepped:Connect(function()
             end
         end
         
+        if Settings.AimNPC then
+            for _, obj in pairs(NPCCache) do
+                if obj and obj.Parent and obj:FindFirstChild("Humanoid") then
+                    local part = obj:FindFirstChild(Settings.AimPart) or obj:FindFirstChild("HumanoidRootPart")
+                    if part then CheckTarget(part, obj.Humanoid) end
+                end
+            end
+        end
+
         if target and targetPredPos then 
             targetFoundThisFrame = true
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPredPos), Settings.AimSmooth) 
             
-            -- LÓGICA DO TRIGGERBOT CONTÍNUO
             if Settings.TriggerBot and mouse1press then
                 if not MenuAberto and not GuiService.MenuIsOpen then
                     if not isHoldingTarget then
@@ -558,7 +682,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Se a mira estiver ativa, o triggerbot ligado, e NENHUM alvo for encontrado neste frame, solta o botão.
     if not targetFoundThisFrame and isHoldingTarget then
         if mouse1release then mouse1release() end
         isHoldingTarget = false
@@ -600,9 +723,12 @@ RunService.RenderStepped:Connect(function()
     end
     
     RenderESP(ESPContainer, false)
+    RenderESP(NPCESPContainer, true)
 end)
 
--- LOOP DO HITBOX EXPANDER
+-- ====================
+-- LOOPS SECUNDÁRIOS (HITBOX E AUTO TP)
+-- ====================
 task.spawn(function() 
     while true do 
         for _, p in pairs(Players:GetPlayers()) do 
@@ -611,6 +737,46 @@ task.spawn(function()
                 if Settings.HitboxEnabled and not Settings.Whitelist[p.UserId] then hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end 
             end 
         end
+        for _, obj in pairs(NPCCache) do
+            if obj and obj.Parent and obj:FindFirstChild("HumanoidRootPart") then
+                local hrp = obj.HumanoidRootPart
+                if Settings.HitboxNPC then hrp.Size = Vector3.new(Settings.Hitbox, Settings.Hitbox, Settings.Hitbox); hrp.Transparency = Settings.HitboxTransparency; hrp.CanCollide = false 
+                else hrp.Size = Vector3.new(2, 2, 1); hrp.Transparency = 1 end
+            end
+        end
         task.wait(0.1) 
     end 
 end)
+
+-- LOOP DO AUTO SELECIONAR PRÓXIMO (TP) RESTAURADO E CORRIGIDO
+task.spawn(function()
+    while true do
+        if Settings.AutoNearest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+            local closestPlayer = nil
+            local minDistance = math.huge
+
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    if not Settings.Whitelist[p.UserId] and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                        local distance = (p.Character.HumanoidRootPart.Position - myPos).Magnitude
+                        if distance < minDistance then
+                            minDistance = distance
+                            closestPlayer = p
+                        end
+                    end
+                end
+            end
+
+            if closestPlayer and Settings.SelectedPlayer ~= closestPlayer then
+                Settings.SelectedPlayer = closestPlayer
+                if SelLab then
+                    SelLab.Text = "Alvo: " .. closestPlayer.DisplayName .. " (Auto)"
+                end
+            end
+        end
+        task.wait(0.2)
+    end
+end)
+
+UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
