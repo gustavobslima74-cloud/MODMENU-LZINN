@@ -6,7 +6,7 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
-local GuiService = game:GetService("GuiService") -- Adicionado para checar o menu do Roblox
+local GuiService = game:GetService("GuiService")
 
 --// UNLOCK FPS
 if setfpscap then setfpscap(120) end
@@ -18,28 +18,35 @@ getgenv().Settings = {
     UseSpeed = false, Speed = 16, UseJump = false, JumpPower = 50, InfiniteJump = false,
     ForceThirdPerson = false, BoostFPS = false, RemoveShadows = false,
     SelectedPlayer = nil, AutoNearest = false, StickyBehind = false, StickySmoothness = 0.1, StickyDistance = 3,
-    AimAssist = false, AutoFire = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
+    AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
     AimNPC = false, ESPNPC = false, SkeletonESP = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
     AutoTeamColorCheck = false,
     ColorAimbot = false, ColorAimbotTarget = nil,
     AimPrediction = false, PredictionVelocity = 0.1,
-    Whitelist = {} -- Tabela para salvar quem não deve ser focado
+    TriggerBot = false, TriggerHoldTime = 1.0, -- Configurações do TriggerBot
+    Whitelist = {} 
 }
 
-local VERSION = "v6.18.0"
+local VERSION = "v6.19.0"
 local CHANGELOG_TEXT = [[
---- NOVIDADES v6.18.0 ---
-[+] CORRIGIDO: Auto Fire agora dá toques humanos (cooldown) e ignora alvos se o menu do Roblox ou o Mod Menu estiverem abertos.
+--- NOVIDADES v6.19.0 ---
+[+] MODIFICADO: TriggerBot movido para aba TESTE com seção dedicada.
+[+] MELHORIA: TriggerBot agora *segura* o clique por tempo configurável (padrão 1s) ao invés de spammar.
+[+] ADICIONADO: Atalhos Alt+1 (Aim), Alt+2 (Visuais), Alt+3 (Hitbox).
 -------------------------
---- NOVIDADES v6.17.0 ---
-[+] ADICIONADO: Auto Fire na aba MIRA.
-[+] CORRIGIDO: Auto Próximo na aba TP agora funciona e atualiza o alvo continuamente.
+--- NOVIDADES v6.18.0 ---
+[+] CORRIGIDO: Auto Fire agora respeita menus abertos.
 -------------------------]]
 
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
-local lastFireTime = 0 -- Variável de controle para o Auto Fire humano
+
+-- Variáveis de controle do TriggerBot
+local isHoldingTarget = false
+local holdStartTime = 0
+local triggerOnCooldown = false
+local cooldownStartTime = 0
 
 --// GUI PRINCIPAL
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
@@ -321,7 +328,6 @@ CreateStepper(SecAct, "Distância", 1, 20, 3, 1, function(v) Settings.StickyDist
 
 -- SETUP MIRA
 CreateToggle(MiraPage, "Auxílio de Mira", function(v) Settings.AimAssist = v end)
-CreateToggle(MiraPage, "Auto Fire (TriggerBot)", function(v) Settings.AutoFire = v end)
 CreateToggle(MiraPage, "Target Priority (360°)", function(v) Settings.TargetPriority = v end)
 local Modes = {"Mais Próximo", "Menor HP", "Mirando em Mim"}
 local ModeBtn = Instance.new("TextButton", MiraPage)
@@ -433,6 +439,10 @@ RegisterSearchable(BtnTimeVerm, "Focar Time Vermelho")
 local SecPrediction = CreateSection(TestePage, "MIRA AVANÇADA")
 CreateToggle(SecPrediction, "Aim Prediction (Movimento)", function(v) Settings.AimPrediction = v end)
 CreateStepper(SecPrediction, "Força da Predição", 0.05, 1, 0.1, 0.05, function(v) Settings.PredictionVelocity = v end)
+
+local SecTrigger = CreateSection(TestePage, "TRIGGERBOT")
+CreateToggle(SecTrigger, "Ativar TriggerBot", function(v) Settings.TriggerBot = v end)
+CreateStepper(SecTrigger, "Tempo Segurando (s)", 0.1, 5, 1.0, 0.1, function(v) Settings.TriggerHoldTime = v end)
 
 -- SETUP FPS
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
@@ -589,7 +599,6 @@ end)
 
 -- RENDER LOOP PRINCIPAL (AIMBOT E ESP)
 RunService.RenderStepped:Connect(function()
-    -- Força o mouse a aparecer e destrava se o menu estiver aberto
     if MenuAberto then
         UIS.MouseIconEnabled = true
         UIS.MouseBehavior = Enum.MouseBehavior.Default
@@ -597,6 +606,8 @@ RunService.RenderStepped:Connect(function()
 
     FPSLabel.Text = "FPS: " .. math.floor(1/RunService.RenderStepped:Wait())
     FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Radius = Settings.AimFOV; FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); FOVCircle.Color = stroke.Color; FOVCircle.Thickness = 1.2; FOVCircle.Filled = false
+
+    local targetFoundThisFrame = false
 
     -- LÓGICA AIMBOT + TARGET PRIORITY + PREDICTION
     if Settings.AimAssist then
@@ -606,8 +617,6 @@ RunService.RenderStepped:Connect(function()
 
         local function CheckTarget(part, humanoid, isNPC)
             if humanoid and humanoid.Health > 1 and IsVisible(part) then
-                
-                -- PREDIÇÃO DE MIRA
                 local predPos = part.Position
                 if Settings.AimPrediction then
                     predPos = predPos + (part.AssemblyLinearVelocity * Settings.PredictionVelocity)
@@ -617,11 +626,9 @@ RunService.RenderStepped:Connect(function()
                     if Settings.PriorityMode == "Mais Próximo" then
                         local dist = (predPos - Camera.CFrame.Position).Magnitude
                         if dist < bestValue then bestValue = dist; target = part; targetPredPos = predPos end
-                        
                     elseif Settings.PriorityMode == "Menor HP" then
                         local hp = humanoid.Health
                         if hp < bestValue then bestValue = hp; target = part; targetPredPos = predPos end
-                        
                     elseif Settings.PriorityMode == "Mirando em Mim" then
                         local dirToMe = (Camera.CFrame.Position - predPos).Unit
                         local dot = part.CFrame.LookVector:Dot(dirToMe)
@@ -645,14 +652,12 @@ RunService.RenderStepped:Connect(function()
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.AimPart) then
                 if Settings.Whitelist[p.UserId] then continue end 
-                
                 if Settings.ColorAimbot and Settings.ColorAimbotTarget then
                     local targetColor = GetCustomTeamColor(p)
                     local diffR = math.abs(Settings.ColorAimbotTarget.R - targetColor.R)
                     local diffG = math.abs(Settings.ColorAimbotTarget.G - targetColor.G)
                     local diffB = math.abs(Settings.ColorAimbotTarget.B - targetColor.B)
                     if (diffR + diffG + diffB) > 0.2 then continue end
-                
                 elseif Settings.AutoTeamColorCheck then
                     local myColor = GetCustomTeamColor(LocalPlayer)
                     local targetColor = GetCustomTeamColor(p)
@@ -660,11 +665,9 @@ RunService.RenderStepped:Connect(function()
                     local diffG = math.abs(myColor.G - targetColor.G)
                     local diffB = math.abs(myColor.B - targetColor.B)
                     if (diffR + diffG + diffB) < 0.2 then continue end
-                    
                 elseif Settings.TeamCheck and p.Team == LocalPlayer.Team then 
                     continue 
                 end
-                
                 CheckTarget(p.Character[Settings.AimPart], p.Character:FindFirstChild("Humanoid"), false)
             end
         end
@@ -680,20 +683,45 @@ RunService.RenderStepped:Connect(function()
 
         -- Aplica a Mira
         if target and targetPredPos then 
+            targetFoundThisFrame = true
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPredPos), Settings.AimSmooth) 
             
-            -- LÓGICA AUTO FIRE CORRIGIDA AQUI
-            if Settings.AutoFire and mouse1click then
-                -- Checa se nenhum menu (modmenu ou roblox) está aberto
+            -- LÓGICA DO TRIGGERBOT DE SEGURAR
+            if Settings.TriggerBot and mouse1press and mouse1release then
                 if not MenuAberto and not GuiService.MenuIsOpen then
-                    -- Delay de toque humano (~0.15s)
-                    if tick() - lastFireTime > 0.15 then
-                        lastFireTime = tick()
-                        mouse1click()
+                    if not triggerOnCooldown then
+                        if not isHoldingTarget then
+                            isHoldingTarget = true
+                            holdStartTime = tick()
+                            mouse1press()
+                        else
+                            if tick() - holdStartTime >= Settings.TriggerHoldTime then
+                                mouse1release()
+                                isHoldingTarget = false
+                                triggerOnCooldown = true
+                                cooldownStartTime = tick()
+                            end
+                        end
+                    else
+                        -- Cooldown rápido de 0.2s para ele não pressionar instantaneamente de novo 
+                        if tick() - cooldownStartTime >= 0.2 then
+                            triggerOnCooldown = false
+                        end
+                    end
+                else
+                    if isHoldingTarget then
+                        mouse1release()
+                        isHoldingTarget = false
                     end
                 end
             end
         end
+    end
+
+    -- Se não encontrar nenhum alvo e estivermos segurando o trigger, solte imediatamente
+    if not targetFoundThisFrame and isHoldingTarget and mouse1release then
+        mouse1release()
+        isHoldingTarget = false
     end
 
     if Settings.StickyBehind and Settings.SelectedPlayer and Settings.SelectedPlayer.Character then
@@ -805,7 +833,7 @@ end)
 
 UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
 
--- FUNÇÃO GLOBAL DE ABRIR/FECHAR O MENU
+-- FUNÇÃO GLOBAL DE ABRIR/FECHAR O MENU E ATALHOS
 local function ToggleMenu()
     if Main.Visible then 
         MenuAberto = false; local tw = TweenInfo.new(0.3); local anim = TweenService:Create(Main, tw, {Size = UDim2.new(0, 280, 0, 0), BackgroundTransparency = 1}); anim:Play(); anim.Completed:Connect(function() Main.Visible = false end)
@@ -815,12 +843,39 @@ local function ToggleMenu()
     end
 end
 
--- CLIQUE NO BOTÃO DA TELA
 ToggleBtn.MouseButton1Up:Connect(ToggleMenu)
 
--- ATALHO DE TECLADO (DELETE)
 UIS.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.Delete then
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode.Delete then
         ToggleMenu()
+    end
+
+    -- Sistema de Atalhos (Alt+1, Alt+2, Alt+3)
+    local isAltDown = UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.RightAlt)
+    
+    if isAltDown then
+        if input.KeyCode == Enum.KeyCode.One then
+            if VisualToggles["Auxílio de Mira"] then
+                local newState = not Settings.AimAssist
+                VisualToggles["Auxílio de Mira"](newState)
+                SendNotification("[ATALHO] AIMBOT: " .. (newState and "ON" or "OFF"), newState)
+            end
+        elseif input.KeyCode == Enum.KeyCode.Two then
+            if VisualToggles["ESP Geral (Players)"] then
+                local newState = not Settings.ESP
+                VisualToggles["ESP Geral (Players)"](newState)
+                if VisualToggles["Chams"] then VisualToggles["Chams"](newState) end
+                if VisualToggles["Team Color"] then VisualToggles["Team Color"](newState) end
+                SendNotification("[ATALHO] VISUAIS: " .. (newState and "ON" or "OFF"), newState)
+            end
+        elseif input.KeyCode == Enum.KeyCode.Three then
+            if VisualToggles["Hitbox Players"] then
+                local newState = not Settings.HitboxEnabled
+                VisualToggles["Hitbox Players"](newState)
+                SendNotification("[ATALHO] HITBOX: " .. (newState and "ON" or "OFF"), newState)
+            end
+        end
     end
 end)
