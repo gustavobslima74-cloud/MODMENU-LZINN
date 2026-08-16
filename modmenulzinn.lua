@@ -17,7 +17,7 @@ getgenv().Settings = {
     UseSpeed = false, Speed = 16, UseJump = false, JumpPower = 50, InfiniteJump = false,
     ForceThirdPerson = false, BoostFPS = false, RemoveShadows = false,
     SelectedPlayer = nil, AutoNearest = false, StickyBehind = false, StickySmoothness = 0.1, StickyDistance = 3,
-    AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
+    AimAssist = false, AutoFire = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1, ShowFOV = false, WallCheck = false, TeamCheck = false,
     AimNPC = false, ESPNPC = false, SkeletonESP = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
     AutoTeamColorCheck = false,
@@ -26,18 +26,16 @@ getgenv().Settings = {
     Whitelist = {} -- Tabela para salvar quem não deve ser focado
 }
 
-local VERSION = "v6.16.0"
+local VERSION = "v6.17.0"
 local CHANGELOG_TEXT = [[
+--- NOVIDADES v6.17.0 ---
+[+] ADICIONADO: Auto Fire na aba MIRA.
+[+] CORRIGIDO: Auto Próximo na aba TP agora funciona e atualiza o alvo continuamente.
+-------------------------
 --- NOVIDADES v6.16.0 ---
 [+] NOVA ABA: DEFUSAL adicionada. Focada em partidas de times.
 [+] MODIFICADO: "Auto TeamColor Check" movido para DEFUSAL e renomeado para "ESP TEAM".
 [+] MODIFICADO: Aimbot de Cor movido para DEFUSAL com foco exclusivo nos Times Azul e Vermelho.
--------------------------
---- NOVIDADES v6.15.0 ---
-[+] MELHORIA: O mouse agora é forçado a aparecer e ficar livre na tela sempre que o menu for aberto.
--------------------------
---- NOVIDADES v6.14.0 ---
-[+] ADICIONADO: Atalho no teclado. Agora você pode abrir/fechar o menu usando a tecla Delete (Del).
 -------------------------]]
 
 local MenuAberto = false
@@ -327,6 +325,7 @@ CreateStepper(SecAct, "Distância", 1, 20, 3, 1, function(v) Settings.StickyDist
 
 -- SETUP MIRA
 CreateToggle(MiraPage, "Auxílio de Mira", function(v) Settings.AimAssist = v end)
+CreateToggle(MiraPage, "Auto Fire (TriggerBot)", function(v) Settings.AutoFire = v end) -- NOVO RECURSO ADICIONADO
 CreateToggle(MiraPage, "Target Priority (360°)", function(v) Settings.TargetPriority = v end)
 local Modes = {"Mais Próximo", "Menor HP", "Mirando em Mim"}
 local ModeBtn = Instance.new("TextButton", MiraPage)
@@ -704,6 +703,11 @@ RunService.RenderStepped:Connect(function()
         -- Aplica a Mira na posição prevista
         if target and targetPredPos then 
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPredPos), Settings.AimSmooth) 
+            
+            -- LÓGICA AUTO FIRE ADICIONADA AQUI
+            if Settings.AutoFire and mouse1click then
+                mouse1click()
+            end
         end
     end
 
@@ -782,6 +786,39 @@ task.spawn(function()
         end
         task.wait(0.1) 
     end 
+end)
+
+-- LOOP DO AUTO SELECIONAR PRÓXIMO (TP CORRIGIDO)
+task.spawn(function()
+    while true do
+        if Settings.AutoNearest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+            local closestPlayer = nil
+            local minDistance = math.huge
+
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    -- Ignorar jogadores salvos na Whitelist e garantir que estejam vivos
+                    if not Settings.Whitelist[p.UserId] and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                        local distance = (p.Character.HumanoidRootPart.Position - myPos).Magnitude
+                        if distance < minDistance then
+                            minDistance = distance
+                            closestPlayer = p
+                        end
+                    end
+                end
+            end
+
+            -- Se encontrar alguém e for diferente do selecionado no momento, ele troca automaticamente
+            if closestPlayer and Settings.SelectedPlayer ~= closestPlayer then
+                Settings.SelectedPlayer = closestPlayer
+                if SelLab then
+                    SelLab.Text = "Alvo: " .. closestPlayer.DisplayName .. " (Auto)"
+                end
+            end
+        end
+        task.wait(0.2) -- Atualiza 5 vezes por segundo para evitar sobrecarga no client
+    end
 end)
 
 UIS.JumpRequest:Connect(function() if Settings.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end end)
