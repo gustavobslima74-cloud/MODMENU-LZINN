@@ -7,6 +7,8 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local GuiService = game:GetService("GuiService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 
 --// UNLOCK FPS
 if setfpscap then setfpscap(120) end
@@ -35,16 +37,14 @@ getgenv().Settings = {
     }
 }
 
-local VERSION = "v6.21.0"
+local VERSION = "v6.22.0"
 local CHANGELOG_TEXT = [[
---- NOVIDADES v6.21.0 ---
-[+] CORREÇÃO: Ordem original das abas restaurada (ESP como principal).
-[+] CORREÇÃO: Função 'Auto Próximo' do TP consertada e funcionando.
-[+] CORREÇÃO: Aba PRED (Predefinições e Flutuantes) restaurada.
+--- NOVIDADES v6.22.0 ---
+[+] NOVA ABA: SERVIDOR! Funções para Rejoin, Server Hop e Copiar JobID.
 -------------------------
---- NOVIDADES v6.20.0 ---
-[+] NOVA ABA: ATALHOS! Configure teclas e combinações como quiser.
-[+] MELHORIA EXTREMA: TriggerBot otimizado para segurar o tiro continuamente.
+--- NOVIDADES v6.21.0 ---
+[+] CORREÇÃO: Ordem original das abas restaurada.
+[+] CORREÇÃO: Função 'Auto Próximo' do TP consertada e funcionando.
 -------------------------]]
 
 local MenuAberto = false
@@ -247,7 +247,9 @@ SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     end
 end)
 
--- ORDEM DAS ABAS RESTAURADA
+-- ====================
+-- ABAS
+-- ====================
 local ESPPage = CreatePage("ESP")
 local PlayerPage = CreatePage("PLAYER")
 local TPPage = CreatePage("TP")
@@ -256,6 +258,7 @@ local HitboxPage = CreatePage("HITBOX")
 local DefusalPage = CreatePage("DEFUSAL")
 local TestePage = CreatePage("TESTE")
 local BindsPage = CreatePage("ATALHOS") 
+local ServerPage = CreatePage("SERVIDOR") -- NOVA ABA
 local FPSPage = CreatePage("FPS")
 local PredPage = CreatePage("PRED")
 local InfoPage = CreatePage("INFOS")
@@ -411,6 +414,45 @@ CreateBindConfig(SecBinds, "ESP (Geral)", "Visuals", espBtn)
 CreateBindConfig(SecBinds, "Hitbox", "Hitbox", hitboxBtn)
 
 -- ====================
+-- SETUP ABA SERVIDOR
+-- ====================
+local SecServer = CreateSection(ServerPage, "GERENCIAR SERVIDOR")
+
+local BtnRejoin = Instance.new("TextButton", SecServer)
+BtnRejoin.Size = UDim2.new(1,-20,0,32); BtnRejoin.Text = "REJOIN (Mesmo Servidor)"; BtnRejoin.BackgroundColor3 = Color3.fromRGB(0, 100, 150); BtnRejoin.TextColor3 = Color3.new(1,1,1); BtnRejoin.TextSize = 11; BtnRejoin.Font = Enum.Font.GothamBold; Instance.new("UICorner", BtnRejoin)
+BtnRejoin.MouseButton1Click:Connect(function()
+    SendNotification("Reconectando...", true)
+    TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+end)
+
+local BtnServerHop = Instance.new("TextButton", SecServer)
+BtnServerHop.Size = UDim2.new(1,-20,0,32); BtnServerHop.Text = "SERVER HOP (Mudar Servidor)"; BtnServerHop.BackgroundColor3 = Color3.fromRGB(150, 80, 0); BtnServerHop.TextColor3 = Color3.new(1,1,1); BtnServerHop.TextSize = 11; BtnServerHop.Font = Enum.Font.GothamBold; Instance.new("UICorner", BtnServerHop)
+BtnServerHop.MouseButton1Click:Connect(function()
+    SendNotification("Procurando servidor...", true)
+    pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..tostring(game.PlaceId).."/servers/Public?sortOrder=Asc&limit=100"))
+        for _, server in ipairs(servers.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                SendNotification("Servidor encontrado! Teleportando...", true)
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+                break
+            end
+        end
+    end)
+end)
+
+local BtnCopyJobId = Instance.new("TextButton", SecServer)
+BtnCopyJobId.Size = UDim2.new(1,-20,0,32); BtnCopyJobId.Text = "COPIAR JOB ID"; BtnCopyJobId.BackgroundColor3 = Color3.fromRGB(50, 50, 50); BtnCopyJobId.TextColor3 = Color3.new(1,1,1); BtnCopyJobId.TextSize = 11; BtnCopyJobId.Font = Enum.Font.GothamBold; Instance.new("UICorner", BtnCopyJobId)
+BtnCopyJobId.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(game.JobId)
+        SendNotification("JobId Copiado com sucesso!", true)
+    else
+        SendNotification("Seu executor não suporta 'setclipboard'", false)
+    end
+end)
+
+-- ====================
 -- SETUP FPS
 -- ====================
 CreateToggle(FPSPage, "Otimizar Texturas", function(v) Settings.BoostFPS = v; for _,o in pairs(game:GetDescendants()) do if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end end end)
@@ -418,7 +460,7 @@ CreateToggle(FPSPage, "Remover Sombras", function(v) Lighting.GlobalShadows = no
 CreateStepper(FPSPage, "Limite FPS", 30, 240, 120, 30, function(v) if setfpscap then setfpscap(v) end end)
 
 -- ====================
--- SETUP PRED E FLUTUANTES (RESTAURADOS)
+-- SETUP PRED E FLUTUANTES 
 -- ====================
 local SecPreset = CreateSection(PredPage, "PREDEFINIÇÕES")
 local SecFloat = CreateSection(PredPage, "BOTÕES FLUTUANTES")
@@ -466,7 +508,7 @@ BtnPresetNPC.MouseButton1Click:Connect(function()
 end)
 
 local BtnReset = Instance.new("TextButton", SecPreset); BtnReset.Size = UDim2.new(1,-25,0,32); BtnReset.Text = "RESETAR AO PADRÃO"; BtnReset.BackgroundColor3 = Color3.fromRGB(150, 30, 30); BtnReset.TextColor3 = Color3.new(1,1,1); BtnReset.TextSize = 11; Instance.new("UICorner", BtnReset)
-BtnReset.MouseButton1Click:Connect(function() for name, func in pairs(VisualToggles) do func(false) end; if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](100) end; if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.1) end end)
+BtnReset.MouseButton1Click:Connect(function() for name, func in pairs(VisualToggles) do func(false, true) end; if VisualSteppers["Tamanho FOV"] then VisualSteppers["Tamanho FOV"](100) end; if VisualSteppers["Suavidade"] then VisualSteppers["Suavidade"](0.1) end end)
 
 local BtnFloatAim = Instance.new("TextButton", SecFloat); BtnFloatAim.Size = UDim2.new(1,-25,0,32); BtnFloatAim.Text = "CRIAR FLUTUANTE: AIMBOT"; BtnFloatAim.BackgroundColor3 = Color3.fromRGB(50, 50, 150); BtnFloatAim.TextColor3 = Color3.new(1,1,1); BtnFloatAim.TextSize = 11; Instance.new("UICorner", BtnFloatAim)
 BtnFloatAim.MouseButton1Click:Connect(function() SpawnFloatingButton("AIM", function() local n = not Settings.AimAssist; if VisualToggles["Auxílio de Mira [Alt+2]"] then VisualToggles["Auxílio de Mira [Alt+2]"](n) end; SendNotification("AIM: "..(n and "ON" or "OFF"), n) end) end)
