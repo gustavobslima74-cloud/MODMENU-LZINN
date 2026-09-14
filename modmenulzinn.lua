@@ -1,5 +1,5 @@
 --=============================================================
--- 🎯 KIKO MENU v5.5
+-- 🎯 KIKO MENU v5.6 — WHITELIST UNIFICADA
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -45,7 +45,7 @@ getgenv().Settings = {
 }
 
 local S = getgenv().Settings
-local VERSION = "v5.5"
+local VERSION = "v5.6"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -54,7 +54,6 @@ if getgenv().nowe == nil then getgenv().nowe = false end
 if getgenv().speeds == nil then getgenv().speeds = 1 end
 if getgenv().tpwalking == nil then getgenv().tpwalking = false end
 
--- Flags do Fly Up/Down (FORA de qualquer bloco)
 local flyUp = false
 local flyDown = false
 
@@ -275,7 +274,6 @@ FPSLbl.TextXAlignment = Enum.TextXAlignment.Right
 FPSLbl.ZIndex = 102
 FPSLbl.Active = false
 
--- LUPA DE BUSCA
 local SearchIcon = Instance.new("TextButton", Header)
 SearchIcon.Size = UDim2.new(0, 28, 0, 28)
 SearchIcon.Position = UDim2.new(1, -72, 0, 7)
@@ -302,7 +300,6 @@ SearchIcon.MouseLeave:Connect(function()
     }):Play()
 end)
 
--- BOTÃO X
 local CloseB = Instance.new("TextButton", Header)
 CloseB.Size = UDim2.new(0, 28, 0, 28)
 CloseB.Position = UDim2.new(1, -38, 0, 7)
@@ -331,7 +328,7 @@ end)
 
 MakeDraggable(Logo, nil, false, Main)
 
--- SEARCH BOX (fica por cima das abas)
+-- SEARCH BOX
 local SearchBox = Instance.new("TextBox", Main)
 SearchBox.Size = UDim2.new(1, -24, 0, 38)
 SearchBox.Position = UDim2.new(0, 12, 0, 50)
@@ -371,7 +368,6 @@ TabsLayout.Padding = UDim.new(0, 4)
 local padT = Instance.new("UIPadding", TabsScroll)
 padT.PaddingLeft = UDim.new(0, 6); padT.PaddingRight = UDim.new(0, 6)
 
--- Atualiza CanvasSize baseado no conteúdo real (LIMITA SCROLL)
 TabsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     TabsScroll.CanvasSize = UDim2.new(0, TabsLayout.AbsoluteContentSize.X + 20, 0, 0)
 end)
@@ -424,7 +420,6 @@ local function CreatePage(name, emoji)
         page.Visible = true; ActivePage = page
         btn.BackgroundColor3 = C.BgHover; btn.TextColor3 = C.Accent
         Content.CanvasPosition = Vector2.new(0, 0)
-        -- Atualiza canvas imediatamente
         task.wait()
         Content.CanvasSize = UDim2.new(0, 0, 0, page.AbsoluteSize.Y + 20)
     end)
@@ -440,10 +435,8 @@ local function CreatePage(name, emoji)
     return page, btn
 end
 
--- SEARCH INDEX
 local SearchIndex = {}
 
--- SECTION
 local function CreateSection(parent, title, emoji)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 38)
@@ -514,7 +507,6 @@ local function CreateSection(parent, title, emoji)
             Rotation = aberto and 90 or 0,
             TextColor3 = aberto and C.Accent or C.Dim
         }):Play()
-        -- Recalcula canvas
         task.wait()
         if ActivePage then
             Content.CanvasSize = UDim2.new(0, 0, 0, ActivePage.AbsoluteSize.Y + 20)
@@ -685,12 +677,12 @@ local PersoP   = CreatePage("Personagem","🏃")
 local TPP      = CreatePage("Teleporte", "🌀")
 local HitP     = CreatePage("Hitbox",    "📦")
 local DefP     = CreatePage("Defusal",   "💣")
+local WLP      = CreatePage("Whitelist", "📝")
 local PresetP  = CreatePage("Presets",   "⚙️")
 local BindsP   = CreatePage("Atalhos",   "⌨️")
 local ServP    = CreatePage("Servidor",  "🌐")
 local MiscP    = CreatePage("Misc",      "🧰")
 
--- ABA PADRÃO = MIRA
 MiraP.Visible = true
 ActivePage = MiraP
 TabButtons[1].BackgroundColor3 = C.BgHover
@@ -699,7 +691,7 @@ TabButtons[1].TextColor3 = C.Accent
 local aimbotBtn, espBtn, hitboxBtn
 
 --=============================================================
--- 🎯 MIRA
+-- 🎯 MIRA (whitelist antiga REMOVIDA)
 --=============================================================
 local secAim = CreateSection(MiraP, "Assistência de Mira", "🎯")
 aimbotBtn = CreateToggle(secAim, "Ativar Assistência", false, function(v) S.AimAssist = v end)
@@ -749,19 +741,6 @@ PartBtn.MouseButton1Click:Connect(function()
     PartBtn.Text = "Parte Alvo: " .. (S.AimPart == "Head" and "Cabeça" or "Tronco")
 end)
 
-local secWL = CreateSection(MiraP, "Lista Branca", "📝")
-CreateLabel(secWL, "Clique em um jogador para adicionar/remover da lista branca.", 30)
-local wlC = Instance.new("ScrollingFrame", secWL)
-wlC.Size = UDim2.new(1, 0, 0, 130)
-wlC.BackgroundColor3 = C.Bg
-wlC.BorderSizePixel = 0
-wlC.ScrollBarThickness = 2
-wlC.CanvasSize = UDim2.new(0, 0, 0, 300)
-wlC.ZIndex = 103; wlC.Parent = secWL
-Corner(wlC, 8)
-local wlL = Instance.new("UIListLayout", wlC)
-wlL.Padding = UDim.new(0, 3)
-
 --=============================================================
 -- 👁️ VISUAL
 --=============================================================
@@ -794,7 +773,6 @@ CreateToggle(secP3, "Ativar Modo Voo", false, function(v)
 end)
 CreateStepper(secP3, "Multiplicador de Velocidade", 1, 10, 1, 1, function(v) getgenv().speeds = v end)
 
--- Botões SUBIR / DESCER (CORRIGIDO)
 local upDownFrame = Instance.new("Frame", secP3)
 upDownFrame.Size = UDim2.new(1, 0, 0, 34)
 upDownFrame.BackgroundTransparency = 1
@@ -821,34 +799,22 @@ downBtn.TextSize = 11; downBtn.Font = C.FontB
 downBtn.AutoButtonColor = false; downBtn.ZIndex = 104
 Corner(downBtn, 8)
 
--- Flags de subir/descer (corrigido: usa estado global)
-upBtn.MouseButton1Down:Connect(function()
-    PS("Click")
-    flyUp = true
-end)
+upBtn.MouseButton1Down:Connect(function() PS("Click"); flyUp = true end)
 upBtn.MouseButton1Up:Connect(function() flyUp = false end)
 upBtn.MouseLeave:Connect(function() flyUp = false end)
 
-downBtn.MouseButton1Down:Connect(function()
-    PS("Click")
-    flyDown = true
-end)
+downBtn.MouseButton1Down:Connect(function() PS("Click"); flyDown = true end)
 downBtn.MouseButton1Up:Connect(function() flyDown = false end)
 downBtn.MouseLeave:Connect(function() flyDown = false end)
 
--- Loop único que aplica subida/descida
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
         if LocalPlayer.Character then
             local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
-                if flyUp then
-                    hrp.CFrame = hrp.CFrame * CFrame.new(0, 1, 0)
-                end
-                if flyDown then
-                    hrp.CFrame = hrp.CFrame * CFrame.new(0, -1, 0)
-                end
+                if flyUp then hrp.CFrame = hrp.CFrame * CFrame.new(0, 1, 0) end
+                if flyDown then hrp.CFrame = hrp.CFrame * CFrame.new(0, -1, 0) end
             end
         end
     end
@@ -918,53 +884,13 @@ CreateStepper(secT2, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) S.StickySmooth
 CreateStepper(secT2, "Distância", 1, 20, 3, 1, function(v) S.StickyDistance = v end)
 
 --=============================================================
--- 📦 HITBOX
+-- 📦 HITBOX (whitelist antiga REMOVIDA)
 --=============================================================
 local secHb = CreateSection(HitP, "Hitbox", "📦")
 hitboxBtn = CreateToggle(secHb, "Aumentar Hitbox (Jogadores)", false, function(v) S.HitboxEnabled = v end)
 CreateToggle(secHb, "Aumentar Hitbox (NPCs)", false, function(v) S.HitboxNPC = v end)
 CreateStepper(secHb, "Tamanho", 2, 100, 20, 5, function(v) S.Hitbox = v end)
 CreateStepper(secHb, "Opacidade", 0, 1, 0.6, 0.1, function(v) S.HitboxTransparency = v end)
-
-local secHbWL = CreateSection(HitP, "Lista Branca Hitbox", "📝")
-CreateLabel(secHbWL, "Jogadores na lista branca NÃO terão a hitbox alterada.", 30)
-local hbC = Instance.new("ScrollingFrame", secHbWL)
-hbC.Size = UDim2.new(1, 0, 0, 130)
-hbC.BackgroundColor3 = C.Bg
-hbC.BorderSizePixel = 0
-hbC.ScrollBarThickness = 2
-hbC.CanvasSize = UDim2.new(0, 0, 0, 300)
-hbC.ZIndex = 103; hbC.Parent = secHbWL
-Corner(hbC, 8)
-local hbL = Instance.new("UIListLayout", hbC)
-hbL.Padding = UDim.new(0, 3)
-
-local function BuildWL(container)
-    for _, v in pairs(container:GetChildren()) do
-        if v:IsA("TextButton") then v:Destroy() end
-    end
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            local b = Instance.new("TextButton", container)
-            b.Size = UDim2.new(1, -4, 0, 26)
-            local wl = S.Whitelist[p.UserId]
-            b.BackgroundColor3 = wl and Color3.fromRGB(40, 90, 60) or C.BgHover
-            b.Text = p.DisplayName .. (wl and "  ✓" or "")
-            b.TextColor3 = C.Text
-            b.TextSize = 10; b.Font = C.Font
-            b.AutoButtonColor = false; b.ZIndex = 104
-            Corner(b, 6)
-            b.MouseButton1Click:Connect(function()
-                PS("Click")
-                S.Whitelist[p.UserId] = not S.Whitelist[p.UserId]
-                BuildWL(wlC); BuildWL(hbC)
-            end)
-        end
-    end
-end
-BuildWL(wlC); BuildWL(hbC)
-Players.PlayerAdded:Connect(function() BuildWL(wlC); BuildWL(hbC) end)
-Players.PlayerRemoving:Connect(function() BuildWL(wlC); BuildWL(hbC) end)
 
 --=============================================================
 -- 💣 DEFUSAL
@@ -988,6 +914,196 @@ CreateButton(secD2, "🔴 Definir Alvo: Time Vermelho", Color3.fromRGB(229,72,72
     DefLab.Text = "🎯 Alvo Inimigo: Time Vermelho"
     DefLab.TextColor3 = Color3.fromRGB(229,72,72)
     Notify("Alvo definido: Time Vermelho", true)
+end)
+
+--=============================================================
+-- 📝 WHITELIST (NOVA ABA)
+--=============================================================
+local secWLInfo = CreateSection(WLP, "Como Funciona", "📝")
+CreateLabel(secWLInfo, "Jogadores na whitelist NÃO serão afetados por: Aimbot, Silent, Hitbox, Auto TP.\nClique no card para adicionar/remover.", 40)
+
+local secWLList = CreateSection(WLP, "Jogadores do Servidor", "👥")
+
+local wlCountLabel = CreateLabel(secWLList, "Salvos: 0", 22)
+wlCountLabel.TextColor3 = C.Accent
+wlCountLabel.Font = C.FontB
+wlCountLabel.TextSize = 11
+
+local wlActions = Instance.new("Frame", secWLList)
+wlActions.Size = UDim2.new(1, 0, 0, 32)
+wlActions.BackgroundTransparency = 1
+wlActions.ZIndex = 103
+wlActions.Parent = secWLList
+
+local wlRefreshBtn = Instance.new("TextButton", wlActions)
+wlRefreshBtn.Size = UDim2.new(0.48, 0, 1, 0)
+wlRefreshBtn.Position = UDim2.new(0, 0, 0, 0)
+wlRefreshBtn.BackgroundColor3 = C.Accent
+wlRefreshBtn.Text = "🔄 Atualizar"
+wlRefreshBtn.TextColor3 = Color3.new(1,1,1)
+wlRefreshBtn.TextSize = 11; wlRefreshBtn.Font = C.FontB
+wlRefreshBtn.AutoButtonColor = false; wlRefreshBtn.ZIndex = 104
+Corner(wlRefreshBtn, 8)
+
+local wlClearBtn = Instance.new("TextButton", wlActions)
+wlClearBtn.Size = UDim2.new(0.48, 0, 1, 0)
+wlClearBtn.Position = UDim2.new(0.52, 0, 0, 0)
+wlClearBtn.BackgroundColor3 = C.Red
+wlClearBtn.Text = "🗑 Limpar Todos"
+wlClearBtn.TextColor3 = Color3.new(1,1,1)
+wlClearBtn.TextSize = 11; wlClearBtn.Font = C.FontB
+wlClearBtn.AutoButtonColor = false; wlClearBtn.ZIndex = 104
+Corner(wlClearBtn, 8)
+
+local wlScroll = Instance.new("ScrollingFrame", secWLList)
+wlScroll.Size = UDim2.new(1, 0, 0, 300)
+wlScroll.BackgroundColor3 = C.Bg
+wlScroll.BorderSizePixel = 0
+wlScroll.ScrollBarThickness = 3
+wlScroll.ScrollBarImageColor3 = C.Accent
+wlScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+wlScroll.ZIndex = 103
+wlScroll.Parent = secWLList
+Corner(wlScroll, 8)
+
+local wlLayout = Instance.new("UIListLayout", wlScroll)
+wlLayout.Padding = UDim.new(0, 6)
+wlLayout.SortOrder = Enum.SortOrder.LayoutOrder
+wlLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    wlScroll.CanvasSize = UDim2.new(0, 0, 0, wlLayout.AbsoluteContentSize.Y + 10)
+end)
+
+local function UpdateWLCount()
+    local count = 0
+    for _, v in pairs(S.Whitelist) do
+        if v then count = count + 1 end
+    end
+    wlCountLabel.Text = "Salvos: " .. count
+end
+
+local function BuildWLUI()
+    for _, v in pairs(wlScroll:GetChildren()) do
+        if v:IsA("Frame") then v:Destroy() end
+    end
+
+    local anyPlayer = false
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            anyPlayer = true
+            local isWL = S.Whitelist[p.UserId] and true or false
+
+            local card = Instance.new("TextButton", wlScroll)
+            card.Size = UDim2.new(1, -6, 0, 56)
+            card.BackgroundColor3 = isWL and Color3.fromRGB(0, 180, 90) or C.BgHover
+            card.BackgroundTransparency = isWL and 0.15 or 0.3
+            card.Text = ""
+            card.AutoButtonColor = false
+            card.ZIndex = 104
+            Corner(card, 10)
+            Stroke(card, isWL and C.Green or C.Stroke, 1.5, isWL and 0.2 or 0.5)
+
+            -- Avatar
+            local avatarFrame = Instance.new("Frame", card)
+            avatarFrame.Size = UDim2.new(0, 42, 0, 42)
+            avatarFrame.Position = UDim2.new(0, 7, 0.5, -21)
+            avatarFrame.BackgroundColor3 = C.Bg
+            avatarFrame.BackgroundTransparency = 0.2
+            avatarFrame.ZIndex = 105
+            Corner(avatarFrame, 21)
+            Stroke(avatarFrame, isWL and C.Green or C.Accent, 1.5, 0.3)
+
+            local avatarImg = Instance.new("ImageLabel", avatarFrame)
+            avatarImg.Size = UDim2.new(1, -4, 1, -4)
+            avatarImg.Position = UDim2.new(0, 2, 0, 2)
+            avatarImg.BackgroundTransparency = 1
+            avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(p.UserId) .. "&w=150&h=150"
+            avatarImg.ZIndex = 106
+            Corner(avatarImg, 20)
+
+            -- Display Name
+            local dn = Instance.new("TextLabel", card)
+            dn.Size = UDim2.new(1, -140, 0, 18)
+            dn.Position = UDim2.new(0, 56, 0, 8)
+            dn.BackgroundTransparency = 1
+            dn.Text = p.DisplayName
+            dn.TextColor3 = C.Text
+            dn.TextSize = 12; dn.Font = C.FontB
+            dn.TextXAlignment = Enum.TextXAlignment.Left
+            dn.ZIndex = 105
+            dn.Active = false
+
+            -- Username
+            local un = Instance.new("TextLabel", card)
+            un.Size = UDim2.new(1, -140, 0, 14)
+            un.Position = UDim2.new(0, 56, 0, 28)
+            un.BackgroundTransparency = 1
+            un.Text = "@" .. p.Name
+            un.TextColor3 = isWL and Color3.fromRGB(220, 255, 220) or C.Dim
+            un.TextSize = 10; un.Font = C.Font
+            un.TextXAlignment = Enum.TextXAlignment.Left
+            un.ZIndex = 105
+            un.Active = false
+
+            -- Badge
+            local badge = Instance.new("TextLabel", card)
+            badge.Size = UDim2.new(0, 62, 0, 20)
+            badge.Position = UDim2.new(1, -70, 0.5, -10)
+            badge.BackgroundColor3 = isWL and Color3.fromRGB(0, 220, 110) or C.BgAlt
+            badge.BackgroundTransparency = isWL and 0 or 0.3
+            badge.Text = isWL and "✓ SALVO" or "LIVRE"
+            badge.TextColor3 = isWL and Color3.new(1,1,1) or C.Dim
+            badge.TextSize = 9; badge.Font = C.FontB
+            badge.ZIndex = 105
+            badge.Active = false
+            Corner(badge, 6)
+
+            card.MouseButton1Click:Connect(function()
+                PS("Click")
+                S.Whitelist[p.UserId] = not S.Whitelist[p.UserId]
+                local state = S.Whitelist[p.UserId]
+                BuildWLUI()
+                UpdateWLCount()
+                Notify(
+                    (state and "✓ Adicionado: " or "✗ Removido: ") .. p.DisplayName,
+                    state
+                )
+            end)
+        end
+    end
+
+    if not anyPlayer then
+        local empty = Instance.new("TextLabel", wlScroll)
+        empty.Size = UDim2.new(1, 0, 0, 60)
+        empty.BackgroundTransparency = 1
+        empty.Text = "Nenhum jogador no servidor"
+        empty.TextColor3 = C.Dim
+        empty.TextSize = 11; empty.Font = C.Font
+        empty.ZIndex = 104
+        empty.Active = false
+    end
+
+    UpdateWLCount()
+end
+
+wlRefreshBtn.MouseButton1Click:Connect(function()
+    PS("Click")
+    BuildWLUI()
+    Notify("Lista atualizada!", true)
+end)
+
+wlClearBtn.MouseButton1Click:Connect(function()
+    PS("Click")
+    S.Whitelist = {}
+    BuildWLUI()
+    Notify("Whitelist limpa!", true)
+end)
+
+Players.PlayerAdded:Connect(function() task.wait(0.5); BuildWLUI() end)
+Players.PlayerRemoving:Connect(function() task.wait(0.5); BuildWLUI() end)
+
+task.defer(function()
+    task.wait(1)
+    BuildWLUI()
 end)
 
 --=============================================================
@@ -1024,7 +1140,6 @@ end)
 
 local secFloat = CreateSection(PresetP, "Botões Flutuantes", "🔘")
 
--- SpawnFloat com posição lado a lado
 local function CountFloats()
     local n = 0
     for _, v in pairs(ScreenGui:GetChildren()) do
@@ -1038,7 +1153,6 @@ local function SpawnFloat(name, cb)
         if v.Name == "FloatBtn_" .. name then return end
     end
     local idx = CountFloats()
-    -- Posição: -130 base, cada botão ocupa 55px (50 + 5 de gap)
     local offsetX = -130 - (idx * 55)
 
     local ff = Instance.new("Frame", ScreenGui)
@@ -1074,7 +1188,6 @@ local function SpawnFloat(name, cb)
     close.AutoButtonColor = false; close.ZIndex = 63
     Corner(close, 10)
 
-    -- Drag + clique (estado global, sem acumular listeners)
     local dragging, startMouse, startFrame, moved
     b.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -1085,8 +1198,7 @@ local function SpawnFloat(name, cb)
         end
     end)
 
-    local conn
-    conn = RunService.RenderStepped:Connect(function()
+    RunService.RenderStepped:Connect(function()
         if not dragging then return end
         local now = UIS:GetMouseLocation()
         local d = now - startMouse
@@ -1251,7 +1363,7 @@ CreateButton(secSrv, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), fun
         local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
         local data = HttpService:JSONDecode(game:HttpGet(url))
         local best, bestCount = nil, math.huge
-        for _, srv in ipairs(data.ipairs or data.data) do
+        for _, srv in ipairs(data.data) do
             if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
                 if srv.playing < bestCount then
                     best = srv; bestCount = srv.playing
@@ -1264,41 +1376,6 @@ CreateButton(secSrv, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), fun
             TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, LocalPlayer)
         else
             Notify("Nenhum servidor disponível", false)
-        end
-    end)
-end)
-
-local secSrvFriend = CreateSection(ServP, "Jogar com Amigos", "👥")
-CreateLabel(secSrvFriend, "Entre no mesmo servidor que seus amigos.", 30)
-
-CreateButton(secSrvFriend, "🚀 Servidor com Amigo", Color3.fromRGB(100, 60, 200), function()
-    Notify("Procurando amigos online...", true)
-    pcall(function()
-        local myId = LocalPlayer.UserId
-        local cursor = ""
-        local found = false
-        for _ = 1, 5 do
-            local url = "https://friends.roblox.com/v1/users/" .. tostring(myId) .. "/friends?limit=50&cursor=" .. cursor
-            local data = HttpService:JSONDecode(game:HttpGet(url))
-            for _, friend in ipairs(data.data) do
-                local presenceUrl = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
-                local srvData = HttpService:JSONDecode(game:HttpGet(presenceUrl))
-                for _, srv in ipairs(srvData.data) do
-                    if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
-                        Notify("Teleportando...", true)
-                        task.wait(0.5)
-                        TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.id, LocalPlayer)
-                        found = true
-                        break
-                    end
-                end
-                if found then break end
-            end
-            if found or not data.nextPageCursor then break end
-            cursor = data.nextPageCursor or ""
-        end
-        if not found then
-            Notify("Nenhum amigo online encontrado", false)
         end
     end)
 end)
@@ -1396,18 +1473,15 @@ SearchIcon.MouseButton1Click:Connect(function()
     end
 end)
 
--- Sair do search ao apertar ESC
 SearchBox.FocusLost:Connect(function(enterPressed)
     if not enterPressed and SearchBox.Text == "" then
         SearchBox.Visible = false
     end
 end)
 
--- Filtra seções conforme digita
 SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
     local q = string.lower(SearchBox.Text)
     if q == "" then
-        -- Restaura tudo
         for _, e in pairs(SearchIndex) do
             e.btn.Visible = true
             e.container.Visible = e.isOpen
@@ -1415,7 +1489,6 @@ SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
         return
     end
 
-    -- Filtra
     local matchedPages = {}
     for _, e in pairs(SearchIndex) do
         local matches = string.find(e.searchText, q, 1, true) ~= nil
@@ -1428,7 +1501,6 @@ SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
         end
     end
 
-    -- Se a aba atual não tem nenhum match, troca pra primeira que tem
     if ActivePage and not matchedPages[ActivePage] then
         for _, page in pairs(Pages) do
             if matchedPages[page] then
@@ -1439,7 +1511,6 @@ SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
                 end
                 page.Visible = true
                 ActivePage = page
-                -- Atualiza cor do botão da aba
                 for i, p in pairs(Pages) do
                     if p == page and TabButtons[i] then
                         TabButtons[i].BackgroundColor3 = C.BgHover
@@ -1644,11 +1715,10 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 --=============================================================
--- TOGGLE MENU (com animação)
+-- TOGGLE MENU
 --=============================================================
 local function ToggleMenu()
     if MenuAberto then
-        -- FECHAR (fade + pequena redução)
         PS("Close")
         MenuAberto = false
         local anim = TweenService:Create(Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -1662,7 +1732,6 @@ local function ToggleMenu()
             Main.Size = UDim2.new(0, 340, 0, 440)
         end)
     else
-        -- ABRIR (fade + pequena expansão)
         PS("Open")
         MenuAberto = true
         Main.Visible = true
@@ -1680,7 +1749,6 @@ CloseB.MouseButton1Click:Connect(function()
     ToggleMenu()
 end)
 
--- Botão flutuante (1 clique + drag)
 do
     local fbDragging = false
     local fbStartMouse = nil
@@ -1881,7 +1949,7 @@ local function IsVisible(part)
 end
 
 --=============================================================
--- UPDATE CANVAS SIZE (limita scroll)
+-- UPDATE CANVAS
 --=============================================================
 task.spawn(function()
     while true do
@@ -2151,7 +2219,6 @@ task.spawn(function()
     end
 end)
 
--- Animação pulsante no botão flutuante
 task.spawn(function()
     while true do
         TweenService:Create(FloatStroke, TweenInfo.new(1.5, Enum.EasingStyle.Sine), {Transparency = 0}):Play()
@@ -2164,7 +2231,7 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification", {
         Title = "🎯 Kiko Menu",
-        Text = "Carregado! Use Ctrl Direito para abrir.",
+        Text = "v5.6 — Nova aba Whitelist! Use Ctrl Direito.",
         Duration = 4,
     })
 end)
