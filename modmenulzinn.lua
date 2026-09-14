@@ -1,5 +1,5 @@
 --=============================================================
--- 🎯 KIKO MENU v5.6 — WHITELIST UNIFICADA
+-- 🎯 KIKO MENU v5.7 — WHITELIST REPOSICIONADA + AUTO CLICKER
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -37,15 +37,24 @@ getgenv().Settings = {
     AntiAFK = false,
     Whitelist = {},
     SoundEnabled = true,
+
+    -- AUTO CLICKER
+    AutoClicker = false,
+    ClickSpeed = 10,           -- CPS
+    ClickMode = "Mouse",       -- "Mouse" ou "Fixo"
+    ClickFixedPos = nil,       -- Vector2
+    CapturingPos = false,
+
     Binds = {
-        AimAssist = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Two},
-        Visuals   = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Three},
-        Hitbox    = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Four}
+        AimAssist   = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Two},
+        Visuals     = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Three},
+        Hitbox      = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Four},
+        AutoClicker = {Mod = nil, Key = Enum.KeyCode.F5}
     }
 }
 
 local S = getgenv().Settings
-local VERSION = "v5.6"
+local VERSION = "v5.7"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -220,13 +229,10 @@ local FloatStroke = Stroke(Float, C.Accent, 2, 0.2)
 
 local FloatIcon = Instance.new("ImageLabel", Float)
 FloatIcon.Size = UDim2.new(1, 0, 1, 0)
-FloatIcon.Position = UDim2.new(0, 0, 0, 0)
 FloatIcon.BackgroundTransparency = 1
 FloatIcon.Image = "rbxassetid://70505361093133"
-FloatIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
 FloatIcon.ScaleType = Enum.ScaleType.Crop
 FloatIcon.ZIndex = 52
-FloatIcon.Active = false
 local iconCorner = Instance.new("UICorner", FloatIcon)
 iconCorner.CornerRadius = UDim.new(1, 0)
 
@@ -272,59 +278,27 @@ FPSLbl.Text = "FPS: 0"; FPSLbl.TextColor3 = C.Green
 FPSLbl.TextSize = 10; FPSLbl.Font = C.Font
 FPSLbl.TextXAlignment = Enum.TextXAlignment.Right
 FPSLbl.ZIndex = 102
-FPSLbl.Active = false
 
 local SearchIcon = Instance.new("TextButton", Header)
 SearchIcon.Size = UDim2.new(0, 28, 0, 28)
 SearchIcon.Position = UDim2.new(1, -72, 0, 7)
 SearchIcon.BackgroundColor3 = C.BgHover
-SearchIcon.Text = "🔍"
-SearchIcon.TextColor3 = C.Text
-SearchIcon.TextSize = 14
-SearchIcon.Font = Enum.Font.GothamBold
-SearchIcon.AutoButtonColor = false
-SearchIcon.ZIndex = 105
+SearchIcon.Text = "🔍"; SearchIcon.TextColor3 = C.Text
+SearchIcon.TextSize = 14; SearchIcon.Font = Enum.Font.GothamBold
+SearchIcon.AutoButtonColor = false; SearchIcon.ZIndex = 105
 Corner(SearchIcon, 6)
-
-SearchIcon.MouseEnter:Connect(function()
-    PS("Hover")
-    TweenService:Create(SearchIcon, TweenInfo.new(0.12), {
-        BackgroundColor3 = C.Accent,
-        TextColor3 = Color3.new(1,1,1)
-    }):Play()
-end)
-SearchIcon.MouseLeave:Connect(function()
-    TweenService:Create(SearchIcon, TweenInfo.new(0.12), {
-        BackgroundColor3 = C.BgHover,
-        TextColor3 = C.Text
-    }):Play()
-end)
 
 local CloseB = Instance.new("TextButton", Header)
 CloseB.Size = UDim2.new(0, 28, 0, 28)
 CloseB.Position = UDim2.new(1, -38, 0, 7)
 CloseB.BackgroundColor3 = C.BgHover
-CloseB.Text = "X"
-CloseB.TextColor3 = C.Text
-CloseB.TextSize = 16
-CloseB.Font = Enum.Font.GothamBold
-CloseB.AutoButtonColor = false
-CloseB.ZIndex = 105
+CloseB.Text = "X"; CloseB.TextColor3 = C.Text
+CloseB.TextSize = 16; CloseB.Font = Enum.Font.GothamBold
+CloseB.AutoButtonColor = false; CloseB.ZIndex = 105
 Corner(CloseB, 6)
 
-CloseB.MouseEnter:Connect(function()
-    PS("Hover")
-    TweenService:Create(CloseB, TweenInfo.new(0.12), {
-        BackgroundColor3 = C.Red,
-        TextColor3 = Color3.new(1,1,1)
-    }):Play()
-end)
-CloseB.MouseLeave:Connect(function()
-    TweenService:Create(CloseB, TweenInfo.new(0.12), {
-        BackgroundColor3 = C.BgHover,
-        TextColor3 = C.Text
-    }):Play()
-end)
+CloseB.MouseEnter:Connect(function() TweenService:Create(CloseB, TweenInfo.new(0.12), {BackgroundColor3 = C.Red, TextColor3 = Color3.new(1,1,1)}):Play() end)
+CloseB.MouseLeave:Connect(function() TweenService:Create(CloseB, TweenInfo.new(0.12), {BackgroundColor3 = C.BgHover, TextColor3 = C.Text}):Play() end)
 
 MakeDraggable(Logo, nil, false, Main)
 
@@ -456,7 +430,6 @@ local function CreateSection(parent, title, emoji)
     arrow.TextSize = 10; arrow.Font = C.FontB
     arrow.TextXAlignment = Enum.TextXAlignment.Left
     arrow.ZIndex = 104
-    arrow.Active = false
 
     local titleLbl = Instance.new("TextLabel", btn)
     titleLbl.Size = UDim2.new(1, -60, 1, 0)
@@ -467,7 +440,6 @@ local function CreateSection(parent, title, emoji)
     titleLbl.TextSize = 12; titleLbl.Font = C.FontB
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left
     titleLbl.ZIndex = 104
-    titleLbl.Active = false
 
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, 0, 0, 0)
@@ -489,11 +461,8 @@ local function CreateSection(parent, title, emoji)
     pad.PaddingLeft = UDim.new(0, 10); pad.PaddingRight = UDim.new(0, 10)
 
     local entry = {
-        btn = btn,
-        container = container,
-        page = parent,
-        searchText = string.lower(title),
-        isOpen = false,
+        btn = btn, container = container, page = parent,
+        searchText = string.lower(title), isOpen = false,
     }
     table.insert(SearchIndex, entry)
 
@@ -512,13 +481,8 @@ local function CreateSection(parent, title, emoji)
             Content.CanvasSize = UDim2.new(0, 0, 0, ActivePage.AbsoluteSize.Y + 20)
         end
     end)
-    btn.MouseEnter:Connect(function()
-        PS("Hover")
-        btn.BackgroundColor3 = C.BgHover
-    end)
-    btn.MouseLeave:Connect(function()
-        btn.BackgroundColor3 = C.BgAlt
-    end)
+    btn.MouseEnter:Connect(function() PS("Hover"); btn.BackgroundColor3 = C.BgHover end)
+    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = C.BgAlt end)
 
     return container
 end
@@ -542,21 +506,21 @@ local function CreateToggle(parent, text, default, callback)
     lbl.Text = text; lbl.TextColor3 = C.Text
     lbl.TextSize = 11; lbl.Font = C.Font
     lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.ZIndex = 104; lbl.Active = false
+    lbl.ZIndex = 104
 
     local pill = Instance.new("Frame", btn)
     pill.Size = UDim2.new(0, 34, 0, 18)
     pill.Position = UDim2.new(1, -46, 0.5, -9)
     pill.BackgroundColor3 = state and C.Green or C.BgHover
     pill.BorderSizePixel = 0; pill.ZIndex = 104
-    Corner(pill, 10); pill.Active = false
+    Corner(pill, 10)
 
     local ball = Instance.new("Frame", pill)
     ball.Size = UDim2.new(0, 14, 0, 14)
     ball.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
     ball.BackgroundColor3 = Color3.new(1,1,1)
     ball.BorderSizePixel = 0; ball.ZIndex = 105
-    Corner(ball, 10); ball.Active = false
+    Corner(ball, 10)
 
     local function apply(v, noCb, noSound)
         state = v
@@ -589,7 +553,7 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     lbl.Text = text; lbl.TextColor3 = C.Text
     lbl.TextSize = 11; lbl.Font = C.Font
     lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.ZIndex = 104; lbl.Active = false
+    lbl.ZIndex = 104
 
     local vl = Instance.new("TextLabel", frame)
     vl.Size = UDim2.new(0, 44, 1, 0)
@@ -597,7 +561,7 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     vl.BackgroundTransparency = 1
     vl.Text = tostring(val); vl.TextColor3 = C.Accent
     vl.TextSize = 11; vl.Font = C.FontB
-    vl.ZIndex = 104; vl.Active = false
+    vl.ZIndex = 104
 
     local minus = Instance.new("TextButton", frame)
     minus.Size = UDim2.new(0, 24, 0, 24)
@@ -639,15 +603,10 @@ local function CreateButton(parent, text, color, callback)
     Corner(btn, 8)
 
     local orig = color or C.Accent
-    btn.MouseButton1Click:Connect(function()
-        PS("Click")
-        if callback then callback() end
-    end)
+    btn.MouseButton1Click:Connect(function() PS("Click"); if callback then callback() end end)
     btn.MouseEnter:Connect(function()
         PS("Hover")
-        TweenService:Create(btn, TweenInfo.new(0.15), {
-            BackgroundColor3 = orig:Lerp(Color3.new(1,1,1), 0.15)
-        }):Play()
+        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = orig:Lerp(Color3.new(1,1,1), 0.15)}):Play()
     end)
     btn.MouseLeave:Connect(function()
         TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = orig}):Play()
@@ -664,24 +623,24 @@ local function CreateLabel(parent, text, h)
     l.TextWrapped = true; l.TextXAlignment = Enum.TextXAlignment.Left
     l.TextYAlignment = Enum.TextYAlignment.Top
     l.ZIndex = 104
-    l.Active = false
     return l
 end
 
 --=============================================================
--- ABAS
+-- ABAS (Whitelist agora é a 2ª)
 --=============================================================
-local MiraP    = CreatePage("Mira",      "🎯")
-local VisualP  = CreatePage("Visual",    "👁️")
-local PersoP   = CreatePage("Personagem","🏃")
-local TPP      = CreatePage("Teleporte", "🌀")
-local HitP     = CreatePage("Hitbox",    "📦")
-local DefP     = CreatePage("Defusal",   "💣")
-local WLP      = CreatePage("Whitelist", "📝")
-local PresetP  = CreatePage("Presets",   "⚙️")
-local BindsP   = CreatePage("Atalhos",   "⌨️")
-local ServP    = CreatePage("Servidor",  "🌐")
-local MiscP    = CreatePage("Misc",      "🧰")
+local MiraP    = CreatePage("Mira",       "🎯")
+local WLP      = CreatePage("Whitelist",  "📝")   -- 2ª ABA
+local VisualP  = CreatePage("Visual",     "👁️")
+local PersoP   = CreatePage("Personagem", "🏃")
+local TPP      = CreatePage("Teleporte",  "🌀")
+local HitP     = CreatePage("Hitbox",     "📦")
+local DefP     = CreatePage("Defusal",    "💣")
+local ClickP   = CreatePage("AutoClicker","🖱️")
+local PresetP  = CreatePage("Presets",    "⚙️")
+local BindsP   = CreatePage("Atalhos",    "⌨️")
+local ServP    = CreatePage("Servidor",   "🌐")
+local MiscP    = CreatePage("Misc",       "🧰")
 
 MiraP.Visible = true
 ActivePage = MiraP
@@ -691,7 +650,7 @@ TabButtons[1].TextColor3 = C.Accent
 local aimbotBtn, espBtn, hitboxBtn
 
 --=============================================================
--- 🎯 MIRA (whitelist antiga REMOVIDA)
+-- 🎯 MIRA
 --=============================================================
 local secAim = CreateSection(MiraP, "Assistência de Mira", "🎯")
 aimbotBtn = CreateToggle(secAim, "Ativar Assistência", false, function(v) S.AimAssist = v end)
@@ -742,6 +701,228 @@ PartBtn.MouseButton1Click:Connect(function()
 end)
 
 --=============================================================
+-- 📝 WHITELIST (2ª ABA — SIMPLIFICADA)
+--=============================================================
+-- Texto "como funciona" no topo (não é seção)
+local wlDesc = Instance.new("TextLabel", WLP)
+wlDesc.Size = UDim2.new(1, 0, 0, 46)
+wlDesc.BackgroundColor3 = C.BgAlt
+wlDesc.BackgroundTransparency = 0.4
+wlDesc.Text = "  ℹ️  Jogadores na whitelist NÃO serão afetados por Aimbot, Silent, Hitbox e Auto TP. Clique no card para adicionar/remover."
+wlDesc.TextColor3 = C.Dim
+wlDesc.TextSize = 10; wlDesc.Font = C.Font
+wlDesc.TextWrapped = true
+wlDesc.TextXAlignment = Enum.TextXAlignment.Left
+wlDesc.TextYAlignment = Enum.TextYAlignment.Center
+wlDesc.ZIndex = 103
+Corner(wlDesc, 8)
+Stroke(wlDesc, C.Stroke, 1, 0.5)
+
+-- Contador
+local wlCountLabel = Instance.new("TextLabel", WLP)
+wlCountLabel.Size = UDim2.new(1, 0, 0, 22)
+wlCountLabel.BackgroundTransparency = 1
+wlCountLabel.Text = "✓ Salvos: 0 jogadores"
+wlCountLabel.TextColor3 = C.Accent
+wlCountLabel.TextSize = 11; wlCountLabel.Font = C.FontB
+wlCountLabel.TextXAlignment = Enum.TextXAlignment.Left
+wlCountLabel.ZIndex = 104
+
+-- Botões de ação
+local wlActions = Instance.new("Frame", WLP)
+wlActions.Size = UDim2.new(1, 0, 0, 30)
+wlActions.BackgroundTransparency = 1
+wlActions.ZIndex = 103
+
+local wlRefreshBtn = Instance.new("TextButton", wlActions)
+wlRefreshBtn.Size = UDim2.new(0.48, 0, 1, 0)
+wlRefreshBtn.Position = UDim2.new(0, 0, 0, 0)
+wlRefreshBtn.BackgroundColor3 = C.Accent
+wlRefreshBtn.Text = "🔄 Atualizar Lista"
+wlRefreshBtn.TextColor3 = Color3.new(1,1,1)
+wlRefreshBtn.TextSize = 11; wlRefreshBtn.Font = C.FontB
+wlRefreshBtn.AutoButtonColor = false; wlRefreshBtn.ZIndex = 104
+Corner(wlRefreshBtn, 8)
+
+local wlClearBtn = Instance.new("TextButton", wlActions)
+wlClearBtn.Size = UDim2.new(0.48, 0, 1, 0)
+wlClearBtn.Position = UDim2.new(0.52, 0, 0, 0)
+wlClearBtn.BackgroundColor3 = C.Red
+wlClearBtn.Text = "🗑 Limpar Todos"
+wlClearBtn.TextColor3 = Color3.new(1,1,1)
+wlClearBtn.TextSize = 11; wlClearBtn.Font = C.FontB
+wlClearBtn.AutoButtonColor = false; wlClearBtn.ZIndex = 104
+Corner(wlClearBtn, 8)
+
+-- Scrolling direto na aba
+local wlScroll = Instance.new("ScrollingFrame", WLP)
+wlScroll.Size = UDim2.new(1, 0, 0, 340)
+wlScroll.BackgroundColor3 = C.Bg
+wlScroll.BackgroundTransparency = 0.4
+wlScroll.BorderSizePixel = 0
+wlScroll.ScrollBarThickness = 3
+wlScroll.ScrollBarImageColor3 = C.Accent
+wlScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+wlScroll.ZIndex = 103
+Corner(wlScroll, 10)
+Stroke(wlScroll, C.Stroke, 1, 0.5)
+
+local wlLayout = Instance.new("UIListLayout", wlScroll)
+wlLayout.Padding = UDim.new(0, 6)
+wlLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local wlPad = Instance.new("UIPadding", wlScroll)
+wlPad.PaddingTop = UDim.new(0, 6); wlPad.PaddingBottom = UDim.new(0, 6)
+wlPad.PaddingLeft = UDim.new(0, 6); wlPad.PaddingRight = UDim.new(0, 6)
+wlLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    wlScroll.CanvasSize = UDim2.new(0, 0, 0, wlLayout.AbsoluteContentSize.Y + 14)
+end)
+
+local function UpdateWLCount()
+    local count = 0
+    for _, v in pairs(S.Whitelist) do
+        if v then count = count + 1 end
+    end
+    wlCountLabel.Text = "✓ Salvos: " .. count .. " jogador" .. (count == 1 and "" or "es")
+end
+
+local function BuildWLUI()
+    for _, v in pairs(wlScroll:GetChildren()) do
+        if v:IsA("Frame") or v:IsA("TextButton") then v:Destroy() end
+    end
+
+    local any = false
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            any = true
+            local isWL = S.Whitelist[p.UserId] and true or false
+
+            local card = Instance.new("TextButton", wlScroll)
+            card.Size = UDim2.new(1, -4, 0, 56)
+            card.BackgroundColor3 = isWL and Color3.fromRGB(0, 180, 90) or C.BgHover
+            card.BackgroundTransparency = isWL and 0.15 or 0.3
+            card.Text = ""
+            card.AutoButtonColor = false
+            card.ZIndex = 104
+            Corner(card, 10)
+            Stroke(card, isWL and C.Green or C.Stroke, 1.5, isWL and 0.2 or 0.5)
+
+            -- Avatar
+            local avatarFrame = Instance.new("Frame", card)
+            avatarFrame.Size = UDim2.new(0, 42, 0, 42)
+            avatarFrame.Position = UDim2.new(0, 7, 0.5, -21)
+            avatarFrame.BackgroundColor3 = C.Bg
+            avatarFrame.BackgroundTransparency = 0.2
+            avatarFrame.ZIndex = 105
+            Corner(avatarFrame, 21)
+            Stroke(avatarFrame, isWL and C.Green or C.Accent, 1.5, 0.3)
+
+            local avatarImg = Instance.new("ImageLabel", avatarFrame)
+            avatarImg.Size = UDim2.new(1, -4, 1, -4)
+            avatarImg.Position = UDim2.new(0, 2, 0, 2)
+            avatarImg.BackgroundTransparency = 1
+            avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(p.UserId) .. "&w=150&h=150"
+            avatarImg.ZIndex = 106
+            Corner(avatarImg, 20)
+
+            -- Display Name (verde se WL)
+            local dn = Instance.new("TextLabel", card)
+            dn.Size = UDim2.new(1, -140, 0, 18)
+            dn.Position = UDim2.new(0, 56, 0, 8)
+            dn.BackgroundTransparency = 1
+            dn.Text = p.DisplayName
+            dn.TextColor3 = isWL and Color3.fromRGB(180, 255, 200) or C.Text
+            dn.TextSize = 12; dn.Font = C.FontB
+            dn.TextXAlignment = Enum.TextXAlignment.Left
+            dn.ZIndex = 105
+
+            -- Username
+            local un = Instance.new("TextLabel", card)
+            un.Size = UDim2.new(1, -140, 0, 14)
+            un.Position = UDim2.new(0, 56, 0, 28)
+            un.BackgroundTransparency = 1
+            un.Text = "@" .. p.Name
+            un.TextColor3 = isWL and Color3.fromRGB(200, 255, 220) or C.Dim
+            un.TextSize = 10; un.Font = C.Font
+            un.TextXAlignment = Enum.TextXAlignment.Left
+            un.ZIndex = 105
+
+            -- Badge
+            local badge = Instance.new("TextLabel", card)
+            badge.Size = UDim2.new(0, 62, 0, 20)
+            badge.Position = UDim2.new(1, -70, 0.5, -10)
+            badge.BackgroundColor3 = isWL and Color3.fromRGB(0, 220, 110) or C.BgAlt
+            badge.BackgroundTransparency = isWL and 0 or 0.3
+            badge.Text = isWL and "✓ SALVO" or "LIVRE"
+            badge.TextColor3 = isWL and Color3.new(1,1,1) or C.Dim
+            badge.TextSize = 9; badge.Font = C.FontB
+            badge.ZIndex = 105
+            Corner(badge, 6)
+
+            -- Clique: toggle + recolorir in-place (SEM notificação)
+            card.MouseButton1Click:Connect(function()
+                PS("Click")
+                S.Whitelist[p.UserId] = not S.Whitelist[p.UserId]
+                local state = S.Whitelist[p.UserId]
+
+                -- Atualiza cores do card
+                TweenService:Create(card, TweenInfo.new(0.2), {
+                    BackgroundColor3 = state and Color3.fromRGB(0, 180, 90) or C.BgHover,
+                    BackgroundTransparency = state and 0.15 or 0.3
+                }):Play()
+                local cardStroke = card:FindFirstChildOfClass("UIStroke")
+                if cardStroke then
+                    TweenService:Create(cardStroke, TweenInfo.new(0.2), {
+                        Color = state and C.Green or C.Stroke,
+                        Transparency = state and 0.2 or 0.5
+                    }):Play()
+                end
+
+                dn.TextColor3 = state and Color3.fromRGB(180, 255, 200) or C.Text
+                un.TextColor3 = state and Color3.fromRGB(200, 255, 220) or C.Dim
+                badge.BackgroundColor3 = state and Color3.fromRGB(0, 220, 110) or C.BgAlt
+                badge.BackgroundTransparency = state and 0 or 0.3
+                badge.Text = state and "✓ SALVO" or "LIVRE"
+                badge.TextColor3 = state and Color3.new(1,1,1) or C.Dim
+
+                UpdateWLCount()
+            end)
+        end
+    end
+
+    if not any then
+        local empty = Instance.new("TextLabel", wlScroll)
+        empty.Size = UDim2.new(1, 0, 0, 60)
+        empty.BackgroundTransparency = 1
+        empty.Text = "Nenhum jogador no servidor"
+        empty.TextColor3 = C.Dim
+        empty.TextSize = 11; empty.Font = C.Font
+        empty.ZIndex = 104
+    end
+
+    UpdateWLCount()
+end
+
+wlRefreshBtn.MouseButton1Click:Connect(function()
+    PS("Click")
+    BuildWLUI()
+end)
+
+wlClearBtn.MouseButton1Click:Connect(function()
+    PS("Click")
+    S.Whitelist = {}
+    BuildWLUI()
+    Notify("Whitelist limpa!", true)
+end)
+
+Players.PlayerAdded:Connect(function() task.wait(0.5); BuildWLUI() end)
+Players.PlayerRemoving:Connect(function() task.wait(0.5); BuildWLUI() end)
+
+task.defer(function()
+    task.wait(1)
+    BuildWLUI()
+end)
+
+--=============================================================
 -- 👁️ VISUAL
 --=============================================================
 local secV1 = CreateSection(VisualP, "Jogadores", "👁️")
@@ -777,14 +958,11 @@ local upDownFrame = Instance.new("Frame", secP3)
 upDownFrame.Size = UDim2.new(1, 0, 0, 34)
 upDownFrame.BackgroundTransparency = 1
 upDownFrame.ZIndex = 103
-upDownFrame.Parent = secP3
 
 local upBtn = Instance.new("TextButton", upDownFrame)
 upBtn.Size = UDim2.new(0.5, -3, 1, 0)
-upBtn.Position = UDim2.new(0, 0, 0, 0)
 upBtn.BackgroundColor3 = C.Green
-upBtn.Text = "⬆  SUBIR"
-upBtn.TextColor3 = Color3.new(0,0,0)
+upBtn.Text = "⬆  SUBIR"; upBtn.TextColor3 = Color3.new(0,0,0)
 upBtn.TextSize = 11; upBtn.Font = C.FontB
 upBtn.AutoButtonColor = false; upBtn.ZIndex = 104
 Corner(upBtn, 8)
@@ -793,8 +971,7 @@ local downBtn = Instance.new("TextButton", upDownFrame)
 downBtn.Size = UDim2.new(0.5, -3, 1, 0)
 downBtn.Position = UDim2.new(0.5, 3, 0, 0)
 downBtn.BackgroundColor3 = C.Red
-downBtn.Text = "⬇  DESCER"
-downBtn.TextColor3 = Color3.new(0,0,0)
+downBtn.Text = "⬇  DESCER"; downBtn.TextColor3 = Color3.new(0,0,0)
 downBtn.TextSize = 11; downBtn.Font = C.FontB
 downBtn.AutoButtonColor = false; downBtn.ZIndex = 104
 Corner(downBtn, 8)
@@ -802,7 +979,6 @@ Corner(downBtn, 8)
 upBtn.MouseButton1Down:Connect(function() PS("Click"); flyUp = true end)
 upBtn.MouseButton1Up:Connect(function() flyUp = false end)
 upBtn.MouseLeave:Connect(function() flyUp = false end)
-
 downBtn.MouseButton1Down:Connect(function() PS("Click"); flyDown = true end)
 downBtn.MouseButton1Up:Connect(function() flyDown = false end)
 downBtn.MouseLeave:Connect(function() flyDown = false end)
@@ -838,7 +1014,7 @@ plist.BackgroundColor3 = C.Bg
 plist.BorderSizePixel = 0
 plist.ScrollBarThickness = 2
 plist.CanvasSize = UDim2.new(0, 0, 0, 0)
-plist.ZIndex = 103; plist.Parent = secT1
+plist.ZIndex = 103
 Corner(plist, 8)
 local pll = Instance.new("UIListLayout", plist)
 pll.Padding = UDim.new(0, 2)
@@ -884,7 +1060,7 @@ CreateStepper(secT2, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) S.StickySmooth
 CreateStepper(secT2, "Distância", 1, 20, 3, 1, function(v) S.StickyDistance = v end)
 
 --=============================================================
--- 📦 HITBOX (whitelist antiga REMOVIDA)
+-- 📦 HITBOX
 --=============================================================
 local secHb = CreateSection(HitP, "Hitbox", "📦")
 hitboxBtn = CreateToggle(secHb, "Aumentar Hitbox (Jogadores)", false, function(v) S.HitboxEnabled = v end)
@@ -917,193 +1093,71 @@ CreateButton(secD2, "🔴 Definir Alvo: Time Vermelho", Color3.fromRGB(229,72,72
 end)
 
 --=============================================================
--- 📝 WHITELIST (NOVA ABA)
+-- 🖱️ AUTO CLICKER
 --=============================================================
-local secWLInfo = CreateSection(WLP, "Como Funciona", "📝")
-CreateLabel(secWLInfo, "Jogadores na whitelist NÃO serão afetados por: Aimbot, Silent, Hitbox, Auto TP.\nClique no card para adicionar/remover.", 40)
+local secClickMain = CreateSection(ClickP, "Auto Clicker", "🖱️")
 
-local secWLList = CreateSection(WLP, "Jogadores do Servidor", "👥")
-
-local wlCountLabel = CreateLabel(secWLList, "Salvos: 0", 22)
-wlCountLabel.TextColor3 = C.Accent
-wlCountLabel.Font = C.FontB
-wlCountLabel.TextSize = 11
-
-local wlActions = Instance.new("Frame", secWLList)
-wlActions.Size = UDim2.new(1, 0, 0, 32)
-wlActions.BackgroundTransparency = 1
-wlActions.ZIndex = 103
-wlActions.Parent = secWLList
-
-local wlRefreshBtn = Instance.new("TextButton", wlActions)
-wlRefreshBtn.Size = UDim2.new(0.48, 0, 1, 0)
-wlRefreshBtn.Position = UDim2.new(0, 0, 0, 0)
-wlRefreshBtn.BackgroundColor3 = C.Accent
-wlRefreshBtn.Text = "🔄 Atualizar"
-wlRefreshBtn.TextColor3 = Color3.new(1,1,1)
-wlRefreshBtn.TextSize = 11; wlRefreshBtn.Font = C.FontB
-wlRefreshBtn.AutoButtonColor = false; wlRefreshBtn.ZIndex = 104
-Corner(wlRefreshBtn, 8)
-
-local wlClearBtn = Instance.new("TextButton", wlActions)
-wlClearBtn.Size = UDim2.new(0.48, 0, 1, 0)
-wlClearBtn.Position = UDim2.new(0.52, 0, 0, 0)
-wlClearBtn.BackgroundColor3 = C.Red
-wlClearBtn.Text = "🗑 Limpar Todos"
-wlClearBtn.TextColor3 = Color3.new(1,1,1)
-wlClearBtn.TextSize = 11; wlClearBtn.Font = C.FontB
-wlClearBtn.AutoButtonColor = false; wlClearBtn.ZIndex = 104
-Corner(wlClearBtn, 8)
-
-local wlScroll = Instance.new("ScrollingFrame", secWLList)
-wlScroll.Size = UDim2.new(1, 0, 0, 300)
-wlScroll.BackgroundColor3 = C.Bg
-wlScroll.BorderSizePixel = 0
-wlScroll.ScrollBarThickness = 3
-wlScroll.ScrollBarImageColor3 = C.Accent
-wlScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-wlScroll.ZIndex = 103
-wlScroll.Parent = secWLList
-Corner(wlScroll, 8)
-
-local wlLayout = Instance.new("UIListLayout", wlScroll)
-wlLayout.Padding = UDim.new(0, 6)
-wlLayout.SortOrder = Enum.SortOrder.LayoutOrder
-wlLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    wlScroll.CanvasSize = UDim2.new(0, 0, 0, wlLayout.AbsoluteContentSize.Y + 10)
+local clickToggle = CreateToggle(secClickMain, "Ativar Auto Clicker", false, function(v)
+    S.AutoClicker = v
 end)
 
-local function UpdateWLCount()
-    local count = 0
-    for _, v in pairs(S.Whitelist) do
-        if v then count = count + 1 end
-    end
-    wlCountLabel.Text = "Salvos: " .. count
-end
+CreateStepper(secClickMain, "Velocidade (CPS)", 1, 50, 10, 1, function(v)
+    S.ClickSpeed = v
+end)
 
-local function BuildWLUI()
-    for _, v in pairs(wlScroll:GetChildren()) do
-        if v:IsA("Frame") then v:Destroy() end
-    end
+-- Modo: Mouse / Fixo
+local clickModeBtn = Instance.new("TextButton", secClickMain)
+clickModeBtn.Size = UDim2.new(1, 0, 0, 34)
+clickModeBtn.BackgroundColor3 = C.Bg
+clickModeBtn.TextColor3 = C.Text
+clickModeBtn.Text = "Modo: 🖱️ Mouse"
+clickModeBtn.TextSize = 11; clickModeBtn.Font = C.FontB
+clickModeBtn.AutoButtonColor = false; clickModeBtn.ZIndex = 103
+Corner(clickModeBtn, 8)
+clickModeBtn.MouseButton1Click:Connect(function()
+    PS("Click")
+    S.ClickMode = (S.ClickMode == "Mouse" and "Fixo" or "Mouse")
+    clickModeBtn.Text = "Modo: " .. (S.ClickMode == "Mouse" and "🖱️ Mouse" or "📌 Fixo")
+end)
 
-    local anyPlayer = false
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            anyPlayer = true
-            local isWL = S.Whitelist[p.UserId] and true or false
+-- Botão para definir posição
+local clickPosBtn = Instance.new("TextButton", secClickMain)
+clickPosBtn.Size = UDim2.new(1, 0, 0, 34)
+clickPosBtn.BackgroundColor3 = C.Purple
+clickPosBtn.TextColor3 = Color3.new(1,1,1)
+clickPosBtn.Text = "📌 Definir Posição Fixa"
+clickPosBtn.TextSize = 11; clickPosBtn.Font = C.FontB
+clickPosBtn.AutoButtonColor = false; clickPosBtn.ZIndex = 103
+Corner(clickPosBtn, 8)
+clickPosBtn.MouseButton1Click:Connect(function()
+    PS("Click")
+    S.CapturingPos = true
+    clickPosBtn.Text = "🎯 Clique em qualquer lugar..."
+    clickPosBtn.BackgroundColor3 = C.Yellow
+    clickPosBtn.TextColor3 = Color3.new(0,0,0)
+end)
 
-            local card = Instance.new("TextButton", wlScroll)
-            card.Size = UDim2.new(1, -6, 0, 56)
-            card.BackgroundColor3 = isWL and Color3.fromRGB(0, 180, 90) or C.BgHover
-            card.BackgroundTransparency = isWL and 0.15 or 0.3
-            card.Text = ""
-            card.AutoButtonColor = false
-            card.ZIndex = 104
-            Corner(card, 10)
-            Stroke(card, isWL and C.Green or C.Stroke, 1.5, isWL and 0.2 or 0.5)
+local clickPosLabel = CreateLabel(secClickMain, "Posição atual: — (usando mouse)", 22)
+clickPosLabel.TextColor3 = C.Dim
+clickPosLabel.Font = C.FontB
 
-            -- Avatar
-            local avatarFrame = Instance.new("Frame", card)
-            avatarFrame.Size = UDim2.new(0, 42, 0, 42)
-            avatarFrame.Position = UDim2.new(0, 7, 0.5, -21)
-            avatarFrame.BackgroundColor3 = C.Bg
-            avatarFrame.BackgroundTransparency = 0.2
-            avatarFrame.ZIndex = 105
-            Corner(avatarFrame, 21)
-            Stroke(avatarFrame, isWL and C.Green or C.Accent, 1.5, 0.3)
+local secClickInfo = CreateSection(ClickP, "Info", "ℹ️")
+CreateLabel(secClickInfo,
+    "🖱️ Modo MOUSE: clica onde o cursor estiver.\n" ..
+    "📌 Modo FIXO: clica sempre numa posição salva da tela.\n\n" ..
+    "Configura o atalho em ATALHOS → Auto Clicker\n" ..
+    "Sugestão: use MouseButton4/5 (laterais) ou F5/F6.",
+    110)
 
-            local avatarImg = Instance.new("ImageLabel", avatarFrame)
-            avatarImg.Size = UDim2.new(1, -4, 1, -4)
-            avatarImg.Position = UDim2.new(0, 2, 0, 2)
-            avatarImg.BackgroundTransparency = 1
-            avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(p.UserId) .. "&w=150&h=150"
-            avatarImg.ZIndex = 106
-            Corner(avatarImg, 20)
-
-            -- Display Name
-            local dn = Instance.new("TextLabel", card)
-            dn.Size = UDim2.new(1, -140, 0, 18)
-            dn.Position = UDim2.new(0, 56, 0, 8)
-            dn.BackgroundTransparency = 1
-            dn.Text = p.DisplayName
-            dn.TextColor3 = C.Text
-            dn.TextSize = 12; dn.Font = C.FontB
-            dn.TextXAlignment = Enum.TextXAlignment.Left
-            dn.ZIndex = 105
-            dn.Active = false
-
-            -- Username
-            local un = Instance.new("TextLabel", card)
-            un.Size = UDim2.new(1, -140, 0, 14)
-            un.Position = UDim2.new(0, 56, 0, 28)
-            un.BackgroundTransparency = 1
-            un.Text = "@" .. p.Name
-            un.TextColor3 = isWL and Color3.fromRGB(220, 255, 220) or C.Dim
-            un.TextSize = 10; un.Font = C.Font
-            un.TextXAlignment = Enum.TextXAlignment.Left
-            un.ZIndex = 105
-            un.Active = false
-
-            -- Badge
-            local badge = Instance.new("TextLabel", card)
-            badge.Size = UDim2.new(0, 62, 0, 20)
-            badge.Position = UDim2.new(1, -70, 0.5, -10)
-            badge.BackgroundColor3 = isWL and Color3.fromRGB(0, 220, 110) or C.BgAlt
-            badge.BackgroundTransparency = isWL and 0 or 0.3
-            badge.Text = isWL and "✓ SALVO" or "LIVRE"
-            badge.TextColor3 = isWL and Color3.new(1,1,1) or C.Dim
-            badge.TextSize = 9; badge.Font = C.FontB
-            badge.ZIndex = 105
-            badge.Active = false
-            Corner(badge, 6)
-
-            card.MouseButton1Click:Connect(function()
-                PS("Click")
-                S.Whitelist[p.UserId] = not S.Whitelist[p.UserId]
-                local state = S.Whitelist[p.UserId]
-                BuildWLUI()
-                UpdateWLCount()
-                Notify(
-                    (state and "✓ Adicionado: " or "✗ Removido: ") .. p.DisplayName,
-                    state
-                )
-            end)
+-- Atualiza label da posição
+task.spawn(function()
+    while task.wait(0.5) do
+        if S.ClickFixedPos then
+            clickPosLabel.Text = string.format("Posição: X=%d Y=%d", S.ClickFixedPos.X, S.ClickFixedPos.Y)
+        else
+            clickPosLabel.Text = "Posição atual: — (usando mouse)"
         end
     end
-
-    if not anyPlayer then
-        local empty = Instance.new("TextLabel", wlScroll)
-        empty.Size = UDim2.new(1, 0, 0, 60)
-        empty.BackgroundTransparency = 1
-        empty.Text = "Nenhum jogador no servidor"
-        empty.TextColor3 = C.Dim
-        empty.TextSize = 11; empty.Font = C.Font
-        empty.ZIndex = 104
-        empty.Active = false
-    end
-
-    UpdateWLCount()
-end
-
-wlRefreshBtn.MouseButton1Click:Connect(function()
-    PS("Click")
-    BuildWLUI()
-    Notify("Lista atualizada!", true)
-end)
-
-wlClearBtn.MouseButton1Click:Connect(function()
-    PS("Click")
-    S.Whitelist = {}
-    BuildWLUI()
-    Notify("Whitelist limpa!", true)
-end)
-
-Players.PlayerAdded:Connect(function() task.wait(0.5); BuildWLUI() end)
-Players.PlayerRemoving:Connect(function() task.wait(0.5); BuildWLUI() end)
-
-task.defer(function()
-    task.wait(1)
-    BuildWLUI()
 end)
 
 --=============================================================
@@ -1167,17 +1221,14 @@ local function SpawnFloat(name, cb)
     local icon = Instance.new("TextLabel", ff)
     icon.Size = UDim2.new(1, 0, 1, 0)
     icon.BackgroundTransparency = 1
-    icon.Text = name
-    icon.TextColor3 = C.Text
+    icon.Text = name; icon.TextColor3 = C.Text
     icon.TextSize = 9; icon.Font = C.FontB
     icon.ZIndex = 62
-    icon.Active = false
 
     local b = Instance.new("TextButton", ff)
     b.Size = UDim2.new(1, 0, 1, 0)
     b.BackgroundTransparency = 1
-    b.Text = ""
-    b.ZIndex = 61
+    b.Text = ""; b.ZIndex = 61
     b.AutoButtonColor = false
 
     local close = Instance.new("TextButton", ff)
@@ -1244,6 +1295,14 @@ CreateButton(secFloat, "Criar Botão: Hitbox", Color3.fromRGB(50, 50, 150), func
         Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
     end)
 end)
+CreateButton(secFloat, "Criar Botão: Auto Clicker", Color3.fromRGB(150, 50, 150), function()
+    SpawnFloat("CLICK", function()
+        local n = not S.AutoClicker
+        S.AutoClicker = n
+        if VisToggles["Ativar Auto Clicker"] then VisToggles["Ativar Auto Clicker"](n) end
+        Notify("CLICKER: " .. (n and "ON" or "OFF"), n)
+    end)
+end)
 
 --=============================================================
 -- ⌨️ ATALHOS
@@ -1272,7 +1331,6 @@ local function BindRow(parent, label, key, btn)
     l.TextXAlignment = Enum.TextXAlignment.Left
     l.Font = C.FontB
     l.Text = label; l.ZIndex = 104
-    l.Active = false
 
     local b = Instance.new("TextButton", f)
     b.Size = UDim2.new(0.4, -10, 0.8, 0)
@@ -1287,7 +1345,7 @@ local function BindRow(parent, label, key, btn)
     b.Text = KeyName(bind.Mod, bind.Key)
     b.MouseButton1Click:Connect(function()
         PS("Click")
-        b.Text = "Pressione..."
+        b.Text = "Pressione (tecla/mouse)..."
         b.TextColor3 = Color3.fromRGB(255, 200, 0)
         listening = {Key = key, UI = b}
     end)
@@ -1297,7 +1355,11 @@ local secB = CreateSection(BindsP, "Configurar Teclas", "⌨️")
 BindRow(secB, "Aimbot", "AimAssist", aimbotBtn)
 BindRow(secB, "ESP (Visual)", "Visuals", espBtn)
 BindRow(secB, "Hitbox", "Hitbox", hitboxBtn)
-CreateLabel(secB, "Ctrl Direito / Delete = abrir menu\nEsc = cancelar captura de tecla", 40)
+BindRow(secB, "Auto Clicker", "AutoClicker", nil)
+CreateLabel(secB,
+    "• Aceita teclas do teclado E botões do mouse (MouseButton4/5 = laterais).\n" ..
+    "• Ctrl Direito / Delete = abrir menu.\n" ..
+    "• Esc = cancelar captura de tecla.", 55)
 
 --=============================================================
 -- 🌐 SERVIDOR
@@ -1342,9 +1404,7 @@ CreateButton(secSrv, "🔥 Servidor Mais Cheio", Color3.fromRGB(200, 60, 0), fun
         local best, bestCount = nil, 0
         for _, srv in ipairs(data.data) do
             if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
-                if srv.playing > bestCount then
-                    best = srv; bestCount = srv.playing
-                end
+                if srv.playing > bestCount then best = srv; bestCount = srv.playing end
             end
         end
         if best then
@@ -1365,9 +1425,7 @@ CreateButton(secSrv, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), fun
         local best, bestCount = nil, math.huge
         for _, srv in ipairs(data.data) do
             if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
-                if srv.playing < bestCount then
-                    best = srv; bestCount = srv.playing
-                end
+                if srv.playing < bestCount then best = srv; bestCount = srv.playing end
             end
         end
         if best then
@@ -1387,9 +1445,7 @@ local secMiscFps = CreateSection(MiscP, "Desempenho", "⚡")
 CreateToggle(secMiscFps, "Remover Texturas", false, function(v)
     S.BoostFPS = v
     for _, o in pairs(game:GetDescendants()) do
-        if o:IsA("Texture") or o:IsA("Decal") then
-            o.Transparency = v and 1 or 0
-        end
+        if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end
     end
 end)
 CreateToggle(secMiscFps, "Remover Sombras", false, function(v)
@@ -1433,14 +1489,7 @@ CreateButton(secMiscUtil, "♻️ Resetar Personagem", Color3.fromRGB(150, 80, 0
     local ch = LocalPlayer.Character
     if ch then
         local hum = ch:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.Health = 0
-            Notify("Personagem resetado", true)
-        else
-            Notify("Humanoide não encontrado", false)
-        end
-    else
-        Notify("Sem personagem", false)
+        if hum then hum.Health = 0; Notify("Personagem resetado", true) end
     end
 end)
 CreateButton(secMiscUtil, "🧹 Limpar Notificações", Color3.fromRGB(80, 80, 80), function()
@@ -1453,7 +1502,8 @@ local secMiscAudio = CreateSection(MiscP, "Áudio", "🔊")
 CreateToggle(secMiscAudio, "Sons do Menu", true, function(v) S.SoundEnabled = v end)
 
 local secMiscInfo = CreateSection(MiscP, "Sobre", "ℹ️")
-CreateLabel(secMiscInfo, "🎯 Kiko Menu " .. VERSION .. "\n\n" ..
+CreateLabel(secMiscInfo,
+    "🎯 Kiko Menu " .. VERSION .. "\n\n" ..
     "Atalhos:\n" ..
     "• Ctrl Direito / Delete — abrir/fechar\n" ..
     "• 🔍 — buscar função pelo nome\n" ..
@@ -1466,17 +1516,12 @@ CreateLabel(secMiscInfo, "🎯 Kiko Menu " .. VERSION .. "\n\n" ..
 SearchIcon.MouseButton1Click:Connect(function()
     PS("Click")
     SearchBox.Visible = not SearchBox.Visible
-    if SearchBox.Visible then
-        SearchBox:CaptureFocus()
-    else
-        SearchBox.Text = ""
-    end
+    if SearchBox.Visible then SearchBox:CaptureFocus()
+    else SearchBox.Text = "" end
 end)
 
 SearchBox.FocusLost:Connect(function(enterPressed)
-    if not enterPressed and SearchBox.Text == "" then
-        SearchBox.Visible = false
-    end
+    if not enterPressed and SearchBox.Text == "" then SearchBox.Visible = false end
 end)
 
 SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -1488,29 +1533,21 @@ SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
         end
         return
     end
-
-    local matchedPages = {}
+    local matched = {}
     for _, e in pairs(SearchIndex) do
-        local matches = string.find(e.searchText, q, 1, true) ~= nil
-        e.btn.Visible = matches
-        if not matches then
-            e.container.Visible = false
-        else
-            e.container.Visible = e.isOpen
-            matchedPages[e.page] = true
-        end
+        local m = string.find(e.searchText, q, 1, true) ~= nil
+        e.btn.Visible = m
+        if not m then e.container.Visible = false
+        else e.container.Visible = e.isOpen; matched[e.page] = true end
     end
-
-    if ActivePage and not matchedPages[ActivePage] then
+    if ActivePage and not matched[ActivePage] then
         for _, page in pairs(Pages) do
-            if matchedPages[page] then
+            if matched[page] then
                 for _, p in pairs(Pages) do p.Visible = false end
                 for i, b in pairs(TabButtons) do
-                    b.BackgroundColor3 = C.Bg
-                    b.TextColor3 = C.Dim
+                    b.BackgroundColor3 = C.Bg; b.TextColor3 = C.Dim
                 end
-                page.Visible = true
-                ActivePage = page
+                page.Visible = true; ActivePage = page
                 for i, p in pairs(Pages) do
                     if p == page and TabButtons[i] then
                         TabButtons[i].BackgroundColor3 = C.BgHover
@@ -1542,9 +1579,7 @@ function flyOn()
             local chr = LocalPlayer.Character
             local hum = chr and chr:FindFirstChildWhichIsA("Humanoid")
             while getgenv().tpwalking and hb:Wait() and chr and hum and hum.Parent do
-                if hum.MoveDirection.Magnitude > 0 then
-                    chr:TranslateBy(hum.MoveDirection)
-                end
+                if hum.MoveDirection.Magnitude > 0 then chr:TranslateBy(hum.MoveDirection) end
             end
         end)
     end
@@ -1554,114 +1589,83 @@ function flyOn()
     end
     local Char = LocalPlayer.Character
     local Hum = Char:FindFirstChildOfClass("Humanoid") or Char:FindFirstChildOfClass("AnimationController")
-    for i, v in next, Hum:GetPlayingAnimationTracks() do
-        v:AdjustSpeed(0)
-    end
+    for i, v in next, Hum:GetPlayingAnimationTracks() do v:AdjustSpeed(0) end
 
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Flying, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, false)
-    speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
-    speaker.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Swimming)
+    local hum = speaker.Character.Humanoid
+    hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Flying, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+    hum:ChangeState(Enum.HumanoidStateType.Swimming)
 
     if LocalPlayer.Character:FindFirstChildOfClass("Humanoid").RigType == Enum.HumanoidRigType.R6 then
         local plr = LocalPlayer
         local torso = plr.Character.Torso
-        local ctrl = {f = 0, b = 0, l = 0, r = 0}
-        local lastctrl = {f = 0, b = 0, l = 0, r = 0}
-        local maxspeed = 50
-        local speed = 0
-
+        local ctrl = {f=0,b=0,l=0,r=0}; local lastctrl = {f=0,b=0,l=0,r=0}
+        local maxspeed = 50; local speed = 0
         local bg = Instance.new("BodyGyro", torso)
-        bg.P = 9e4
-        bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
-        bg.cframe = torso.CFrame
+        bg.P = 9e4; bg.maxTorque = Vector3.new(9e9, 9e9, 9e9); bg.cframe = torso.CFrame
         local bv = Instance.new("BodyVelocity", torso)
-        bv.velocity = Vector3.new(0,0.1,0)
-        bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
-
+        bv.velocity = Vector3.new(0,0.1,0); bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
         plr.Character.Humanoid.PlatformStand = true
-
         while getgenv().nowe == true or plr.Character.Humanoid.Health == 0 do
             RunService.RenderStepped:Wait()
             if ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0 then
                 speed = speed+.5+(speed/maxspeed)
                 if speed > maxspeed then speed = maxspeed end
             elseif not (ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0) and speed ~= 0 then
-                speed = speed-1
-                if speed < 0 then speed = 0 end
+                speed = speed-1; if speed < 0 then speed = 0 end
             end
             if (ctrl.l + ctrl.r) ~= 0 or (ctrl.f + ctrl.b) ~= 0 then
                 bv.velocity = ((Workspace.CurrentCamera.CoordinateFrame.lookVector * (ctrl.f+ctrl.b)) + ((Workspace.CurrentCamera.CoordinateFrame * CFrame.new(ctrl.l+ctrl.r,(ctrl.f+ctrl.b)*.2,0).p) - Workspace.CurrentCamera.CoordinateFrame.p))*speed
                 lastctrl = {f = ctrl.f, b = ctrl.b, l = ctrl.l, r = ctrl.r}
             elseif (ctrl.l + ctrl.r) == 0 and (ctrl.f + ctrl.b) == 0 and speed ~= 0 then
                 bv.velocity = ((Workspace.CurrentCamera.CoordinateFrame.lookVector * (lastctrl.f+lastctrl.b)) + ((Workspace.CurrentCamera.CoordinateFrame * CFrame.new(lastctrl.l+lastctrl.r,(lastctrl.f+lastctrl.b)*.2,0).p) - Workspace.CurrentCamera.CoordinateFrame.p))*speed
-            else
-                bv.velocity = Vector3.new(0,0,0)
-            end
+            else bv.velocity = Vector3.new(0,0,0) end
             bg.cframe = Workspace.CurrentCamera.CoordinateFrame * CFrame.Angles(-math.rad((ctrl.f+ctrl.b)*50*speed/maxspeed),0,0)
         end
-        ctrl = {f = 0, b = 0, l = 0, r = 0}
-        lastctrl = {f = 0, b = 0, l = 0, r = 0}
-        speed = 0
-        bg:Destroy()
-        bv:Destroy()
+        bg:Destroy(); bv:Destroy()
         plr.Character.Humanoid.PlatformStand = false
         LocalPlayer.Character.Animate.Disabled = false
         getgenv().tpwalking = false
     else
         local plr = LocalPlayer
         local UpperTorso = plr.Character.UpperTorso
-        local ctrl = {f = 0, b = 0, l = 0, r = 0}
-        local lastctrl = {f = 0, b = 0, l = 0, r = 0}
-        local maxspeed = 50
-        local speed = 0
-
+        local ctrl = {f=0,b=0,l=0,r=0}; local lastctrl = {f=0,b=0,l=0,r=0}
+        local maxspeed = 50; local speed = 0
         local bg = Instance.new("BodyGyro", UpperTorso)
-        bg.P = 9e4
-        bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
-        bg.cframe = UpperTorso.CFrame
+        bg.P = 9e4; bg.maxTorque = Vector3.new(9e9, 9e9, 9e9); bg.cframe = UpperTorso.CFrame
         local bv = Instance.new("BodyVelocity", UpperTorso)
-        bv.velocity = Vector3.new(0,0.1,0)
-        bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
-
+        bv.velocity = Vector3.new(0,0.1,0); bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
         plr.Character.Humanoid.PlatformStand = true
-
         while getgenv().nowe == true or plr.Character.Humanoid.Health == 0 do
             wait()
             if ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0 then
                 speed = speed+.5+(speed/maxspeed)
                 if speed > maxspeed then speed = maxspeed end
             elseif not (ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0) and speed ~= 0 then
-                speed = speed-1
-                if speed < 0 then speed = 0 end
+                speed = speed-1; if speed < 0 then speed = 0 end
             end
             if (ctrl.l + ctrl.r) ~= 0 or (ctrl.f + ctrl.b) ~= 0 then
                 bv.velocity = ((Workspace.CurrentCamera.CoordinateFrame.lookVector * (ctrl.f+ctrl.b)) + ((Workspace.CurrentCamera.CoordinateFrame * CFrame.new(ctrl.l+ctrl.r,(ctrl.f+ctrl.b)*.2,0).p) - Workspace.CurrentCamera.CoordinateFrame.p))*speed
                 lastctrl = {f = ctrl.f, b = ctrl.b, l = ctrl.l, r = ctrl.r}
             elseif (ctrl.l + ctrl.r) == 0 and (ctrl.f + ctrl.b) == 0 and speed ~= 0 then
                 bv.velocity = ((Workspace.CurrentCamera.CoordinateFrame.lookVector * (lastctrl.f+lastctrl.b)) + ((Workspace.CurrentCamera.CoordinateFrame * CFrame.new(lastctrl.l+lastctrl.r,(lastctrl.f+lastctrl.b)*.2,0).p) - Workspace.CurrentCamera.CoordinateFrame.p))*speed
-            else
-                bv.velocity = Vector3.new(0,0,0)
-            end
+            else bv.velocity = Vector3.new(0,0,0) end
             bg.cframe = Workspace.CurrentCamera.CoordinateFrame * CFrame.Angles(-math.rad((ctrl.f+ctrl.b)*50*speed/maxspeed),0,0)
         end
-        ctrl = {f = 0, b = 0, l = 0, r = 0}
-        lastctrl = {f = 0, b = 0, l = 0, r = 0}
-        speed = 0
-        bg:Destroy()
-        bv:Destroy()
+        bg:Destroy(); bv:Destroy()
         plr.Character.Humanoid.PlatformStand = false
         LocalPlayer.Character.Animate.Disabled = false
         getgenv().tpwalking = false
@@ -1672,11 +1676,8 @@ end
 
 function flyOff()
     local speaker = LocalPlayer
-    getgenv().nowe = false
-    getgenv().tpwalking = false
-    flyUp = false
-    flyDown = false
-
+    getgenv().nowe = false; getgenv().tpwalking = false
+    flyUp = false; flyDown = false
     if speaker.Character and speaker.Character:FindFirstChildOfClass("Humanoid") then
         local h = speaker.Character.Humanoid
         h:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
@@ -1696,7 +1697,6 @@ function flyOff()
         h:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
         h:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
     end
-
     Notify("🕊️ Modo Voo DESATIVADO", false)
 end
 
@@ -1708,10 +1708,31 @@ LocalPlayer.CharacterAdded:Connect(function()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Animate") then
         LocalPlayer.Character.Animate.Disabled = false
     end
-    getgenv().nowe = false
-    getgenv().tpwalking = false
-    flyUp = false
-    flyDown = false
+    getgenv().nowe = false; getgenv().tpwalking = false
+    flyUp = false; flyDown = false
+end)
+
+--=============================================================
+-- 🖱️ AUTO CLICKER — LOOP
+--=============================================================
+task.spawn(function()
+    while true do
+        local cps = math.max(1, S.ClickSpeed or 10)
+        local interval = 1 / cps
+        task.wait(interval)
+        if S.AutoClicker then
+            local pos
+            if S.ClickMode == "Mouse" then
+                pos = UIS:GetMouseLocation()
+            else
+                pos = S.ClickFixedPos or UIS:GetMouseLocation()
+            end
+            pcall(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton1(pos)
+            end)
+        end
+    end
 end)
 
 --=============================================================
@@ -1722,8 +1743,7 @@ local function ToggleMenu()
         PS("Close")
         MenuAberto = false
         local anim = TweenService:Create(Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            BackgroundTransparency = 1,
-            Size = UDim2.new(0, 330, 0, 430)
+            BackgroundTransparency = 1, Size = UDim2.new(0, 330, 0, 430)
         })
         anim:Play()
         anim.Completed:Connect(function()
@@ -1738,16 +1758,12 @@ local function ToggleMenu()
         Main.BackgroundTransparency = 1
         Main.Size = UDim2.new(0, 330, 0, 430)
         TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            BackgroundTransparency = 0,
-            Size = UDim2.new(0, 340, 0, 440)
+            BackgroundTransparency = 0, Size = UDim2.new(0, 340, 0, 440)
         }):Play()
     end
 end
 
-CloseB.MouseButton1Click:Connect(function()
-    PS("Click")
-    ToggleMenu()
-end)
+CloseB.MouseButton1Click:Connect(function() PS("Click"); ToggleMenu() end)
 
 do
     local fbDragging = false
@@ -1758,8 +1774,7 @@ do
     FloatBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
-            fbDragging = true
-            fbMoved = false
+            fbDragging = true; fbMoved = false
             fbStartMouse = UIS:GetMouseLocation()
             fbStartFrame = Float.Position
         end
@@ -1769,15 +1784,9 @@ do
         if not fbDragging then return end
         if input.UserInputType ~= Enum.UserInputType.MouseButton1
         and input.UserInputType ~= Enum.UserInputType.Touch then return end
-
         local wasMoved = fbMoved
-        fbDragging = false
-        fbMoved = false
-
-        if not wasMoved then
-            PS("Click")
-            ToggleMenu()
-        end
+        fbDragging = false; fbMoved = false
+        if not wasMoved then PS("Click"); ToggleMenu() end
     end)
 
     RunService.RenderStepped:Connect(function()
@@ -1788,49 +1797,83 @@ do
         if fbMoved then
             Float.Position = UDim2.new(
                 fbStartFrame.X.Scale, fbStartFrame.X.Offset + d.X,
-                fbStartFrame.Y.Scale, fbStartFrame.Y.Offset + d.Y
-            )
+                fbStartFrame.Y.Scale, fbStartFrame.Y.Offset + d.Y)
         end
     end)
 end
 
 --=============================================================
--- INPUTS
+-- INPUTS (atalhos + captura de posição do clicker + captura de binds com mouse)
 --=============================================================
 UIS.InputBegan:Connect(function(input, gp)
+    -- Captura de posição do Auto Clicker
+    if S.CapturingPos then
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            S.ClickFixedPos = UIS:GetMouseLocation()
+            S.CapturingPos = false
+            clickPosBtn.Text = "📌 Definir Posição Fixa"
+            clickPosBtn.BackgroundColor3 = C.Purple
+            clickPosBtn.TextColor3 = Color3.new(1,1,1)
+            return
+        end
+    end
+
+    -- Abrir menu
     if input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.Delete then
         ToggleMenu()
         return
     end
 
-    if listening and input.UserInputType == Enum.UserInputType.Keyboard then
-        if input.KeyCode == Enum.KeyCode.Escape then
-            listening.UI.Text = KeyName(S.Binds[listening.Key].Mod, S.Binds[listening.Key].Key)
+    -- Captura de bind (aceita teclado E mouse)
+    if listening then
+        local isKeyboard = input.UserInputType == Enum.UserInputType.Keyboard
+        local isMouse = input.UserInputType == Enum.UserInputType.MouseButton1
+                     or input.UserInputType == Enum.UserInputType.MouseButton2
+                     or input.UserInputType == Enum.UserInputType.MouseButton3
+
+        -- Esc cancela
+        if isKeyboard and input.KeyCode == Enum.KeyCode.Escape then
+            local b = S.Binds[listening.Key]
+            listening.UI.Text = KeyName(b.Mod, b.Key)
             listening.UI.TextColor3 = C.Green
             listening = nil
             return
         end
-        if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt
+
+        -- Não capturar modificadores isolados
+        if isKeyboard and (input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt
         or input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl
-        or input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then return end
+        or input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift) then return end
 
-        local mod = nil
-        if UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.RightAlt) then mod = Enum.KeyCode.LeftAlt
-        elseif UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.RightControl) then mod = Enum.KeyCode.LeftControl
-        elseif UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift) then mod = Enum.KeyCode.LeftShift end
-
-        S.Binds[listening.Key] = {Mod = mod, Key = input.KeyCode}
-        listening.UI.Text = KeyName(mod, input.KeyCode)
-        listening.UI.TextColor3 = C.Green
-        Notify("Atalho atualizado!", true)
-        listening = nil
-        return
+        if isKeyboard then
+            local mod = nil
+            if UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.RightAlt) then mod = Enum.KeyCode.LeftAlt
+            elseif UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.RightControl) then mod = Enum.KeyCode.LeftControl
+            elseif UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift) then mod = Enum.KeyCode.LeftShift end
+            S.Binds[listening.Key] = {Mod = mod, Key = input.KeyCode, Mouse = nil}
+            listening.UI.Text = KeyName(mod, input.KeyCode)
+            listening.UI.TextColor3 = C.Green
+            Notify("Atalho atualizado!", true)
+            listening = nil
+            return
+        end
     end
 
+    -- Execução dos atalhos
     if gp or listening then return end
 
     for bk, bi in pairs(S.Binds) do
-        if input.KeyCode == bi.Key then
+        -- Verifica mouse bind (mouse não tem KeyCode)
+        local isKeyPressed = (bi.Key and input.KeyCode == bi.Key)
+        local isMousePressed = false
+
+        if not isKeyPressed and bi.Mouse then
+            if bi.Mouse == "MouseButton3" and input.UserInputType == Enum.UserInputType.MouseButton3 then isMousePressed = true end
+            if bi.Mouse == "MouseButton2" and input.UserInputType == Enum.UserInputType.MouseButton2 then isMousePressed = true end
+        end
+
+        if isKeyPressed or isMousePressed then
             local modOK = true
             if bi.Mod == Enum.KeyCode.LeftAlt and not (UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.RightAlt)) then modOK = false end
             if bi.Mod == Enum.KeyCode.LeftControl and not (UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.RightControl)) then modOK = false end
@@ -1855,6 +1898,11 @@ UIS.InputBegan:Connect(function(input, gp)
                     if VisToggles["Aumentar Hitbox (Jogadores)"] then VisToggles["Aumentar Hitbox (Jogadores)"](n, true, true) end
                     S.HitboxEnabled = n
                     Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
+                elseif bk == "AutoClicker" then
+                    local n = not S.AutoClicker
+                    S.AutoClicker = n
+                    if VisToggles["Ativar Auto Clicker"] then VisToggles["Ativar Auto Clicker"](n, true, true) end
+                    Notify("AUTO CLICKER: " .. (n and "ON" or "OFF"), n)
                 end
             end
         end
@@ -2036,15 +2084,9 @@ RunService.RenderStepped:Connect(function()
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPos), S.AimSmooth)
             if S.TriggerBot and mouse1press then
                 if not MenuAberto and not GuiService.MenuIsOpen then
-                    if not isHoldingTarget then
-                        isHoldingTarget = true
-                        mouse1press()
-                    end
+                    if not isHoldingTarget then isHoldingTarget = true; mouse1press() end
                 else
-                    if isHoldingTarget and mouse1release then
-                        mouse1release()
-                        isHoldingTarget = false
-                    end
+                    if isHoldingTarget and mouse1release then mouse1release(); isHoldingTarget = false end
                 end
             end
         end
@@ -2060,8 +2102,7 @@ RunService.RenderStepped:Connect(function()
         if hrp and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             LocalPlayer.Character.HumanoidRootPart.CFrame =
                 LocalPlayer.Character.HumanoidRootPart.CFrame:Lerp(
-                    hrp.CFrame * CFrame.new(0, 0, S.StickyDistance),
-                    S.StickySmoothness)
+                    hrp.CFrame * CFrame.new(0, 0, S.StickyDistance), S.StickySmoothness)
         end
     end
 
@@ -2231,7 +2272,7 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification", {
         Title = "🎯 Kiko Menu",
-        Text = "v5.6 — Nova aba Whitelist! Use Ctrl Direito.",
+        Text = "v5.7 — Whitelist 2ª aba + Auto Clicker!",
         Duration = 4,
     })
 end)
