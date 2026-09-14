@@ -1,5 +1,5 @@
 --=============================================================
--- 🎯 KIKO MENU v5.11 — FONTE TOP + AMIGOS
+-- 🎯 KIKO MENU v5.12 — FONTE TOP + AMIGOS
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -45,7 +45,7 @@ getgenv().Settings = {
 }
 
 local S = getgenv().Settings
-local VERSION = "v5.11"
+local VERSION = "v5.12"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -81,7 +81,7 @@ local C = {
     Friend    = Color3.fromRGB(0, 170, 255),
     Font      = Enum.Font.Gotham,
     FontB     = Enum.Font.GothamBold,
-    FontTitle = Enum.Font.GothamBold,  
+    FontTitle = Enum.Font.Bangers,   -- ⭐ FONTE TOP DAS SUB-ABAS
 }
 
 local parentGui
@@ -450,22 +450,22 @@ local function RegSearch(element, text, parentToggle)
 end
 
 --=============================================================
--- TÍTULO (não colapsável) — agora com FONTE TOP
+-- TÍTULO (não colapsável) — usa FONTE TOP
 --=============================================================
 local function CreateTitle(parent, title, emoji)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 0, 32)
+    frame.Size = UDim2.new(1, 0, 0, 34)
     frame.BackgroundTransparency = 1
     frame.ZIndex = 103
     frame.Parent = parent
 
     local lbl = Instance.new("TextLabel", frame)
-    lbl.Size = UDim2.new(1, 0, 0, 22)
+    lbl.Size = UDim2.new(1, 0, 0, 24)
     lbl.BackgroundTransparency = 1
     lbl.Text = (emoji and emoji .. "  " or "") .. title
-    lbl.TextColor3 = C.Dim
-    lbl.TextSize = 12
-    lbl.Font = C.FontTitle          -- ⭐ FONTE TOP
+    lbl.TextColor3 = C.Text
+    lbl.TextSize = 16
+    lbl.Font = C.FontTitle          -- ⭐ FONTE TOP (Bangers)
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.TextYAlignment = Enum.TextYAlignment.Bottom
     lbl.ZIndex = 104
@@ -917,8 +917,9 @@ local function BuildWLUI()
         local isWL = S.Whitelist[p.UserId] and true or false
         local isFr = IsFriend(p)
 
+        -- ⭐ CARD (agora mais alto pra acomodar o badge AMIGO sem sobrepor)
         local card = Instance.new("TextButton", wlScroll)
-        card.Size = UDim2.new(1, -4, 0, 56)
+        card.Size = UDim2.new(1, -4, 0, 60)
         card.BackgroundColor3 = isWL and Color3.fromRGB(0, 180, 90) or C.BgHover
         card.BackgroundTransparency = isWL and 0.15 or 0.3
         card.Text = ""; card.AutoButtonColor = false
@@ -926,13 +927,14 @@ local function BuildWLUI()
         Corner(card, 10)
         Stroke(card, isWL and C.Green or (isFr and C.Friend or C.Stroke), 1.5, isWL and 0.2 or 0.5)
 
+        -- Avatar
         local avatarFrame = Instance.new("Frame", card)
-        avatarFrame.Size = UDim2.new(0, 42, 0, 42)
-        avatarFrame.Position = UDim2.new(0, 7, 0.5, -21)
+        avatarFrame.Size = UDim2.new(0, 44, 0, 44)
+        avatarFrame.Position = UDim2.new(0, 8, 0.5, -22)
         avatarFrame.BackgroundColor3 = C.Bg
         avatarFrame.BackgroundTransparency = 0.2
         avatarFrame.ZIndex = 105
-        Corner(avatarFrame, 21)
+        Corner(avatarFrame, 22)
         Stroke(avatarFrame, isWL and C.Green or (isFr and C.Friend or C.Accent), 1.5, 0.3)
 
         local avatarImg = Instance.new("ImageLabel", avatarFrame)
@@ -941,41 +943,33 @@ local function BuildWLUI()
         avatarImg.BackgroundTransparency = 1
         avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(p.UserId) .. "&w=150&h=150"
         avatarImg.ZIndex = 106
-        Corner(avatarImg, 20)
+        Corner(avatarImg, 21)
 
+        -- Display Name
         local dn = Instance.new("TextLabel", card)
-        dn.Size = UDim2.new(1, -140, 0, 18)
-        dn.Position = UDim2.new(0, 56, 0, 8)
+        dn.Size = UDim2.new(1, -230, 0, 18)
+        dn.Position = UDim2.new(0, 60, 0, 8)
         dn.BackgroundTransparency = 1
         dn.Text = p.DisplayName
         dn.TextColor3 = isWL and Color3.fromRGB(180, 255, 200) or (isFr and Color3.fromRGB(180, 220, 255) or C.Text)
         dn.TextSize = 12; dn.Font = C.FontB
         dn.TextXAlignment = Enum.TextXAlignment.Left
+        dn.TextTruncate = Enum.TextTruncate.AtEnd
         dn.ZIndex = 105
 
+        -- Username
         local un = Instance.new("TextLabel", card)
-        un.Size = UDim2.new(1, -140, 0, 14)
-        un.Position = UDim2.new(0, 56, 0, 28)
+        un.Size = UDim2.new(1, -230, 0, 14)
+        un.Position = UDim2.new(0, 60, 0, 28)
         un.BackgroundTransparency = 1
         un.Text = "@" .. p.Name
         un.TextColor3 = isWL and Color3.fromRGB(200, 255, 220) or C.Dim
         un.TextSize = 10; un.Font = C.Font
         un.TextXAlignment = Enum.TextXAlignment.Left
+        un.TextTruncate = Enum.TextTruncate.AtEnd
         un.ZIndex = 105
 
-        if isFr then
-            local frTag = Instance.new("TextLabel", card)
-            frTag.Size = UDim2.new(0, 52, 0, 16)
-            frTag.Position = UDim2.new(0, 56, 1, -20)
-            frTag.BackgroundColor3 = C.Friend
-            frTag.BackgroundTransparency = 0.05
-            frTag.Text = "⭐ AMIGO"
-            frTag.TextColor3 = Color3.new(1,1,1)
-            frTag.TextSize = 8; frTag.Font = C.FontB
-            frTag.ZIndex = 105
-            Corner(frTag, 4)
-        end
-
+        -- Badge SALVO / LIVRE (canto direito)
         local badge = Instance.new("TextLabel", card)
         badge.Size = UDim2.new(0, 62, 0, 20)
         badge.Position = UDim2.new(1, -70, 0.5, -10)
@@ -986,6 +980,20 @@ local function BuildWLUI()
         badge.TextSize = 9; badge.Font = C.FontB
         badge.ZIndex = 105
         Corner(badge, 6)
+
+        -- ⭐ Badge AMIGO (ao lado do badge SALVO/LIVRE, à esquerda dele)
+        if isFr then
+            local frTag = Instance.new("TextLabel", card)
+            frTag.Size = UDim2.new(0, 60, 0, 20)
+            frTag.Position = UDim2.new(1, -136, 0.5, -10)  -- ⭐ ao lado do badge
+            frTag.BackgroundColor3 = C.Friend
+            frTag.BackgroundTransparency = 0.05
+            frTag.Text = "⭐ AMIGO"
+            frTag.TextColor3 = Color3.new(1,1,1)
+            frTag.TextSize = 9; frTag.Font = C.FontB
+            frTag.ZIndex = 106
+            Corner(frTag, 6)
+        end
 
         card.MouseButton1Click:Connect(function()
             PS("Click")
@@ -2220,7 +2228,7 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification", {
         Title = "🎯 Kiko Menu",
-        Text = "v5.11 — Fonte top + Amigos!",
+        Text = "v5.12",
         Duration = 4,
     })
 end)
