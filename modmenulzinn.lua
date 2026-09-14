@@ -1,5 +1,5 @@
 --=============================================================
--- 🎯 KIKO MENU v5.7 — WHITELIST REPOSICIONADA + AUTO CLICKER
+-- 🎯 KIKO MENU v5.8 — SUBS-ABAS INTELIGENTES
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -37,24 +37,15 @@ getgenv().Settings = {
     AntiAFK = false,
     Whitelist = {},
     SoundEnabled = true,
-
-    -- AUTO CLICKER
-    AutoClicker = false,
-    ClickSpeed = 10,           -- CPS
-    ClickMode = "Mouse",       -- "Mouse" ou "Fixo"
-    ClickFixedPos = nil,       -- Vector2
-    CapturingPos = false,
-
     Binds = {
         AimAssist   = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Two},
         Visuals     = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Three},
         Hitbox      = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Four},
-        AutoClicker = {Mod = nil, Key = Enum.KeyCode.F5}
     }
 }
 
 local S = getgenv().Settings
-local VERSION = "v5.7"
+local VERSION = "v5.8"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -409,84 +400,52 @@ local function CreatePage(name, emoji)
     return page, btn
 end
 
+-- SEARCH INDEX
 local SearchIndex = {}
-
-local function CreateSection(parent, title, emoji)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 38)
-    btn.BackgroundColor3 = C.BgAlt
-    btn.Text = ""
-    btn.AutoButtonColor = false
-    btn.ZIndex = 103
-    btn.Parent = parent
-    Corner(btn, 10)
-    Stroke(btn, C.Stroke, 1, 0.5)
-
-    local arrow = Instance.new("TextLabel", btn)
-    arrow.Size = UDim2.new(0, 24, 1, 0)
-    arrow.Position = UDim2.new(0, 12, 0, 0)
-    arrow.BackgroundTransparency = 1
-    arrow.Text = "▶"; arrow.TextColor3 = C.Dim
-    arrow.TextSize = 10; arrow.Font = C.FontB
-    arrow.TextXAlignment = Enum.TextXAlignment.Left
-    arrow.ZIndex = 104
-
-    local titleLbl = Instance.new("TextLabel", btn)
-    titleLbl.Size = UDim2.new(1, -60, 1, 0)
-    titleLbl.Position = UDim2.new(0, 34, 0, 0)
-    titleLbl.BackgroundTransparency = 1
-    titleLbl.Text = emoji .. "  " .. title
-    titleLbl.TextColor3 = C.Text
-    titleLbl.TextSize = 12; titleLbl.Font = C.FontB
-    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
-    titleLbl.ZIndex = 104
-
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 0)
-    container.AutomaticSize = Enum.AutomaticSize.Y
-    container.BackgroundColor3 = C.BgAlt
-    container.Visible = false
-    container.ZIndex = 102
-    container.Parent = parent
-    Corner(container, 10)
-    Stroke(container, C.Stroke, 1, 0.7)
-
-    local layout = Instance.new("UIListLayout", container)
-    layout.Padding = UDim.new(0, 4)
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-
-    local pad = Instance.new("UIPadding", container)
-    pad.PaddingTop = UDim.new(0, 8); pad.PaddingBottom = UDim.new(0, 8)
-    pad.PaddingLeft = UDim.new(0, 10); pad.PaddingRight = UDim.new(0, 10)
-
-    local entry = {
-        btn = btn, container = container, page = parent,
-        searchText = string.lower(title), isOpen = false,
-    }
-    table.insert(SearchIndex, entry)
-
-    local aberto = false
-    btn.MouseButton1Click:Connect(function()
-        aberto = not aberto
-        entry.isOpen = aberto
-        PS(aberto and "Section" or "Click")
-        container.Visible = aberto
-        TweenService:Create(arrow, TweenInfo.new(0.2), {
-            Rotation = aberto and 90 or 0,
-            TextColor3 = aberto and C.Accent or C.Dim
-        }):Play()
-        task.wait()
-        if ActivePage then
-            Content.CanvasSize = UDim2.new(0, 0, 0, ActivePage.AbsoluteSize.Y + 20)
-        end
-    end)
-    btn.MouseEnter:Connect(function() PS("Hover"); btn.BackgroundColor3 = C.BgHover end)
-    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = C.BgAlt end)
-
-    return container
+local function RegSearch(element, text, parentToggle)
+    table.insert(SearchIndex, {
+        element = element,
+        isConfig = parentToggle ~= nil,
+        parentToggle = parentToggle,
+        searchText = string.lower(text),
+    })
 end
 
+--=============================================================
+-- TÍTULO (não colapsável)
+--=============================================================
+local function CreateTitle(parent, title, emoji)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 32)
+    frame.BackgroundTransparency = 1
+    frame.ZIndex = 103
+    frame.Parent = parent
+
+    local lbl = Instance.new("TextLabel", frame)
+    lbl.Size = UDim2.new(1, 0, 0, 22)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = (emoji and emoji .. "  " or "") .. title
+    lbl.TextColor3 = C.Dim
+    lbl.TextSize = 11
+    lbl.Font = C.FontB
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.TextYAlignment = Enum.TextYAlignment.Bottom
+    lbl.ZIndex = 104
+
+    local line = Instance.new("Frame", frame)
+    line.Size = UDim2.new(1, 0, 0, 1)
+    line.Position = UDim2.new(0, 0, 1, -4)
+    line.BackgroundColor3 = C.Stroke
+    line.BackgroundTransparency = 0.4
+    line.BorderSizePixel = 0
+    line.ZIndex = 104
+
+    return frame
+end
+
+--=============================================================
+-- TOGGLE SIMPLES
+--=============================================================
 local VisToggles = {}
 local VisSteppers = {}
 
@@ -535,9 +494,119 @@ local function CreateToggle(parent, text, default, callback)
     btn.MouseEnter:Connect(function() btn.BackgroundColor3 = C.BgHover end)
     btn.MouseLeave:Connect(function() btn.BackgroundColor3 = C.Bg end)
 
+    RegSearch(btn, text)
     return btn, apply
 end
 
+--=============================================================
+-- TOGGLE COM CONFIG (NOVO!)
+-- Quando ligado, abre painel de config abaixo
+--=============================================================
+local function CreateToggleWithConfig(parent, text, default, callback)
+    local state = default or false
+
+    -- Wrapper que agrupa toggle + config
+    local wrapper = Instance.new("Frame", parent)
+    wrapper.Size = UDim2.new(1, 0, 0, 34)
+    wrapper.AutomaticSize = Enum.AutomaticSize.Y
+    wrapper.BackgroundTransparency = 1
+    wrapper.ZIndex = 103
+
+    local wrapperLayout = Instance.new("UIListLayout", wrapper)
+    wrapperLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    wrapperLayout.Padding = UDim.new(0, 4)
+
+    -- Botão toggle
+    local btn = Instance.new("TextButton", wrapper)
+    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.BackgroundColor3 = C.Bg
+    btn.Text = ""; btn.AutoButtonColor = false
+    btn.ZIndex = 104
+    btn.LayoutOrder = 1
+    Corner(btn, 8)
+
+    local lbl = Instance.new("TextLabel", btn)
+    lbl.Size = UDim2.new(1, -80, 1, 0)
+    lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text; lbl.TextColor3 = C.Text
+    lbl.TextSize = 11; lbl.Font = C.Font
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.ZIndex = 105
+
+    -- Chevron indicador
+    local arrow = Instance.new("TextLabel", btn)
+    arrow.Size = UDim2.new(0, 14, 0, 14)
+    arrow.Position = UDim2.new(1, -64, 0.5, -7)
+    arrow.BackgroundTransparency = 1
+    arrow.Text = "▾"
+    arrow.TextColor3 = C.Dim
+    arrow.TextSize = 12
+    arrow.Font = C.FontB
+    arrow.ZIndex = 105
+
+    local pill = Instance.new("Frame", btn)
+    pill.Size = UDim2.new(0, 34, 0, 18)
+    pill.Position = UDim2.new(1, -46, 0.5, -9)
+    pill.BackgroundColor3 = state and C.Green or C.BgHover
+    pill.BorderSizePixel = 0; pill.ZIndex = 105
+    Corner(pill, 10)
+
+    local ball = Instance.new("Frame", pill)
+    ball.Size = UDim2.new(0, 14, 0, 14)
+    ball.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    ball.BackgroundColor3 = Color3.new(1,1,1)
+    ball.BorderSizePixel = 0; ball.ZIndex = 106
+    Corner(ball, 10)
+
+    -- Container de configurações
+    local config = Instance.new("Frame", wrapper)
+    config.Size = UDim2.new(1, 0, 0, 0)
+    config.AutomaticSize = Enum.AutomaticSize.Y
+    config.BackgroundColor3 = C.BgAlt
+    config.BackgroundTransparency = 0.35
+    config.Visible = state
+    config.ZIndex = 103
+    config.LayoutOrder = 2
+    Corner(config, 8)
+    Stroke(config, C.Stroke, 1, 0.6)
+
+    local configLayout = Instance.new("UIListLayout", config)
+    configLayout.Padding = UDim.new(0, 4)
+    configLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local configPad = Instance.new("UIPadding", config)
+    configPad.PaddingTop = UDim.new(0, 8)
+    configPad.PaddingBottom = UDim.new(0, 8)
+    configPad.PaddingLeft = UDim.new(0, 8)
+    configPad.PaddingRight = UDim.new(0, 8)
+
+    local function apply(v, noCb, noSound)
+        state = v
+        if not noSound then PS("Toggle") end
+        pill.BackgroundColor3 = state and C.Green or C.BgHover
+        ball.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        config.Visible = state
+        arrow.TextColor3 = state and C.Accent or C.Dim
+        if not noCb and callback then callback(state) end
+    end
+
+    VisToggles[text] = apply
+    btn.MouseButton1Click:Connect(function() apply(not state) end)
+    btn.MouseEnter:Connect(function() btn.BackgroundColor3 = C.BgHover end)
+    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = C.Bg end)
+
+    -- Registra para busca
+    RegSearch(btn, text)
+    wrapper:SetAttribute("ToggleName", text)
+
+    -- Retorna o config (onde adicionar opções), o apply, e o wrapper
+    return config, apply, wrapper, btn
+end
+
+--=============================================================
+-- STEPPER
+--=============================================================
 local function CreateStepper(parent, text, min, max, default, step, callback)
     local val = default or min
     local frame = Instance.new("Frame")
@@ -590,9 +659,13 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     minus.MouseButton1Click:Connect(function() PS("Click"); update(val - step) end)
     plus.MouseButton1Click:Connect(function() PS("Click"); update(val + step) end)
 
+    RegSearch(frame, text)
     return frame, update
 end
 
+--=============================================================
+-- BUTTON
+--=============================================================
 local function CreateButton(parent, text, color, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 34)
@@ -611,9 +684,13 @@ local function CreateButton(parent, text, color, callback)
     btn.MouseLeave:Connect(function()
         TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = orig}):Play()
     end)
+    RegSearch(btn, text)
     return btn
 end
 
+--=============================================================
+-- LABEL
+--=============================================================
 local function CreateLabel(parent, text, h)
     local l = Instance.new("TextLabel", parent)
     l.Size = UDim2.new(1, 0, 0, h or 20)
@@ -627,16 +704,15 @@ local function CreateLabel(parent, text, h)
 end
 
 --=============================================================
--- ABAS (Whitelist agora é a 2ª)
+-- ABAS
 --=============================================================
 local MiraP    = CreatePage("Mira",       "🎯")
-local WLP      = CreatePage("Whitelist",  "📝")   -- 2ª ABA
+local WLP      = CreatePage("Whitelist",  "📝")
 local VisualP  = CreatePage("Visual",     "👁️")
 local PersoP   = CreatePage("Personagem", "🏃")
 local TPP      = CreatePage("Teleporte",  "🌀")
 local HitP     = CreatePage("Hitbox",     "📦")
 local DefP     = CreatePage("Defusal",    "💣")
-local ClickP   = CreatePage("AutoClicker","🖱️")
 local PresetP  = CreatePage("Presets",    "⚙️")
 local BindsP   = CreatePage("Atalhos",    "⌨️")
 local ServP    = CreatePage("Servidor",   "🌐")
@@ -652,25 +728,21 @@ local aimbotBtn, espBtn, hitboxBtn
 --=============================================================
 -- 🎯 MIRA
 --=============================================================
-local secAim = CreateSection(MiraP, "Assistência de Mira", "🎯")
-aimbotBtn = CreateToggle(secAim, "Ativar Assistência", false, function(v) S.AimAssist = v end)
-CreateStepper(secAim, "Campo de Visão (FOV)", 10, 800, 100, 10, function(v) S.AimFOV = v end)
-CreateStepper(secAim, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) S.AimSmooth = v end)
-CreateToggle(secAim, "Exibir FOV na Tela", false, function(v) S.ShowFOV = v end)
+CreateTitle(MiraP, "Assistência de Mira", "🎯")
+local cfgAim, aimApply, aimWrap, aimBtnT = CreateToggleWithConfig(MiraP, "Ativar Assistência", false, function(v) S.AimAssist = v end)
+aimbotBtn = aimBtnT
+CreateStepper(cfgAim, "Campo de Visão (FOV)", 10, 800, 100, 10, function(v) S.AimFOV = v end)
+CreateStepper(cfgAim, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) S.AimSmooth = v end)
+CreateToggle(cfgAim, "Exibir FOV na Tela", false, function(v) S.ShowFOV = v end)
 
-local secAimAv = CreateSection(MiraP, "Avançado", "🧠")
-CreateToggle(secAimAv, "Prioridade 360°", false, function(v) S.TargetPriority = v end)
-CreateToggle(secAimAv, "Predição de Movimento", false, function(v) S.AimPrediction = v end)
-CreateStepper(secAimAv, "Força da Predição", 0.05, 1, 0.1, 0.05, function(v) S.PredictionVelocity = v end)
-CreateToggle(secAimAv, "Atirar Automaticamente", false, function(v) S.TriggerBot = v end)
-
-local secFilter = CreateSection(MiraP, "Filtros de Alvo", "🛡️")
-CreateToggle(secFilter, "Ignorar Aliados", false, function(v) S.TeamCheck = v end)
-CreateToggle(secFilter, "Ignorar Atrás de Paredes", false, function(v) S.WallCheck = v end)
-CreateToggle(secFilter, "Mira em NPCs", false, function(v) S.AimNPC = v end)
+CreateTitle(MiraP, "Avançado", "🧠")
+CreateToggle(MiraP, "Prioridade 360°", false, function(v) S.TargetPriority = v end)
+local cfgPred = CreateToggleWithConfig(MiraP, "Predição de Movimento", false, function(v) S.AimPrediction = v end)
+CreateStepper(cfgPred, "Força da Predição", 0.05, 1, 0.1, 0.05, function(v) S.PredictionVelocity = v end)
+CreateToggle(MiraP, "Atirar Automaticamente", false, function(v) S.TriggerBot = v end)
 
 local Modes = {"Mais Próximo", "Menor Vida", "Mirando em Mim"}
-local ModeBtn = Instance.new("TextButton", secAimAv)
+local ModeBtn = Instance.new("TextButton", MiraP)
 ModeBtn.Size = UDim2.new(1, 0, 0, 34)
 ModeBtn.BackgroundColor3 = C.Bg
 ModeBtn.TextColor3 = C.Text
@@ -685,8 +757,9 @@ ModeBtn.MouseButton1Click:Connect(function()
     S.PriorityMode = Modes[i]
     ModeBtn.Text = "Prioridade: " .. S.PriorityMode
 end)
+RegSearch(ModeBtn, "Prioridade")
 
-local PartBtn = Instance.new("TextButton", secAimAv)
+local PartBtn = Instance.new("TextButton", MiraP)
 PartBtn.Size = UDim2.new(1, 0, 0, 34)
 PartBtn.BackgroundColor3 = C.Bg
 PartBtn.TextColor3 = C.Text
@@ -699,11 +772,16 @@ PartBtn.MouseButton1Click:Connect(function()
     S.AimPart = (S.AimPart == "Head" and "HumanoidRootPart" or "Head")
     PartBtn.Text = "Parte Alvo: " .. (S.AimPart == "Head" and "Cabeça" or "Tronco")
 end)
+RegSearch(PartBtn, "Parte Alvo")
+
+CreateTitle(MiraP, "Filtros de Alvo", "🛡️")
+CreateToggle(MiraP, "Ignorar Aliados", false, function(v) S.TeamCheck = v end)
+CreateToggle(MiraP, "Ignorar Atrás de Paredes", false, function(v) S.WallCheck = v end)
+CreateToggle(MiraP, "Mira em NPCs", false, function(v) S.AimNPC = v end)
 
 --=============================================================
--- 📝 WHITELIST (2ª ABA — SIMPLIFICADA)
+-- 📝 WHITELIST
 --=============================================================
--- Texto "como funciona" no topo (não é seção)
 local wlDesc = Instance.new("TextLabel", WLP)
 wlDesc.Size = UDim2.new(1, 0, 0, 46)
 wlDesc.BackgroundColor3 = C.BgAlt
@@ -718,7 +796,6 @@ wlDesc.ZIndex = 103
 Corner(wlDesc, 8)
 Stroke(wlDesc, C.Stroke, 1, 0.5)
 
--- Contador
 local wlCountLabel = Instance.new("TextLabel", WLP)
 wlCountLabel.Size = UDim2.new(1, 0, 0, 22)
 wlCountLabel.BackgroundTransparency = 1
@@ -728,7 +805,6 @@ wlCountLabel.TextSize = 11; wlCountLabel.Font = C.FontB
 wlCountLabel.TextXAlignment = Enum.TextXAlignment.Left
 wlCountLabel.ZIndex = 104
 
--- Botões de ação
 local wlActions = Instance.new("Frame", WLP)
 wlActions.Size = UDim2.new(1, 0, 0, 30)
 wlActions.BackgroundTransparency = 1
@@ -736,7 +812,6 @@ wlActions.ZIndex = 103
 
 local wlRefreshBtn = Instance.new("TextButton", wlActions)
 wlRefreshBtn.Size = UDim2.new(0.48, 0, 1, 0)
-wlRefreshBtn.Position = UDim2.new(0, 0, 0, 0)
 wlRefreshBtn.BackgroundColor3 = C.Accent
 wlRefreshBtn.Text = "🔄 Atualizar Lista"
 wlRefreshBtn.TextColor3 = Color3.new(1,1,1)
@@ -754,7 +829,6 @@ wlClearBtn.TextSize = 11; wlClearBtn.Font = C.FontB
 wlClearBtn.AutoButtonColor = false; wlClearBtn.ZIndex = 104
 Corner(wlClearBtn, 8)
 
--- Scrolling direto na aba
 local wlScroll = Instance.new("ScrollingFrame", WLP)
 wlScroll.Size = UDim2.new(1, 0, 0, 340)
 wlScroll.BackgroundColor3 = C.Bg
@@ -789,7 +863,6 @@ local function BuildWLUI()
     for _, v in pairs(wlScroll:GetChildren()) do
         if v:IsA("Frame") or v:IsA("TextButton") then v:Destroy() end
     end
-
     local any = false
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then
@@ -800,13 +873,11 @@ local function BuildWLUI()
             card.Size = UDim2.new(1, -4, 0, 56)
             card.BackgroundColor3 = isWL and Color3.fromRGB(0, 180, 90) or C.BgHover
             card.BackgroundTransparency = isWL and 0.15 or 0.3
-            card.Text = ""
-            card.AutoButtonColor = false
+            card.Text = ""; card.AutoButtonColor = false
             card.ZIndex = 104
             Corner(card, 10)
             Stroke(card, isWL and C.Green or C.Stroke, 1.5, isWL and 0.2 or 0.5)
 
-            -- Avatar
             local avatarFrame = Instance.new("Frame", card)
             avatarFrame.Size = UDim2.new(0, 42, 0, 42)
             avatarFrame.Position = UDim2.new(0, 7, 0.5, -21)
@@ -824,7 +895,6 @@ local function BuildWLUI()
             avatarImg.ZIndex = 106
             Corner(avatarImg, 20)
 
-            -- Display Name (verde se WL)
             local dn = Instance.new("TextLabel", card)
             dn.Size = UDim2.new(1, -140, 0, 18)
             dn.Position = UDim2.new(0, 56, 0, 8)
@@ -835,7 +905,6 @@ local function BuildWLUI()
             dn.TextXAlignment = Enum.TextXAlignment.Left
             dn.ZIndex = 105
 
-            -- Username
             local un = Instance.new("TextLabel", card)
             un.Size = UDim2.new(1, -140, 0, 14)
             un.Position = UDim2.new(0, 56, 0, 28)
@@ -846,7 +915,6 @@ local function BuildWLUI()
             un.TextXAlignment = Enum.TextXAlignment.Left
             un.ZIndex = 105
 
-            -- Badge
             local badge = Instance.new("TextLabel", card)
             badge.Size = UDim2.new(0, 62, 0, 20)
             badge.Position = UDim2.new(1, -70, 0.5, -10)
@@ -858,37 +926,31 @@ local function BuildWLUI()
             badge.ZIndex = 105
             Corner(badge, 6)
 
-            -- Clique: toggle + recolorir in-place (SEM notificação)
             card.MouseButton1Click:Connect(function()
                 PS("Click")
                 S.Whitelist[p.UserId] = not S.Whitelist[p.UserId]
                 local state = S.Whitelist[p.UserId]
-
-                -- Atualiza cores do card
                 TweenService:Create(card, TweenInfo.new(0.2), {
                     BackgroundColor3 = state and Color3.fromRGB(0, 180, 90) or C.BgHover,
                     BackgroundTransparency = state and 0.15 or 0.3
                 }):Play()
-                local cardStroke = card:FindFirstChildOfClass("UIStroke")
-                if cardStroke then
-                    TweenService:Create(cardStroke, TweenInfo.new(0.2), {
+                local cs = card:FindFirstChildOfClass("UIStroke")
+                if cs then
+                    TweenService:Create(cs, TweenInfo.new(0.2), {
                         Color = state and C.Green or C.Stroke,
                         Transparency = state and 0.2 or 0.5
                     }):Play()
                 end
-
                 dn.TextColor3 = state and Color3.fromRGB(180, 255, 200) or C.Text
                 un.TextColor3 = state and Color3.fromRGB(200, 255, 220) or C.Dim
                 badge.BackgroundColor3 = state and Color3.fromRGB(0, 220, 110) or C.BgAlt
                 badge.BackgroundTransparency = state and 0 or 0.3
                 badge.Text = state and "✓ SALVO" or "LIVRE"
                 badge.TextColor3 = state and Color3.new(1,1,1) or C.Dim
-
                 UpdateWLCount()
             end)
         end
     end
-
     if not any then
         local empty = Instance.new("TextLabel", wlScroll)
         empty.Size = UDim2.new(1, 0, 0, 60)
@@ -898,63 +960,49 @@ local function BuildWLUI()
         empty.TextSize = 11; empty.Font = C.Font
         empty.ZIndex = 104
     end
-
     UpdateWLCount()
 end
 
-wlRefreshBtn.MouseButton1Click:Connect(function()
-    PS("Click")
-    BuildWLUI()
-end)
-
-wlClearBtn.MouseButton1Click:Connect(function()
-    PS("Click")
-    S.Whitelist = {}
-    BuildWLUI()
-    Notify("Whitelist limpa!", true)
-end)
-
+wlRefreshBtn.MouseButton1Click:Connect(function() PS("Click"); BuildWLUI() end)
+wlClearBtn.MouseButton1Click:Connect(function() PS("Click"); S.Whitelist = {}; BuildWLUI(); Notify("Whitelist limpa!", true) end)
 Players.PlayerAdded:Connect(function() task.wait(0.5); BuildWLUI() end)
 Players.PlayerRemoving:Connect(function() task.wait(0.5); BuildWLUI() end)
-
-task.defer(function()
-    task.wait(1)
-    BuildWLUI()
-end)
+task.defer(function() task.wait(1); BuildWLUI() end)
 
 --=============================================================
 -- 👁️ VISUAL
 --=============================================================
-local secV1 = CreateSection(VisualP, "Jogadores", "👁️")
-espBtn = CreateToggle(secV1, "Ativar ESP", false, function(v) S.ESP = v end)
-CreateToggle(secV1, "Caixas", false, function(v) S.Boxes = v end)
-CreateToggle(secV1, "Nomes", false, function(v) S.Names = v end)
-CreateToggle(secV1, "Distância", false, function(v) S.Distance = v end)
-CreateToggle(secV1, "Linhas", false, function(v) S.Lines = v end)
-CreateToggle(secV1, "Cor do Time", false, function(v) S.TeamColor = v end)
-CreateToggle(secV1, "Destaque (Chams)", false, function(v) S.Highlight = v end)
+CreateTitle(VisualP, "Jogadores", "👁️")
+local cfgESP, espApply, espWrap, espBtnT = CreateToggleWithConfig(VisualP, "Ativar ESP", false, function(v) S.ESP = v end)
+espBtn = espBtnT
+CreateToggle(cfgESP, "Caixas", false, function(v) S.Boxes = v end)
+CreateToggle(cfgESP, "Nomes", false, function(v) S.Names = v end)
+CreateToggle(cfgESP, "Distância", false, function(v) S.Distance = v end)
+CreateToggle(cfgESP, "Linhas", false, function(v) S.Lines = v end)
+CreateToggle(cfgESP, "Cor do Time", false, function(v) S.TeamColor = v end)
+CreateToggle(cfgESP, "Destaque (Chams)", false, function(v) S.Highlight = v end)
 
-local secV2 = CreateSection(VisualP, "NPCs", "🤖")
-CreateToggle(secV2, "ESP em NPCs", false, function(v) S.ESPNPC = v end)
+CreateTitle(VisualP, "NPCs", "🤖")
+CreateToggle(VisualP, "ESP em NPCs", false, function(v) S.ESPNPC = v end)
 
 --=============================================================
 -- 🏃 PERSONAGEM
 --=============================================================
-local secP1 = CreateSection(PersoP, "Velocidade", "⚡")
-CreateToggle(secP1, "Modificar Velocidade", false, function(v) S.UseSpeed = v end)
-CreateStepper(secP1, "Velocidade", 16, 500, 16, 5, function(v) S.Speed = v end)
+CreateTitle(PersoP, "Velocidade", "⚡")
+local cfgSpeed = CreateToggleWithConfig(PersoP, "Modificar Velocidade", false, function(v) S.UseSpeed = v end)
+CreateStepper(cfgSpeed, "Velocidade", 16, 500, 16, 5, function(v) S.Speed = v end)
 
-local secP2 = CreateSection(PersoP, "Pulo", "🦘")
-CreateToggle(secP2, "Pulo Infinito", false, function(v) S.InfiniteJump = v end)
+CreateTitle(PersoP, "Pulo", "🦘")
+CreateToggle(PersoP, "Pulo Infinito", false, function(v) S.InfiniteJump = v end)
 
-local secP3 = CreateSection(PersoP, "Modo Voo", "🕊️")
-CreateToggle(secP3, "Ativar Modo Voo", false, function(v)
+CreateTitle(PersoP, "Modo Voo", "🕊️")
+local cfgFly = CreateToggleWithConfig(PersoP, "Ativar Modo Voo", false, function(v)
     S.FlyMode = v
     if v then flyOn() else flyOff() end
 end)
-CreateStepper(secP3, "Multiplicador de Velocidade", 1, 10, 1, 1, function(v) getgenv().speeds = v end)
+CreateStepper(cfgFly, "Multiplicador de Velocidade", 1, 10, 1, 1, function(v) getgenv().speeds = v end)
 
-local upDownFrame = Instance.new("Frame", secP3)
+local upDownFrame = Instance.new("Frame", cfgFly)
 upDownFrame.Size = UDim2.new(1, 0, 0, 34)
 upDownFrame.BackgroundTransparency = 1
 upDownFrame.ZIndex = 103
@@ -996,19 +1044,19 @@ task.spawn(function()
     end
 end)
 
-CreateLabel(secP3, "Use WASD pra voar. Segure SUBIR/DESCER pra mover verticalmente.", 30)
+CreateLabel(cfgFly, "Use WASD pra voar. Segure SUBIR/DESCER pra mover verticalmente.", 30)
 
-local secP4 = CreateSection(PersoP, "Câmera", "🎥")
-CreateToggle(secP4, "Terceira Pessoa", false, function(v) S.ForceThirdPerson = v end)
+CreateTitle(PersoP, "Câmera", "🎥")
+CreateToggle(PersoP, "Terceira Pessoa", false, function(v) S.ForceThirdPerson = v end)
 
 --=============================================================
 -- 🌀 TELEPORTE
 --=============================================================
-local secT1 = CreateSection(TPP, "Jogadores Online", "👥")
-local SelLab = CreateLabel(secT1, "🎯 Alvo: Nenhum", 25)
+CreateTitle(TPP, "Jogadores Online", "👥")
+local SelLab = CreateLabel(TPP, "🎯 Alvo: Nenhum", 25)
 SelLab.TextColor3 = C.Green
 
-local plist = Instance.new("ScrollingFrame", secT1)
+local plist = Instance.new("ScrollingFrame", TPP)
 plist.Size = UDim2.new(1, 0, 0, 120)
 plist.BackgroundColor3 = C.Bg
 plist.BorderSizePixel = 0
@@ -1045,8 +1093,8 @@ UpList()
 Players.PlayerAdded:Connect(UpList)
 Players.PlayerRemoving:Connect(UpList)
 
-local secT2 = CreateSection(TPP, "Ações", "🌀")
-CreateButton(secT2, "📡 Teleportar até Alvo", C.Accent, function()
+CreateTitle(TPP, "Ações", "🌀")
+CreateButton(TPP, "📡 Teleportar até Alvo", C.Accent, function()
     if S.SelectedPlayer and S.SelectedPlayer.Character and LocalPlayer.Character then
         LocalPlayer.Character.HumanoidRootPart.CFrame = S.SelectedPlayer.Character.HumanoidRootPart.CFrame
         Notify("Teleportado até " .. S.SelectedPlayer.DisplayName, true)
@@ -1054,38 +1102,39 @@ CreateButton(secT2, "📡 Teleportar até Alvo", C.Accent, function()
         Notify("Nenhum alvo selecionado", false)
     end
 end)
-CreateToggle(secT2, "Selecionar Mais Próximo (Auto)", false, function(v) S.AutoNearest = v end)
-CreateToggle(secT2, "Grudar Atrás", false, function(v) S.StickyBehind = v end)
-CreateStepper(secT2, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) S.StickySmoothness = v end)
-CreateStepper(secT2, "Distância", 1, 20, 3, 1, function(v) S.StickyDistance = v end)
+CreateToggle(TPP, "Selecionar Mais Próximo (Auto)", false, function(v) S.AutoNearest = v end)
+local cfgSticky = CreateToggleWithConfig(TPP, "Grudar Atrás", false, function(v) S.StickyBehind = v end)
+CreateStepper(cfgSticky, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) S.StickySmoothness = v end)
+CreateStepper(cfgSticky, "Distância", 1, 20, 3, 1, function(v) S.StickyDistance = v end)
 
 --=============================================================
 -- 📦 HITBOX
 --=============================================================
-local secHb = CreateSection(HitP, "Hitbox", "📦")
-hitboxBtn = CreateToggle(secHb, "Aumentar Hitbox (Jogadores)", false, function(v) S.HitboxEnabled = v end)
-CreateToggle(secHb, "Aumentar Hitbox (NPCs)", false, function(v) S.HitboxNPC = v end)
-CreateStepper(secHb, "Tamanho", 2, 100, 20, 5, function(v) S.Hitbox = v end)
-CreateStepper(secHb, "Opacidade", 0, 1, 0.6, 0.1, function(v) S.HitboxTransparency = v end)
+CreateTitle(HitP, "Hitbox", "📦")
+local cfgHb, hbApply, hbWrap, hbBtnT = CreateToggleWithConfig(HitP, "Aumentar Hitbox (Jogadores)", false, function(v) S.HitboxEnabled = v end)
+hitboxBtn = hbBtnT
+CreateStepper(cfgHb, "Tamanho", 2, 100, 20, 5, function(v) S.Hitbox = v end)
+CreateStepper(cfgHb, "Opacidade", 0, 1, 0.6, 0.1, function(v) S.HitboxTransparency = v end)
+
+CreateToggle(HitP, "Aumentar Hitbox (NPCs)", false, function(v) S.HitboxNPC = v end)
 
 --=============================================================
 -- 💣 DEFUSAL
 --=============================================================
-local secD1 = CreateSection(DefP, "ESP por Time", "💣")
-CreateToggle(secD1, "Detectar Time Automaticamente", false, function(v) S.AutoTeamColorCheck = v end)
+CreateTitle(DefP, "ESP por Time", "💣")
+CreateToggle(DefP, "Detectar Time Automaticamente", false, function(v) S.AutoTeamColorCheck = v end)
 
-local secD2 = CreateSection(DefP, "Mira por Time", "🎯")
-local DefLab = CreateLabel(secD2, "🎯 Alvo Inimigo: Nenhum", 25)
+CreateTitle(DefP, "Mira por Time", "🎯")
+local DefLab = CreateLabel(DefP, "🎯 Alvo Inimigo: Nenhum", 25)
 DefLab.TextColor3 = C.Text
-
-CreateToggle(secD2, "Mira Apenas em Inimigos", false, function(v) S.ColorAimbot = v end)
-CreateButton(secD2, "🔵 Definir Alvo: Time Azul", Color3.fromRGB(72,171,229), function()
+CreateToggle(DefP, "Mira Apenas em Inimigos", false, function(v) S.ColorAimbot = v end)
+CreateButton(DefP, "🔵 Definir Alvo: Time Azul", Color3.fromRGB(72,171,229), function()
     S.ColorAimbotTarget = Color3.fromRGB(72,171,229)
     DefLab.Text = "🎯 Alvo Inimigo: Time Azul"
     DefLab.TextColor3 = Color3.fromRGB(72,171,229)
     Notify("Alvo definido: Time Azul", true)
 end)
-CreateButton(secD2, "🔴 Definir Alvo: Time Vermelho", Color3.fromRGB(229,72,72), function()
+CreateButton(DefP, "🔴 Definir Alvo: Time Vermelho", Color3.fromRGB(229,72,72), function()
     S.ColorAimbotTarget = Color3.fromRGB(229,72,72)
     DefLab.Text = "🎯 Alvo Inimigo: Time Vermelho"
     DefLab.TextColor3 = Color3.fromRGB(229,72,72)
@@ -1093,79 +1142,11 @@ CreateButton(secD2, "🔴 Definir Alvo: Time Vermelho", Color3.fromRGB(229,72,72
 end)
 
 --=============================================================
--- 🖱️ AUTO CLICKER
---=============================================================
-local secClickMain = CreateSection(ClickP, "Auto Clicker", "🖱️")
-
-local clickToggle = CreateToggle(secClickMain, "Ativar Auto Clicker", false, function(v)
-    S.AutoClicker = v
-end)
-
-CreateStepper(secClickMain, "Velocidade (CPS)", 1, 50, 10, 1, function(v)
-    S.ClickSpeed = v
-end)
-
--- Modo: Mouse / Fixo
-local clickModeBtn = Instance.new("TextButton", secClickMain)
-clickModeBtn.Size = UDim2.new(1, 0, 0, 34)
-clickModeBtn.BackgroundColor3 = C.Bg
-clickModeBtn.TextColor3 = C.Text
-clickModeBtn.Text = "Modo: 🖱️ Mouse"
-clickModeBtn.TextSize = 11; clickModeBtn.Font = C.FontB
-clickModeBtn.AutoButtonColor = false; clickModeBtn.ZIndex = 103
-Corner(clickModeBtn, 8)
-clickModeBtn.MouseButton1Click:Connect(function()
-    PS("Click")
-    S.ClickMode = (S.ClickMode == "Mouse" and "Fixo" or "Mouse")
-    clickModeBtn.Text = "Modo: " .. (S.ClickMode == "Mouse" and "🖱️ Mouse" or "📌 Fixo")
-end)
-
--- Botão para definir posição
-local clickPosBtn = Instance.new("TextButton", secClickMain)
-clickPosBtn.Size = UDim2.new(1, 0, 0, 34)
-clickPosBtn.BackgroundColor3 = C.Purple
-clickPosBtn.TextColor3 = Color3.new(1,1,1)
-clickPosBtn.Text = "📌 Definir Posição Fixa"
-clickPosBtn.TextSize = 11; clickPosBtn.Font = C.FontB
-clickPosBtn.AutoButtonColor = false; clickPosBtn.ZIndex = 103
-Corner(clickPosBtn, 8)
-clickPosBtn.MouseButton1Click:Connect(function()
-    PS("Click")
-    S.CapturingPos = true
-    clickPosBtn.Text = "🎯 Clique em qualquer lugar..."
-    clickPosBtn.BackgroundColor3 = C.Yellow
-    clickPosBtn.TextColor3 = Color3.new(0,0,0)
-end)
-
-local clickPosLabel = CreateLabel(secClickMain, "Posição atual: — (usando mouse)", 22)
-clickPosLabel.TextColor3 = C.Dim
-clickPosLabel.Font = C.FontB
-
-local secClickInfo = CreateSection(ClickP, "Info", "ℹ️")
-CreateLabel(secClickInfo,
-    "🖱️ Modo MOUSE: clica onde o cursor estiver.\n" ..
-    "📌 Modo FIXO: clica sempre numa posição salva da tela.\n\n" ..
-    "Configura o atalho em ATALHOS → Auto Clicker\n" ..
-    "Sugestão: use MouseButton4/5 (laterais) ou F5/F6.",
-    110)
-
--- Atualiza label da posição
-task.spawn(function()
-    while task.wait(0.5) do
-        if S.ClickFixedPos then
-            clickPosLabel.Text = string.format("Posição: X=%d Y=%d", S.ClickFixedPos.X, S.ClickFixedPos.Y)
-        else
-            clickPosLabel.Text = "Posição atual: — (usando mouse)"
-        end
-    end
-end)
-
---=============================================================
 -- ⚙️ PRESETS
 --=============================================================
-local secPreset = CreateSection(PresetP, "Predefinições", "⚙️")
+CreateTitle(PresetP, "Predefinições", "⚙️")
 
-CreateButton(secPreset, "🎯 Carregar: Modo Legit", Color3.fromRGB(0, 100, 50), function()
+CreateButton(PresetP, "🎯 Carregar: Modo Legit", Color3.fromRGB(0, 100, 50), function()
     if VisToggles["Ativar ESP"] then VisToggles["Ativar ESP"](true) end
     if VisToggles["Destaque (Chams)"] then VisToggles["Destaque (Chams)"](true) end
     if VisToggles["Cor do Time"] then VisToggles["Cor do Time"](true) end
@@ -1176,7 +1157,7 @@ CreateButton(secPreset, "🎯 Carregar: Modo Legit", Color3.fromRGB(0, 100, 50),
     Notify("Preset Legit carregado!", true)
 end)
 
-CreateButton(secPreset, "🤖 Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), function()
+CreateButton(PresetP, "🤖 Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), function()
     if VisToggles["ESP em NPCs"] then VisToggles["ESP em NPCs"](true) end
     if VisToggles["Destaque (Chams)"] then VisToggles["Destaque (Chams)"](true) end
     if VisToggles["Ativar Assistência"] then VisToggles["Ativar Assistência"](true) end
@@ -1187,12 +1168,12 @@ CreateButton(secPreset, "🤖 Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), f
     Notify("Preset NPC carregado!", true)
 end)
 
-CreateButton(secPreset, "🔄 Resetar Tudo", Color3.fromRGB(150, 30, 30), function()
+CreateButton(PresetP, "🔄 Resetar Tudo", Color3.fromRGB(150, 30, 30), function()
     for _, f in pairs(VisToggles) do f(false, true, true) end
     Notify("Tudo resetado", true)
 end)
 
-local secFloat = CreateSection(PresetP, "Botões Flutuantes", "🔘")
+CreateTitle(PresetP, "Botões Flutuantes", "🔘")
 
 local function CountFloats()
     local n = 0
@@ -1248,7 +1229,6 @@ local function SpawnFloat(name, cb)
             startFrame = ff.Position
         end
     end)
-
     RunService.RenderStepped:Connect(function()
         if not dragging then return end
         local now = UIS:GetMouseLocation()
@@ -1260,27 +1240,24 @@ local function SpawnFloat(name, cb)
                 startFrame.Y.Scale, startFrame.Y.Offset + d.Y)
         end
     end)
-
     b.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             if dragging and not moved then cb() end
-            dragging = false
-            moved = false
+            dragging = false; moved = false
         end
     end)
-
     close.MouseButton1Click:Connect(function() ff:Destroy() end)
 end
 
-CreateButton(secFloat, "Criar Botão: Mira", Color3.fromRGB(50, 50, 150), function()
+CreateButton(PresetP, "Criar Botão: Mira", Color3.fromRGB(50, 50, 150), function()
     SpawnFloat("AIM", function()
         local n = not S.AimAssist
         if VisToggles["Ativar Assistência"] then VisToggles["Ativar Assistência"](n) end
         Notify("MIRA: " .. (n and "ON" or "OFF"), n)
     end)
 end)
-CreateButton(secFloat, "Criar Botão: Visual", Color3.fromRGB(50, 50, 150), function()
+CreateButton(PresetP, "Criar Botão: Visual", Color3.fromRGB(50, 50, 150), function()
     SpawnFloat("VIS", function()
         local n = not S.ESP
         if VisToggles["Ativar ESP"] then VisToggles["Ativar ESP"](n) end
@@ -1288,19 +1265,11 @@ CreateButton(secFloat, "Criar Botão: Visual", Color3.fromRGB(50, 50, 150), func
         Notify("VISUAL: " .. (n and "ON" or "OFF"), n)
     end)
 end)
-CreateButton(secFloat, "Criar Botão: Hitbox", Color3.fromRGB(50, 50, 150), function()
+CreateButton(PresetP, "Criar Botão: Hitbox", Color3.fromRGB(50, 50, 150), function()
     SpawnFloat("HB", function()
         local n = not S.HitboxEnabled
         if VisToggles["Aumentar Hitbox (Jogadores)"] then VisToggles["Aumentar Hitbox (Jogadores)"](n) end
         Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
-    end)
-end)
-CreateButton(secFloat, "Criar Botão: Auto Clicker", Color3.fromRGB(150, 50, 150), function()
-    SpawnFloat("CLICK", function()
-        local n = not S.AutoClicker
-        S.AutoClicker = n
-        if VisToggles["Ativar Auto Clicker"] then VisToggles["Ativar Auto Clicker"](n) end
-        Notify("CLICKER: " .. (n and "ON" or "OFF"), n)
     end)
 end)
 
@@ -1345,28 +1314,26 @@ local function BindRow(parent, label, key, btn)
     b.Text = KeyName(bind.Mod, bind.Key)
     b.MouseButton1Click:Connect(function()
         PS("Click")
-        b.Text = "Pressione (tecla/mouse)..."
+        b.Text = "Pressione..."
         b.TextColor3 = Color3.fromRGB(255, 200, 0)
         listening = {Key = key, UI = b}
     end)
 end
 
-local secB = CreateSection(BindsP, "Configurar Teclas", "⌨️")
-BindRow(secB, "Aimbot", "AimAssist", aimbotBtn)
-BindRow(secB, "ESP (Visual)", "Visuals", espBtn)
-BindRow(secB, "Hitbox", "Hitbox", hitboxBtn)
-BindRow(secB, "Auto Clicker", "AutoClicker", nil)
-CreateLabel(secB,
-    "• Aceita teclas do teclado E botões do mouse (MouseButton4/5 = laterais).\n" ..
+CreateTitle(BindsP, "Configurar Teclas", "⌨️")
+BindRow(BindsP, "Aimbot", "AimAssist", aimbotBtn)
+BindRow(BindsP, "ESP (Visual)", "Visuals", espBtn)
+BindRow(BindsP, "Hitbox", "Hitbox", hitboxBtn)
+CreateLabel(BindsP,
     "• Ctrl Direito / Delete = abrir menu.\n" ..
-    "• Esc = cancelar captura de tecla.", 55)
+    "• Esc = cancelar captura de tecla.", 40)
 
 --=============================================================
 -- 🌐 SERVIDOR
 --=============================================================
-local secSrv = CreateSection(ServP, "Trocar de Servidor", "🌐")
+CreateTitle(ServP, "Trocar de Servidor", "🌐")
 
-CreateButton(secSrv, "🔄 Reconectar (Mesmo Servidor)", Color3.fromRGB(0, 100, 150), function()
+CreateButton(ServP, "🔄 Reconectar (Mesmo Servidor)", Color3.fromRGB(0, 100, 150), function()
     Notify("Reconectando...", true)
     task.wait(0.5)
     pcall(function()
@@ -1374,7 +1341,7 @@ CreateButton(secSrv, "🔄 Reconectar (Mesmo Servidor)", Color3.fromRGB(0, 100, 
     end)
 end)
 
-CreateButton(secSrv, "🎲 Servidor Aleatório", Color3.fromRGB(150, 100, 0), function()
+CreateButton(ServP, "🎲 Servidor Aleatório", Color3.fromRGB(150, 100, 0), function()
     Notify("Procurando servidor aleatório...", true)
     pcall(function()
         local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -1396,7 +1363,7 @@ CreateButton(secSrv, "🎲 Servidor Aleatório", Color3.fromRGB(150, 100, 0), fu
     end)
 end)
 
-CreateButton(secSrv, "🔥 Servidor Mais Cheio", Color3.fromRGB(200, 60, 0), function()
+CreateButton(ServP, "🔥 Servidor Mais Cheio", Color3.fromRGB(200, 60, 0), function()
     Notify("Procurando servidor mais cheio...", true)
     pcall(function()
         local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Desc&limit=100"
@@ -1417,7 +1384,7 @@ CreateButton(secSrv, "🔥 Servidor Mais Cheio", Color3.fromRGB(200, 60, 0), fun
     end)
 end)
 
-CreateButton(secSrv, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), function()
+CreateButton(ServP, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), function()
     Notify("Procurando servidor mais vazio...", true)
     pcall(function()
         local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -1441,23 +1408,23 @@ end)
 --=============================================================
 -- 🧰 MISC
 --=============================================================
-local secMiscFps = CreateSection(MiscP, "Desempenho", "⚡")
-CreateToggle(secMiscFps, "Remover Texturas", false, function(v)
+CreateTitle(MiscP, "Desempenho", "⚡")
+CreateToggle(MiscP, "Remover Texturas", false, function(v)
     S.BoostFPS = v
     for _, o in pairs(game:GetDescendants()) do
         if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end
     end
 end)
-CreateToggle(secMiscFps, "Remover Sombras", false, function(v)
+CreateToggle(MiscP, "Remover Sombras", false, function(v)
     S.RemoveShadows = v
     Lighting.GlobalShadows = not v
 end)
-CreateStepper(secMiscFps, "Limite de FPS", 30, 240, 120, 30, function(v)
+CreateStepper(MiscP, "Limite de FPS", 30, 240, 120, 30, function(v)
     if setfpscap then setfpscap(v) end
 end)
 
-local secMiscAmb = CreateSection(MiscP, "Ambiente", "☀️")
-CreateToggle(secMiscAmb, "Visão Total (Fullbright)", false, function(v)
+CreateTitle(MiscP, "Ambiente", "☀️")
+CreateToggle(MiscP, "Visão Total (Fullbright)", false, function(v)
     S.Fullbright = v
     if v then
         Lighting.Brightness = 3
@@ -1469,7 +1436,7 @@ CreateToggle(secMiscAmb, "Visão Total (Fullbright)", false, function(v)
         Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
     end
 end)
-CreateToggle(secMiscAmb, "Remover Névoa", false, function(v)
+CreateToggle(MiscP, "Remover Névoa", false, function(v)
     S.NoFog = v
     if v then
         Lighting.FogEnd = 100000
@@ -1480,35 +1447,34 @@ CreateToggle(secMiscAmb, "Remover Névoa", false, function(v)
     end
 end)
 
-local secMiscUtil = CreateSection(MiscP, "Utilidades", "🔧")
-CreateToggle(secMiscUtil, "Anti-AFK", false, function(v)
+CreateTitle(MiscP, "Utilidades", "🔧")
+CreateToggle(MiscP, "Anti-AFK", false, function(v)
     S.AntiAFK = v
     if v then Notify("Anti-AFK ativado", true) end
 end)
-CreateButton(secMiscUtil, "♻️ Resetar Personagem", Color3.fromRGB(150, 80, 0), function()
+CreateButton(MiscP, "♻️ Resetar Personagem", Color3.fromRGB(150, 80, 0), function()
     local ch = LocalPlayer.Character
     if ch then
         local hum = ch:FindFirstChildOfClass("Humanoid")
         if hum then hum.Health = 0; Notify("Personagem resetado", true) end
     end
 end)
-CreateButton(secMiscUtil, "🧹 Limpar Notificações", Color3.fromRGB(80, 80, 80), function()
+CreateButton(MiscP, "🧹 Limpar Notificações", Color3.fromRGB(80, 80, 80), function()
     for _, v in pairs(NF:GetChildren()) do
         if v:IsA("TextLabel") then v:Destroy() end
     end
 end)
 
-local secMiscAudio = CreateSection(MiscP, "Áudio", "🔊")
-CreateToggle(secMiscAudio, "Sons do Menu", true, function(v) S.SoundEnabled = v end)
+CreateTitle(MiscP, "Áudio", "🔊")
+CreateToggle(MiscP, "Sons do Menu", true, function(v) S.SoundEnabled = v end)
 
-local secMiscInfo = CreateSection(MiscP, "Sobre", "ℹ️")
-CreateLabel(secMiscInfo,
+CreateTitle(MiscP, "Sobre", "ℹ️")
+CreateLabel(MiscP,
     "🎯 Kiko Menu " .. VERSION .. "\n\n" ..
     "Atalhos:\n" ..
     "• Ctrl Direito / Delete — abrir/fechar\n" ..
     "• 🔍 — buscar função pelo nome\n" ..
-    "• Botão flutuante — clique abre, arraste move\n" ..
-    "• Arraste o título para mover o menu", 160)
+    "• Arraste o título para mover o menu", 130)
 
 --=============================================================
 -- 🔍 SISTEMA DE BUSCA
@@ -1528,38 +1494,25 @@ SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
     local q = string.lower(SearchBox.Text)
     if q == "" then
         for _, e in pairs(SearchIndex) do
-            e.btn.Visible = true
-            e.container.Visible = e.isOpen
+            if not e.isConfig then e.element.Visible = true end
         end
         return
     end
-    local matched = {}
+
+    -- Pass 1: computar matches
+    local matchedToggle = {}
     for _, e in pairs(SearchIndex) do
         local m = string.find(e.searchText, q, 1, true) ~= nil
-        e.btn.Visible = m
-        if not m then e.container.Visible = false
-        else e.container.Visible = e.isOpen; matched[e.page] = true end
+        e._matched = m
+        if m and e.isConfig and e.parentToggle then
+            matchedToggle[e.parentToggle] = true
+        end
     end
-    if ActivePage and not matched[ActivePage] then
-        for _, page in pairs(Pages) do
-            if matched[page] then
-                for _, p in pairs(Pages) do p.Visible = false end
-                for i, b in pairs(TabButtons) do
-                    b.BackgroundColor3 = C.Bg; b.TextColor3 = C.Dim
-                end
-                page.Visible = true; ActivePage = page
-                for i, p in pairs(Pages) do
-                    if p == page and TabButtons[i] then
-                        TabButtons[i].BackgroundColor3 = C.BgHover
-                        TabButtons[i].TextColor3 = C.Accent
-                        break
-                    end
-                end
-                Content.CanvasPosition = Vector2.new(0, 0)
-                task.wait()
-                Content.CanvasSize = UDim2.new(0, 0, 0, page.AbsoluteSize.Y + 20)
-                break
-            end
+
+    -- Pass 2: aplicar visibilidade
+    for _, e in pairs(SearchIndex) do
+        if not e.isConfig then
+            e.element.Visible = e._matched or matchedToggle[e.element] or false
         end
     end
 end)
@@ -1713,89 +1666,6 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 --=============================================================
--- 🖱️ AUTO CLICKER — LOOP (v2 CORRIGIDO)
---=============================================================
-local clickAccum = 0
-
--- Indicador visual
-local clickIndicator = Instance.new("Frame", ScreenGui)
-clickIndicator.Size = UDim2.new(0, 14, 0, 14)
-clickIndicator.Position = UDim2.new(1, -34, 0, 130)
-clickIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-clickIndicator.BackgroundTransparency = 0.1
-clickIndicator.Visible = false
-clickIndicator.ZIndex = 200
-Corner(clickIndicator, 7)
-Stroke(clickIndicator, Color3.new(1,1,1), 1.5, 0.3)
-
-local clickStatus = Instance.new("TextLabel", ScreenGui)
-clickStatus.Size = UDim2.new(0, 90, 0, 16)
-clickStatus.Position = UDim2.new(1, -130, 0, 128)
-clickStatus.BackgroundTransparency = 1
-clickStatus.Text = "🖱️ AUTO"
-clickStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
-clickStatus.TextSize = 10
-clickStatus.Font = Enum.Font.GothamBold
-clickStatus.TextXAlignment = Enum.TextXAlignment.Right
-clickStatus.Visible = false
-clickStatus.ZIndex = 201
-
--- Função que clica (com múltiplos fallbacks)
-local function DoClick(pos)
-    -- Método 1: mouse1click() — o mais confiável
-    if mouse1click then
-        pcall(mouse1click)
-        return
-    end
-
-    -- Método 2: mouse1press + mouse1release
-    if mouse1press and mouse1release then
-        pcall(function()
-            mouse1press()
-            task.wait(0.01)
-            mouse1release()
-        end)
-        return
-    end
-
-    -- Método 3: VirtualUser (fallback)
-    pcall(function()
-        VirtualUser:CaptureController()
-        VirtualUser:Button1Down(pos or UIS:GetMouseLocation())
-        task.wait(0.005)
-        VirtualUser:Button1Up(pos or UIS:GetMouseLocation())
-    end)
-end
-
--- Loop principal com acumulador (sem drift)
-task.spawn(function()
-    while true do
-        local dt = RunService.Heartbeat:Wait()
-
-        clickIndicator.Visible = S.AutoClicker
-        clickStatus.Visible = S.AutoClicker
-
-        if not S.AutoClicker then
-            clickAccum = 0
-            continue
-        end
-
-        local cps = math.clamp(S.ClickSpeed or 10, 1, 50)
-        local interval = 1 / cps
-        clickAccum = clickAccum + dt
-
-        while clickAccum >= interval do
-            clickAccum = clickAccum - interval
-
-            if S.ClickMode == "Fixo" and S.ClickFixedPos and mousemoverel then
-                local cur = UIS:GetMouseLocation()
-                pcall(mousemoverel, S.ClickFixedPos.X - cur.X, S.ClickFixedPos.Y - cur.Y)
-            end
-
-            DoClick(S.ClickMode == "Fixo" and S.ClickFixedPos or nil)
-        end
-    end
-end)--=============================================================
 -- TOGGLE MENU
 --=============================================================
 local function ToggleMenu()
@@ -1863,77 +1733,43 @@ do
 end
 
 --=============================================================
--- INPUTS (atalhos + captura de posição do clicker + captura de binds com mouse)
+-- INPUTS
 --=============================================================
 UIS.InputBegan:Connect(function(input, gp)
-    -- Captura de posição do Auto Clicker
-    if S.CapturingPos then
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            S.ClickFixedPos = UIS:GetMouseLocation()
-            S.CapturingPos = false
-            clickPosBtn.Text = "📌 Definir Posição Fixa"
-            clickPosBtn.BackgroundColor3 = C.Purple
-            clickPosBtn.TextColor3 = Color3.new(1,1,1)
-            return
-        end
-    end
-
-    -- Abrir menu
     if input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.Delete then
         ToggleMenu()
         return
     end
 
-    -- Captura de bind (aceita teclado E mouse)
-    if listening then
-        local isKeyboard = input.UserInputType == Enum.UserInputType.Keyboard
-        local isMouse = input.UserInputType == Enum.UserInputType.MouseButton1
-                     or input.UserInputType == Enum.UserInputType.MouseButton2
-                     or input.UserInputType == Enum.UserInputType.MouseButton3
-
-        -- Esc cancela
-        if isKeyboard and input.KeyCode == Enum.KeyCode.Escape then
+    if listening and input.UserInputType == Enum.UserInputType.Keyboard then
+        if input.KeyCode == Enum.KeyCode.Escape then
             local b = S.Binds[listening.Key]
             listening.UI.Text = KeyName(b.Mod, b.Key)
             listening.UI.TextColor3 = C.Green
             listening = nil
             return
         end
-
-        -- Não capturar modificadores isolados
-        if isKeyboard and (input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt
+        if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt
         or input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl
-        or input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift) then return end
+        or input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then return end
 
-        if isKeyboard then
-            local mod = nil
-            if UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.RightAlt) then mod = Enum.KeyCode.LeftAlt
-            elseif UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.RightControl) then mod = Enum.KeyCode.LeftControl
-            elseif UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift) then mod = Enum.KeyCode.LeftShift end
-            S.Binds[listening.Key] = {Mod = mod, Key = input.KeyCode, Mouse = nil}
-            listening.UI.Text = KeyName(mod, input.KeyCode)
-            listening.UI.TextColor3 = C.Green
-            Notify("Atalho atualizado!", true)
-            listening = nil
-            return
-        end
+        local mod = nil
+        if UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.RightAlt) then mod = Enum.KeyCode.LeftAlt
+        elseif UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.RightControl) then mod = Enum.KeyCode.LeftControl
+        elseif UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift) then mod = Enum.KeyCode.LeftShift end
+
+        S.Binds[listening.Key] = {Mod = mod, Key = input.KeyCode}
+        listening.UI.Text = KeyName(mod, input.KeyCode)
+        listening.UI.TextColor3 = C.Green
+        Notify("Atalho atualizado!", true)
+        listening = nil
+        return
     end
 
-    -- Execução dos atalhos
     if gp or listening then return end
 
     for bk, bi in pairs(S.Binds) do
-        -- Verifica mouse bind (mouse não tem KeyCode)
-        local isKeyPressed = (bi.Key and input.KeyCode == bi.Key)
-        local isMousePressed = false
-
-        if not isKeyPressed and bi.Mouse then
-            if bi.Mouse == "MouseButton3" and input.UserInputType == Enum.UserInputType.MouseButton3 then isMousePressed = true end
-            if bi.Mouse == "MouseButton2" and input.UserInputType == Enum.UserInputType.MouseButton2 then isMousePressed = true end
-        end
-
-        if isKeyPressed or isMousePressed then
+        if input.KeyCode == bi.Key then
             local modOK = true
             if bi.Mod == Enum.KeyCode.LeftAlt and not (UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.RightAlt)) then modOK = false end
             if bi.Mod == Enum.KeyCode.LeftControl and not (UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.RightControl)) then modOK = false end
@@ -1958,11 +1794,6 @@ UIS.InputBegan:Connect(function(input, gp)
                     if VisToggles["Aumentar Hitbox (Jogadores)"] then VisToggles["Aumentar Hitbox (Jogadores)"](n, true, true) end
                     S.HitboxEnabled = n
                     Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
-                elseif bk == "AutoClicker" then
-                    local n = not S.AutoClicker
-                    S.AutoClicker = n
-                    if VisToggles["Ativar Auto Clicker"] then VisToggles["Ativar Auto Clicker"](n, true, true) end
-                    Notify("AUTO CLICKER: " .. (n and "ON" or "OFF"), n)
                 end
             end
         end
@@ -2091,7 +1922,6 @@ RunService.RenderStepped:Connect(function()
 
     if S.AimAssist then
         local target, targetPos, best = nil, nil, math.huge
-
         local function Check(part, hum)
             if hum and hum.Health > 1 and IsVisible(part) then
                 local pos = part.Position
@@ -2332,7 +2162,7 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification", {
         Title = "🎯 Kiko Menu",
-        Text = "v5.7 — Whitelist 2ª aba + Auto Clicker!",
+        Text = "v5.8 — Sub-abas inteligentes!",
         Duration = 4,
     })
 end)
