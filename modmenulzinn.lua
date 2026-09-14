@@ -1,5 +1,5 @@
 --=============================================================
--- ◉ KIKO MENU v5.9 — SÍMBOLOS + FONTES + AMIGOS
+-- 🎯 KIKO MENU v5.11 — FONTE TOP + AMIGOS
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -45,7 +45,7 @@ getgenv().Settings = {
 }
 
 local S = getgenv().Settings
-local VERSION = "v5.9"
+local VERSION = "v5.11"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -67,20 +67,21 @@ local originalLighting = {
 }
 
 local C = {
-    Bg      = Color3.fromRGB(18, 18, 22),
-    BgAlt   = Color3.fromRGB(26, 26, 32),
-    BgHover = Color3.fromRGB(38, 38, 46),
-    Stroke  = Color3.fromRGB(50, 50, 60),
-    Text    = Color3.fromRGB(240, 240, 245),
-    Dim     = Color3.fromRGB(140, 140, 155),
-    Accent  = Color3.fromRGB(120, 180, 255),
-    Green   = Color3.fromRGB(120, 220, 160),
-    Red     = Color3.fromRGB(240, 120, 120),
-    Yellow  = Color3.fromRGB(240, 200, 120),
-    Purple  = Color3.fromRGB(180, 140, 240),
-    Friend  = Color3.fromRGB(0, 170, 255),
-    Font    = Enum.Font.GothamMedium,
-    FontB   = Enum.Font.GothamBlack,
+    Bg        = Color3.fromRGB(18, 18, 22),
+    BgAlt     = Color3.fromRGB(26, 26, 32),
+    BgHover   = Color3.fromRGB(38, 38, 46),
+    Stroke    = Color3.fromRGB(50, 50, 60),
+    Text      = Color3.fromRGB(240, 240, 245),
+    Dim       = Color3.fromRGB(140, 140, 155),
+    Accent    = Color3.fromRGB(120, 180, 255),
+    Green     = Color3.fromRGB(120, 220, 160),
+    Red       = Color3.fromRGB(240, 120, 120),
+    Yellow    = Color3.fromRGB(240, 200, 120),
+    Purple    = Color3.fromRGB(180, 140, 240),
+    Friend    = Color3.fromRGB(0, 170, 255),
+    Font      = Enum.Font.Gotham,
+    FontB     = Enum.Font.GothamBold,
+    FontTitle = Enum.Font.Michroma,    -- ⭐ fonte top SÓ nas sub-abas
 }
 
 local parentGui
@@ -96,13 +97,14 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = parentGui
 
 --=============================================================
--- ⭐ SISTEMA DE AMIGOS (cache assíncrono)
+-- ⭐ CACHE DE AMIGOS
 --=============================================================
 local FriendIds = {}
+local FriendsLoaded = false
 task.spawn(function()
     pcall(function()
         local cursor = ""
-        for _ = 1, 10 do
+        for _ = 1, 15 do
             local url = "https://friends.roblox.com/v1/users/" .. tostring(LocalPlayer.UserId) .. "/friends?limit=200"
             if cursor ~= "" then url = url .. "&cursor=" .. cursor end
             local data = HttpService:JSONDecode(game:HttpGet(url))
@@ -112,6 +114,7 @@ task.spawn(function()
             cursor = data.nextPageCursor or ""
             if cursor == "" then break end
         end
+        FriendsLoaded = true
     end)
 end)
 
@@ -119,7 +122,6 @@ local function IsFriend(p)
     return p and FriendIds[p.UserId] == true
 end
 
--- Ordena: amigos primeiro (★), depois alfabético por DisplayName
 local function SortPlayers(list)
     table.sort(list, function(a, b)
         local af = IsFriend(a) and 1 or 0
@@ -130,9 +132,6 @@ local function SortPlayers(list)
     return list
 end
 
---=============================================================
--- HELPERS
---=============================================================
 local function Corner(i, r)
     local c = Instance.new("UICorner", i)
     c.CornerRadius = UDim.new(0, r or 8)
@@ -294,7 +293,7 @@ local Logo = Instance.new("TextLabel", Header)
 Logo.Size = UDim2.new(1, -170, 1, 0)
 Logo.Position = UDim2.new(0, 16, 0, 0)
 Logo.BackgroundTransparency = 1
-Logo.Text = "◉  KIKO MENU"; Logo.TextColor3 = C.Text
+Logo.Text = "🎯  KIKO MENU"; Logo.TextColor3 = C.Text
 Logo.TextSize = 15; Logo.Font = C.FontB
 Logo.TextXAlignment = Enum.TextXAlignment.Left
 Logo.ZIndex = 102
@@ -313,8 +312,8 @@ local SearchIcon = Instance.new("TextButton", Header)
 SearchIcon.Size = UDim2.new(0, 28, 0, 28)
 SearchIcon.Position = UDim2.new(1, -72, 0, 7)
 SearchIcon.BackgroundColor3 = C.BgHover
-SearchIcon.Text = "⌕"; SearchIcon.TextColor3 = C.Text
-SearchIcon.TextSize = 16; SearchIcon.Font = C.FontB
+SearchIcon.Text = "🔍"; SearchIcon.TextColor3 = C.Text
+SearchIcon.TextSize = 14; SearchIcon.Font = Enum.Font.GothamBold
 SearchIcon.AutoButtonColor = false; SearchIcon.ZIndex = 105
 Corner(SearchIcon, 6)
 
@@ -323,7 +322,7 @@ CloseB.Size = UDim2.new(0, 28, 0, 28)
 CloseB.Position = UDim2.new(1, -38, 0, 7)
 CloseB.BackgroundColor3 = C.BgHover
 CloseB.Text = "X"; CloseB.TextColor3 = C.Text
-CloseB.TextSize = 16; CloseB.Font = C.FontB
+CloseB.TextSize = 16; CloseB.Font = Enum.Font.GothamBold
 CloseB.AutoButtonColor = false; CloseB.ZIndex = 105
 Corner(CloseB, 6)
 
@@ -338,7 +337,7 @@ SearchBox.Size = UDim2.new(1, -24, 0, 38)
 SearchBox.Position = UDim2.new(0, 12, 0, 50)
 SearchBox.BackgroundColor3 = C.BgAlt
 SearchBox.TextColor3 = C.Text
-SearchBox.PlaceholderText = "⌕  Buscar função pelo nome..."
+SearchBox.PlaceholderText = "🔍  Buscar função pelo nome..."
 SearchBox.PlaceholderColor3 = C.Dim
 SearchBox.Font = C.Font
 SearchBox.TextSize = 12
@@ -394,11 +393,11 @@ ContentLayout.Padding = UDim.new(0, 6)
 local Pages, TabButtons = {}, {}
 local ActivePage = nil
 
-local function CreatePage(name, symbol)
+local function CreatePage(name, emoji)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 88, 1, -8)
     btn.BackgroundColor3 = C.Bg
-    btn.Text = symbol .. "  " .. name
+    btn.Text = emoji .. "  " .. name
     btn.TextColor3 = C.Dim
     btn.TextSize = 11; btn.Font = C.FontB
     btn.AutoButtonColor = false; btn.ZIndex = 103
@@ -451,9 +450,9 @@ local function RegSearch(element, text, parentToggle)
 end
 
 --=============================================================
--- TÍTULO (não colapsável)
+-- TÍTULO (não colapsável) — agora com FONTE TOP
 --=============================================================
-local function CreateTitle(parent, title, symbol)
+local function CreateTitle(parent, title, emoji)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(1, 0, 0, 32)
     frame.BackgroundTransparency = 1
@@ -463,10 +462,10 @@ local function CreateTitle(parent, title, symbol)
     local lbl = Instance.new("TextLabel", frame)
     lbl.Size = UDim2.new(1, 0, 0, 22)
     lbl.BackgroundTransparency = 1
-    lbl.Text = (symbol and symbol .. "  " or "") .. title
+    lbl.Text = (emoji and emoji .. "  " or "") .. title
     lbl.TextColor3 = C.Dim
-    lbl.TextSize = 11
-    lbl.Font = C.FontB
+    lbl.TextSize = 12
+    lbl.Font = C.FontTitle          -- ⭐ FONTE TOP
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.TextYAlignment = Enum.TextYAlignment.Bottom
     lbl.ZIndex = 104
@@ -738,17 +737,17 @@ end
 --=============================================================
 -- ABAS
 --=============================================================
-local MiraP    = CreatePage("Mira",       "◉")
-local WLP      = CreatePage("Whitelist",  "✎")
-local VisualP  = CreatePage("Visual",     "◈")
-local PersoP   = CreatePage("Personagem", "▶")
-local TPP      = CreatePage("Teleporte",  "◎")
-local HitP     = CreatePage("Hitbox",     "■")
-local DefP     = CreatePage("Defusal",    "✦")
-local PresetP  = CreatePage("Presets",    "✱")
-local BindsP   = CreatePage("Atalhos",    "⌨")
-local ServP    = CreatePage("Servidor",   "⊕")
-local MiscP    = CreatePage("Misc",       "⚒")
+local MiraP    = CreatePage("Mira",       "🎯")
+local WLP      = CreatePage("Whitelist",  "📝")
+local VisualP  = CreatePage("Visual",     "👁️")
+local PersoP   = CreatePage("Personagem", "🏃")
+local TPP      = CreatePage("Teleporte",  "🌀")
+local HitP     = CreatePage("Hitbox",     "📦")
+local DefP     = CreatePage("Defusal",    "💣")
+local PresetP  = CreatePage("Presets",    "⚙️")
+local BindsP   = CreatePage("Atalhos",    "⌨️")
+local ServP    = CreatePage("Servidor",   "🌐")
+local MiscP    = CreatePage("Misc",       "🧰")
 
 MiraP.Visible = true
 ActivePage = MiraP
@@ -758,16 +757,16 @@ TabButtons[1].TextColor3 = C.Accent
 local aimbotBtn, espBtn, hitboxBtn
 
 --=============================================================
--- ◉ MIRA
+-- 🎯 MIRA
 --=============================================================
-CreateTitle(MiraP, "Assistência de Mira", "◉")
+CreateTitle(MiraP, "Assistência de Mira", "🎯")
 local cfgAim, aimApply, aimWrap, aimBtnT = CreateToggleWithConfig(MiraP, "Ativar Assistência", false, function(v) S.AimAssist = v end)
 aimbotBtn = aimBtnT
 CreateStepper(cfgAim, "Campo de Visão (FOV)", 10, 800, 100, 10, function(v) S.AimFOV = v end)
 CreateStepper(cfgAim, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) S.AimSmooth = v end)
 CreateToggle(cfgAim, "Exibir FOV na Tela", false, function(v) S.ShowFOV = v end)
 
-CreateTitle(MiraP, "Avançado", "◆")
+CreateTitle(MiraP, "Avançado", "🧠")
 CreateToggle(MiraP, "Prioridade 360°", false, function(v) S.TargetPriority = v end)
 local cfgPred = CreateToggleWithConfig(MiraP, "Predição de Movimento", false, function(v) S.AimPrediction = v end)
 CreateStepper(cfgPred, "Força da Predição", 0.05, 1, 0.1, 0.05, function(v) S.PredictionVelocity = v end)
@@ -806,19 +805,19 @@ PartBtn.MouseButton1Click:Connect(function()
 end)
 RegSearch(PartBtn, "Parte Alvo")
 
-CreateTitle(MiraP, "Filtros de Alvo", "⛨")
+CreateTitle(MiraP, "Filtros de Alvo", "🛡️")
 CreateToggle(MiraP, "Ignorar Aliados", false, function(v) S.TeamCheck = v end)
 CreateToggle(MiraP, "Ignorar Atrás de Paredes", false, function(v) S.WallCheck = v end)
 CreateToggle(MiraP, "Mira em NPCs", false, function(v) S.AimNPC = v end)
 
 --=============================================================
--- ✎ WHITELIST
+-- 📝 WHITELIST
 --=============================================================
 local wlDesc = Instance.new("TextLabel", WLP)
 wlDesc.Size = UDim2.new(1, 0, 0, 46)
 wlDesc.BackgroundColor3 = C.BgAlt
 wlDesc.BackgroundTransparency = 0.4
-wlDesc.Text = "  ⓘ  Jogadores na whitelist NÃO serão afetados por Aimbot, Silent, Hitbox e Auto TP. Clique no card para adicionar/remover."
+wlDesc.Text = "  ℹ️  Jogadores na whitelist NÃO serão afetados por Aimbot, Silent, Hitbox e Auto TP. Clique no card para adicionar/remover."
 wlDesc.TextColor3 = C.Dim
 wlDesc.TextSize = 10; wlDesc.Font = C.Font
 wlDesc.TextWrapped = true
@@ -845,7 +844,7 @@ wlActions.ZIndex = 103
 local wlRefreshBtn = Instance.new("TextButton", wlActions)
 wlRefreshBtn.Size = UDim2.new(0.48, 0, 1, 0)
 wlRefreshBtn.BackgroundColor3 = C.Accent
-wlRefreshBtn.Text = "↻ Atualizar Lista"
+wlRefreshBtn.Text = "🔄 Atualizar Lista"
 wlRefreshBtn.TextColor3 = Color3.new(1,1,1)
 wlRefreshBtn.TextSize = 11; wlRefreshBtn.Font = C.FontB
 wlRefreshBtn.AutoButtonColor = false; wlRefreshBtn.ZIndex = 104
@@ -855,7 +854,7 @@ local wlClearBtn = Instance.new("TextButton", wlActions)
 wlClearBtn.Size = UDim2.new(0.48, 0, 1, 0)
 wlClearBtn.Position = UDim2.new(0.52, 0, 0, 0)
 wlClearBtn.BackgroundColor3 = C.Red
-wlClearBtn.Text = "✕ Limpar Todos"
+wlClearBtn.Text = "🗑 Limpar Todos"
 wlClearBtn.TextColor3 = Color3.new(1,1,1)
 wlClearBtn.TextSize = 11; wlClearBtn.Font = C.FontB
 wlClearBtn.AutoButtonColor = false; wlClearBtn.ZIndex = 104
@@ -964,14 +963,13 @@ local function BuildWLUI()
         un.TextXAlignment = Enum.TextXAlignment.Left
         un.ZIndex = 105
 
-        -- Badge AMIGO (só pra amigos)
         if isFr then
             local frTag = Instance.new("TextLabel", card)
-            frTag.Size = UDim2.new(0, 50, 0, 16)
-            frTag.Position = UDim2.new(0, 56, 1, -22)
+            frTag.Size = UDim2.new(0, 52, 0, 16)
+            frTag.Position = UDim2.new(0, 56, 1, -20)
             frTag.BackgroundColor3 = C.Friend
             frTag.BackgroundTransparency = 0.05
-            frTag.Text = "★ AMIGO"
+            frTag.Text = "⭐ AMIGO"
             frTag.TextColor3 = Color3.new(1,1,1)
             frTag.TextSize = 8; frTag.Font = C.FontB
             frTag.ZIndex = 105
@@ -1020,16 +1018,14 @@ wlRefreshBtn.MouseButton1Click:Connect(function() PS("Click"); BuildWLUI() end)
 wlClearBtn.MouseButton1Click:Connect(function() PS("Click"); S.Whitelist = {}; BuildWLUI(); Notify("Whitelist limpa!", true) end)
 Players.PlayerAdded:Connect(function() task.wait(0.5); BuildWLUI() end)
 Players.PlayerRemoving:Connect(function() task.wait(0.5); BuildWLUI() end)
-
--- Rebuild depois que amigos carregarem
 task.defer(function() task.wait(1); BuildWLUI() end)
 task.delay(4, function() BuildWLUI() end)
 task.delay(8, function() BuildWLUI() end)
 
 --=============================================================
--- ◈ VISUAL
+-- 👁️ VISUAL
 --=============================================================
-CreateTitle(VisualP, "Jogadores", "◈")
+CreateTitle(VisualP, "Jogadores", "👁️")
 local cfgESP, espApply, espWrap, espBtnT = CreateToggleWithConfig(VisualP, "Ativar ESP", false, function(v) S.ESP = v end)
 espBtn = espBtnT
 CreateToggle(cfgESP, "Caixas", false, function(v) S.Boxes = v end)
@@ -1039,20 +1035,20 @@ CreateToggle(cfgESP, "Linhas", false, function(v) S.Lines = v end)
 CreateToggle(cfgESP, "Cor do Time", false, function(v) S.TeamColor = v end)
 CreateToggle(cfgESP, "Destaque (Chams)", false, function(v) S.Highlight = v end)
 
-CreateTitle(VisualP, "NPCs", "⬢")
+CreateTitle(VisualP, "NPCs", "🤖")
 CreateToggle(VisualP, "ESP em NPCs", false, function(v) S.ESPNPC = v end)
 
 --=============================================================
--- ▶ PERSONAGEM
+-- 🏃 PERSONAGEM
 --=============================================================
-CreateTitle(PersoP, "Velocidade", "ϟ")
+CreateTitle(PersoP, "Velocidade", "⚡")
 local cfgSpeed = CreateToggleWithConfig(PersoP, "Modificar Velocidade", false, function(v) S.UseSpeed = v end)
 CreateStepper(cfgSpeed, "Velocidade", 16, 500, 16, 5, function(v) S.Speed = v end)
 
-CreateTitle(PersoP, "Pulo", "↑")
+CreateTitle(PersoP, "Pulo", "🦘")
 CreateToggle(PersoP, "Pulo Infinito", false, function(v) S.InfiniteJump = v end)
 
-CreateTitle(PersoP, "Modo Voo", "▲")
+CreateTitle(PersoP, "Modo Voo", "🕊️")
 local cfgFly = CreateToggleWithConfig(PersoP, "Ativar Modo Voo", false, function(v)
     S.FlyMode = v
     if v then flyOn() else flyOff() end
@@ -1067,7 +1063,7 @@ upDownFrame.ZIndex = 103
 local upBtn = Instance.new("TextButton", upDownFrame)
 upBtn.Size = UDim2.new(0.5, -3, 1, 0)
 upBtn.BackgroundColor3 = C.Green
-upBtn.Text = "▲  SUBIR"; upBtn.TextColor3 = Color3.new(0,0,0)
+upBtn.Text = "⬆  SUBIR"; upBtn.TextColor3 = Color3.new(0,0,0)
 upBtn.TextSize = 11; upBtn.Font = C.FontB
 upBtn.AutoButtonColor = false; upBtn.ZIndex = 104
 Corner(upBtn, 8)
@@ -1076,7 +1072,7 @@ local downBtn = Instance.new("TextButton", upDownFrame)
 downBtn.Size = UDim2.new(0.5, -3, 1, 0)
 downBtn.Position = UDim2.new(0.5, 3, 0, 0)
 downBtn.BackgroundColor3 = C.Red
-downBtn.Text = "▼  DESCER"; downBtn.TextColor3 = Color3.new(0,0,0)
+downBtn.Text = "⬇  DESCER"; downBtn.TextColor3 = Color3.new(0,0,0)
 downBtn.TextSize = 11; downBtn.Font = C.FontB
 downBtn.AutoButtonColor = false; downBtn.ZIndex = 104
 Corner(downBtn, 8)
@@ -1103,14 +1099,14 @@ end)
 
 CreateLabel(cfgFly, "Use WASD pra voar. Segure SUBIR/DESCER pra mover verticalmente.", 30)
 
-CreateTitle(PersoP, "Câmera", "◐")
+CreateTitle(PersoP, "Câmera", "🎥")
 CreateToggle(PersoP, "Terceira Pessoa", false, function(v) S.ForceThirdPerson = v end)
 
 --=============================================================
--- ◎ TELEPORTE
+-- 🌀 TELEPORTE
 --=============================================================
-CreateTitle(TPP, "Jogadores Online", "◉")
-local SelLab = CreateLabel(TPP, "◉ Alvo: Nenhum", 25)
+CreateTitle(TPP, "Jogadores Online", "👥")
+local SelLab = CreateLabel(TPP, "🎯 Alvo: Nenhum", 25)
 SelLab.TextColor3 = C.Green
 
 local plist = Instance.new("ScrollingFrame", TPP)
@@ -1138,7 +1134,7 @@ local function UpList()
         local isFr = IsFriend(p)
         local b = Instance.new("TextButton", plist)
         b.Size = UDim2.new(1, -4, 0, 25)
-        b.Text = (isFr and "★ " or "") .. p.DisplayName
+        b.Text = (isFr and "⭐ " or "") .. p.DisplayName
         b.BackgroundColor3 = isFr and Color3.fromRGB(0, 90, 150) or C.BgHover
         b.TextColor3 = isFr and Color3.fromRGB(180, 220, 255) or C.Text
         b.TextSize = 10; b.Font = C.Font
@@ -1146,7 +1142,7 @@ local function UpList()
         Corner(b, 6)
         b.MouseButton1Click:Connect(function()
             S.SelectedPlayer = p
-            SelLab.Text = "◉ Alvo: " .. (isFr and "★ " or "") .. p.DisplayName
+            SelLab.Text = "🎯 Alvo: " .. (isFr and "⭐ " or "") .. p.DisplayName
         end)
     end
     plist.CanvasSize = UDim2.new(0, 0, 0, pll.AbsoluteContentSize.Y)
@@ -1157,8 +1153,8 @@ Players.PlayerRemoving:Connect(UpList)
 task.delay(4, UpList)
 task.delay(8, UpList)
 
-CreateTitle(TPP, "Ações", "◎")
-CreateButton(TPP, "➤ Teleportar até Alvo", C.Accent, function()
+CreateTitle(TPP, "Ações", "🌀")
+CreateButton(TPP, "📡 Teleportar até Alvo", C.Accent, function()
     if S.SelectedPlayer and S.SelectedPlayer.Character and LocalPlayer.Character then
         LocalPlayer.Character.HumanoidRootPart.CFrame = S.SelectedPlayer.Character.HumanoidRootPart.CFrame
         Notify("Teleportado até " .. S.SelectedPlayer.DisplayName, true)
@@ -1172,9 +1168,9 @@ CreateStepper(cfgSticky, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) S.StickySm
 CreateStepper(cfgSticky, "Distância", 1, 20, 3, 1, function(v) S.StickyDistance = v end)
 
 --=============================================================
--- ■ HITBOX
+-- 📦 HITBOX
 --=============================================================
-CreateTitle(HitP, "Hitbox", "■")
+CreateTitle(HitP, "Hitbox", "📦")
 local cfgHb, hbApply, hbWrap, hbBtnT = CreateToggleWithConfig(HitP, "Aumentar Hitbox (Jogadores)", false, function(v) S.HitboxEnabled = v end)
 hitboxBtn = hbBtnT
 CreateStepper(cfgHb, "Tamanho", 2, 100, 20, 5, function(v) S.Hitbox = v end)
@@ -1183,34 +1179,34 @@ CreateStepper(cfgHb, "Opacidade", 0, 1, 0.6, 0.1, function(v) S.HitboxTransparen
 CreateToggle(HitP, "Aumentar Hitbox (NPCs)", false, function(v) S.HitboxNPC = v end)
 
 --=============================================================
--- ✦ DEFUSAL
+-- 💣 DEFUSAL
 --=============================================================
-CreateTitle(DefP, "ESP por Time", "✦")
+CreateTitle(DefP, "ESP por Time", "💣")
 CreateToggle(DefP, "Detectar Time Automaticamente", false, function(v) S.AutoTeamColorCheck = v end)
 
-CreateTitle(DefP, "Mira por Time", "◉")
-local DefLab = CreateLabel(DefP, "◉ Alvo Inimigo: Nenhum", 25)
+CreateTitle(DefP, "Mira por Time", "🎯")
+local DefLab = CreateLabel(DefP, "🎯 Alvo Inimigo: Nenhum", 25)
 DefLab.TextColor3 = C.Text
 CreateToggle(DefP, "Mira Apenas em Inimigos", false, function(v) S.ColorAimbot = v end)
-CreateButton(DefP, "● Definir Alvo: Time Azul", Color3.fromRGB(72,171,229), function()
+CreateButton(DefP, "🔵 Definir Alvo: Time Azul", Color3.fromRGB(72,171,229), function()
     S.ColorAimbotTarget = Color3.fromRGB(72,171,229)
-    DefLab.Text = "◉ Alvo Inimigo: Time Azul"
+    DefLab.Text = "🎯 Alvo Inimigo: Time Azul"
     DefLab.TextColor3 = Color3.fromRGB(72,171,229)
     Notify("Alvo definido: Time Azul", true)
 end)
-CreateButton(DefP, "● Definir Alvo: Time Vermelho", Color3.fromRGB(229,72,72), function()
+CreateButton(DefP, "🔴 Definir Alvo: Time Vermelho", Color3.fromRGB(229,72,72), function()
     S.ColorAimbotTarget = Color3.fromRGB(229,72,72)
-    DefLab.Text = "◉ Alvo Inimigo: Time Vermelho"
+    DefLab.Text = "🎯 Alvo Inimigo: Time Vermelho"
     DefLab.TextColor3 = Color3.fromRGB(229,72,72)
     Notify("Alvo definido: Time Vermelho", true)
 end)
 
 --=============================================================
--- ✱ PRESETS
+-- ⚙️ PRESETS
 --=============================================================
-CreateTitle(PresetP, "Predefinições", "✱")
+CreateTitle(PresetP, "Predefinições", "⚙️")
 
-CreateButton(PresetP, "◉ Carregar: Modo Legit", Color3.fromRGB(0, 100, 50), function()
+CreateButton(PresetP, "🎯 Carregar: Modo Legit", Color3.fromRGB(0, 100, 50), function()
     if VisToggles["Ativar ESP"] then VisToggles["Ativar ESP"](true) end
     if VisToggles["Destaque (Chams)"] then VisToggles["Destaque (Chams)"](true) end
     if VisToggles["Cor do Time"] then VisToggles["Cor do Time"](true) end
@@ -1221,7 +1217,7 @@ CreateButton(PresetP, "◉ Carregar: Modo Legit", Color3.fromRGB(0, 100, 50), fu
     Notify("Preset Legit carregado!", true)
 end)
 
-CreateButton(PresetP, "⬢ Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), function()
+CreateButton(PresetP, "🤖 Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), function()
     if VisToggles["ESP em NPCs"] then VisToggles["ESP em NPCs"](true) end
     if VisToggles["Destaque (Chams)"] then VisToggles["Destaque (Chams)"](true) end
     if VisToggles["Ativar Assistência"] then VisToggles["Ativar Assistência"](true) end
@@ -1232,12 +1228,12 @@ CreateButton(PresetP, "⬢ Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), func
     Notify("Preset NPC carregado!", true)
 end)
 
-CreateButton(PresetP, "↻ Resetar Tudo", Color3.fromRGB(150, 30, 30), function()
+CreateButton(PresetP, "🔄 Resetar Tudo", Color3.fromRGB(150, 30, 30), function()
     for _, f in pairs(VisToggles) do f(false, true, true) end
     Notify("Tudo resetado", true)
 end)
 
-CreateTitle(PresetP, "Botões Flutuantes", "●")
+CreateTitle(PresetP, "Botões Flutuantes", "🔘")
 
 local function CountFloats()
     local n = 0
@@ -1338,7 +1334,7 @@ CreateButton(PresetP, "Criar Botão: Hitbox", Color3.fromRGB(50, 50, 150), funct
 end)
 
 --=============================================================
--- ⌨ ATALHOS
+-- ⌨️ ATALHOS
 --=============================================================
 local listening = nil
 local function KeyName(mod, key)
@@ -1384,7 +1380,7 @@ local function BindRow(parent, label, key, btn)
     end)
 end
 
-CreateTitle(BindsP, "Configurar Teclas", "⌨")
+CreateTitle(BindsP, "Configurar Teclas", "⌨️")
 BindRow(BindsP, "Aimbot", "AimAssist", aimbotBtn)
 BindRow(BindsP, "ESP (Visual)", "Visuals", espBtn)
 BindRow(BindsP, "Hitbox", "Hitbox", hitboxBtn)
@@ -1393,11 +1389,11 @@ CreateLabel(BindsP,
     "• Esc = cancelar captura de tecla.", 40)
 
 --=============================================================
--- ⊕ SERVIDOR
+-- 🌐 SERVIDOR
 --=============================================================
-CreateTitle(ServP, "Trocar de Servidor", "⊕")
+CreateTitle(ServP, "Trocar de Servidor", "🌐")
 
-CreateButton(ServP, "↻ Reconectar (Mesmo Servidor)", Color3.fromRGB(0, 100, 150), function()
+CreateButton(ServP, "🔄 Reconectar (Mesmo Servidor)", Color3.fromRGB(0, 100, 150), function()
     Notify("Reconectando...", true)
     task.wait(0.5)
     pcall(function()
@@ -1405,7 +1401,7 @@ CreateButton(ServP, "↻ Reconectar (Mesmo Servidor)", Color3.fromRGB(0, 100, 15
     end)
 end)
 
-CreateButton(ServP, "◆ Servidor Aleatório", Color3.fromRGB(150, 100, 0), function()
+CreateButton(ServP, "🎲 Servidor Aleatório", Color3.fromRGB(150, 100, 0), function()
     Notify("Procurando servidor aleatório...", true)
     pcall(function()
         local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -1427,7 +1423,7 @@ CreateButton(ServP, "◆ Servidor Aleatório", Color3.fromRGB(150, 100, 0), func
     end)
 end)
 
-CreateButton(ServP, "▲ Servidor Mais Cheio", Color3.fromRGB(200, 60, 0), function()
+CreateButton(ServP, "🔥 Servidor Mais Cheio", Color3.fromRGB(200, 60, 0), function()
     Notify("Procurando servidor mais cheio...", true)
     pcall(function()
         local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Desc&limit=100"
@@ -1448,7 +1444,7 @@ CreateButton(ServP, "▲ Servidor Mais Cheio", Color3.fromRGB(200, 60, 0), funct
     end)
 end)
 
-CreateButton(ServP, "▼ Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), function()
+CreateButton(ServP, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), function()
     Notify("Procurando servidor mais vazio...", true)
     pcall(function()
         local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -1470,9 +1466,9 @@ CreateButton(ServP, "▼ Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), funct
 end)
 
 --=============================================================
--- ⚒ MISC
+-- 🧰 MISC
 --=============================================================
-CreateTitle(MiscP, "Desempenho", "ϟ")
+CreateTitle(MiscP, "Desempenho", "⚡")
 CreateToggle(MiscP, "Remover Texturas", false, function(v)
     S.BoostFPS = v
     for _, o in pairs(game:GetDescendants()) do
@@ -1487,7 +1483,7 @@ CreateStepper(MiscP, "Limite de FPS", 30, 240, 120, 30, function(v)
     if setfpscap then setfpscap(v) end
 end)
 
-CreateTitle(MiscP, "Ambiente", "☼")
+CreateTitle(MiscP, "Ambiente", "☀️")
 CreateToggle(MiscP, "Visão Total (Fullbright)", false, function(v)
     S.Fullbright = v
     if v then
@@ -1511,37 +1507,37 @@ CreateToggle(MiscP, "Remover Névoa", false, function(v)
     end
 end)
 
-CreateTitle(MiscP, "Utilidades", "⚒")
+CreateTitle(MiscP, "Utilidades", "🔧")
 CreateToggle(MiscP, "Anti-AFK", false, function(v)
     S.AntiAFK = v
     if v then Notify("Anti-AFK ativado", true) end
 end)
-CreateButton(MiscP, "↻ Resetar Personagem", Color3.fromRGB(150, 80, 0), function()
+CreateButton(MiscP, "♻️ Resetar Personagem", Color3.fromRGB(150, 80, 0), function()
     local ch = LocalPlayer.Character
     if ch then
         local hum = ch:FindFirstChildOfClass("Humanoid")
         if hum then hum.Health = 0; Notify("Personagem resetado", true) end
     end
 end)
-CreateButton(MiscP, "✕ Limpar Notificações", Color3.fromRGB(80, 80, 80), function()
+CreateButton(MiscP, "🧹 Limpar Notificações", Color3.fromRGB(80, 80, 80), function()
     for _, v in pairs(NF:GetChildren()) do
         if v:IsA("TextLabel") then v:Destroy() end
     end
 end)
 
-CreateTitle(MiscP, "Áudio", "♪")
+CreateTitle(MiscP, "Áudio", "🔊")
 CreateToggle(MiscP, "Sons do Menu", true, function(v) S.SoundEnabled = v end)
 
-CreateTitle(MiscP, "Sobre", "ⓘ")
+CreateTitle(MiscP, "Sobre", "ℹ️")
 CreateLabel(MiscP,
-    "◉ Kiko Menu " .. VERSION .. "\n\n" ..
+    "🎯 Kiko Menu " .. VERSION .. "\n\n" ..
     "Atalhos:\n" ..
     "• Ctrl Direito / Delete — abrir/fechar\n" ..
-    "• ⌕ — buscar função pelo nome\n" ..
+    "• 🔍 — buscar função pelo nome\n" ..
     "• Arraste o título para mover o menu", 130)
 
 --=============================================================
--- ⌕ SISTEMA DE BUSCA
+-- 🔍 SISTEMA DE BUSCA
 --=============================================================
 SearchIcon.MouseButton1Click:Connect(function()
     PS("Click")
@@ -1580,7 +1576,7 @@ SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
 end)
 
 --=============================================================
--- ▲ FLY
+-- 🕊️ FLY
 --=============================================================
 function flyOn()
     local speaker = LocalPlayer
@@ -1686,7 +1682,7 @@ function flyOn()
         getgenv().tpwalking = false
     end
 
-    Notify("▲ Modo Voo ATIVADO", true)
+    Notify("🕊️ Modo Voo ATIVADO", true)
 end
 
 function flyOff()
@@ -1712,7 +1708,7 @@ function flyOff()
         h:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
         h:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
     end
-    Notify("▲ Modo Voo DESATIVADO", false)
+    Notify("🕊️ Modo Voo DESATIVADO", false)
 end
 
 LocalPlayer.CharacterAdded:Connect(function()
@@ -2187,7 +2183,7 @@ task.spawn(function()
             end
             if closest and S.SelectedPlayer ~= closest then
                 S.SelectedPlayer = closest
-                SelLab.Text = "◉ Alvo: " .. closest.DisplayName .. " (Auto)"
+                SelLab.Text = "🎯 Alvo: " .. closest.DisplayName .. " (Auto)"
             end
         end
         task.wait(0.2)
@@ -2223,10 +2219,10 @@ end)
 
 pcall(function()
     StarterGui:SetCore("SendNotification", {
-        Title = "◉ Kiko Menu",
-        Text = "v5.9 — Símbolos + Fontes + Amigos",
+        Title = "🎯 Kiko Menu",
+        Text = "v5.11 — Fonte top + Amigos!",
         Duration = 4,
     })
 end)
 
-print("[Kiko MENU " .. VERSION .. "] Carregado com sucesso!")
+print("[Kiko MENU " .. VERSION .. "] ✅ Carregado com sucesso!")
