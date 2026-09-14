@@ -81,7 +81,7 @@ local C = {
     Friend    = Color3.fromRGB(0, 170, 255),
     Font      = Enum.Font.Gotham,
     FontB     = Enum.Font.GothamBold,
-    FontTitle = Enum.Font.Michroma,    -- ⭐ fonte top SÓ nas sub-abas
+    FontTitle = Enum.Font.GothamBold,  
 }
 
 local parentGui
