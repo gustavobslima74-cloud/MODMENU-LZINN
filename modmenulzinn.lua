@@ -1713,29 +1713,89 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 --=============================================================
--- 🖱️ AUTO CLICKER — LOOP
+-- 🖱️ AUTO CLICKER — LOOP (v2 CORRIGIDO)
 --=============================================================
+local clickAccum = 0
+
+-- Indicador visual
+local clickIndicator = Instance.new("Frame", ScreenGui)
+clickIndicator.Size = UDim2.new(0, 14, 0, 14)
+clickIndicator.Position = UDim2.new(1, -34, 0, 130)
+clickIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+clickIndicator.BackgroundTransparency = 0.1
+clickIndicator.Visible = false
+clickIndicator.ZIndex = 200
+Corner(clickIndicator, 7)
+Stroke(clickIndicator, Color3.new(1,1,1), 1.5, 0.3)
+
+local clickStatus = Instance.new("TextLabel", ScreenGui)
+clickStatus.Size = UDim2.new(0, 90, 0, 16)
+clickStatus.Position = UDim2.new(1, -130, 0, 128)
+clickStatus.BackgroundTransparency = 1
+clickStatus.Text = "🖱️ AUTO"
+clickStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
+clickStatus.TextSize = 10
+clickStatus.Font = Enum.Font.GothamBold
+clickStatus.TextXAlignment = Enum.TextXAlignment.Right
+clickStatus.Visible = false
+clickStatus.ZIndex = 201
+
+-- Função que clica (com múltiplos fallbacks)
+local function DoClick(pos)
+    -- Método 1: mouse1click() — o mais confiável
+    if mouse1click then
+        pcall(mouse1click)
+        return
+    end
+
+    -- Método 2: mouse1press + mouse1release
+    if mouse1press and mouse1release then
+        pcall(function()
+            mouse1press()
+            task.wait(0.01)
+            mouse1release()
+        end)
+        return
+    end
+
+    -- Método 3: VirtualUser (fallback)
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:Button1Down(pos or UIS:GetMouseLocation())
+        task.wait(0.005)
+        VirtualUser:Button1Up(pos or UIS:GetMouseLocation())
+    end)
+end
+
+-- Loop principal com acumulador (sem drift)
 task.spawn(function()
     while true do
-        local cps = math.max(1, S.ClickSpeed or 10)
+        local dt = RunService.Heartbeat:Wait()
+
+        clickIndicator.Visible = S.AutoClicker
+        clickStatus.Visible = S.AutoClicker
+
+        if not S.AutoClicker then
+            clickAccum = 0
+            continue
+        end
+
+        local cps = math.clamp(S.ClickSpeed or 10, 1, 50)
         local interval = 1 / cps
-        task.wait(interval)
-        if S.AutoClicker then
-            local pos
-            if S.ClickMode == "Mouse" then
-                pos = UIS:GetMouseLocation()
-            else
-                pos = S.ClickFixedPos or UIS:GetMouseLocation()
+        clickAccum = clickAccum + dt
+
+        while clickAccum >= interval do
+            clickAccum = clickAccum - interval
+
+            if S.ClickMode == "Fixo" and S.ClickFixedPos and mousemoverel then
+                local cur = UIS:GetMouseLocation()
+                pcall(mousemoverel, S.ClickFixedPos.X - cur.X, S.ClickFixedPos.Y - cur.Y)
             end
-            pcall(function()
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton1(pos)
-            end)
+
+            DoClick(S.ClickMode == "Fixo" and S.ClickFixedPos or nil)
         end
     end
-end)
-
---=============================================================
+end)--=============================================================
 -- TOGGLE MENU
 --=============================================================
 local function ToggleMenu()
