@@ -1,5 +1,5 @@
 --=============================================================
--- 🎯 KIKO MENU v5.12 — FONTE TOP + AMIGOS
+-- 🎯 KIKO MENU v6.4 — PORTRAIT EDITION
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -17,8 +17,23 @@ local SoundService = game:GetService("SoundService")
 local VirtualUser = game:GetService("VirtualUser")
 local Workspace = game:GetService("Workspace")
 
-if setfpscap then setfpscap(120) end
+if setfpscap then setfpscap(240) end
 
+--=============================================================
+-- ⏱️ TIMER
+--=============================================================
+local SCRIPT_START_TIME = tick()
+
+local function FormatTime(seconds)
+    local h = math.floor(seconds / 3600)
+    local m = math.floor((seconds % 3600) / 60)
+    local s = math.floor(seconds % 60)
+    return string.format("%02d:%02d:%02d", h, m, s)
+end
+
+--=============================================================
+-- ⚙️ SETTINGS
+--=============================================================
 getgenv().Settings = {
     ESP = false, ESPNPC = false, TeamColor = false,
     Boxes = false, Names = false, Distance = false, Lines = false, Highlight = false,
@@ -45,7 +60,7 @@ getgenv().Settings = {
 }
 
 local S = getgenv().Settings
-local VERSION = "v5.12"
+local VERSION = "v6.4"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -66,6 +81,9 @@ local originalLighting = {
     FogColor = Lighting.FogColor,
 }
 
+--=============================================================
+-- 🎨 TEMA
+--=============================================================
 local C = {
     Bg        = Color3.fromRGB(18, 18, 22),
     BgAlt     = Color3.fromRGB(26, 26, 32),
@@ -73,7 +91,8 @@ local C = {
     Stroke    = Color3.fromRGB(50, 50, 60),
     Text      = Color3.fromRGB(240, 240, 245),
     Dim       = Color3.fromRGB(140, 140, 155),
-    Accent    = Color3.fromRGB(120, 180, 255),
+    Accent    = Color3.fromRGB(220, 50, 50),
+    AccentDk  = Color3.fromRGB(150, 30, 30),
     Green     = Color3.fromRGB(120, 220, 160),
     Red       = Color3.fromRGB(240, 120, 120),
     Yellow    = Color3.fromRGB(240, 200, 120),
@@ -81,9 +100,68 @@ local C = {
     Friend    = Color3.fromRGB(0, 170, 255),
     Font      = Enum.Font.Gotham,
     FontB     = Enum.Font.GothamBold,
-    FontTitle = Enum.Font.Bangers,   -- ⭐ FONTE TOP DAS SUB-ABAS
+    FontTitle = Enum.Font.GothamBold,
 }
 
+--=============================================================
+-- 📐 DIMENSÕES (PORTRAIT)
+--=============================================================
+local DIM = {
+    W          = 440,   -- largura total
+    H          = 720,   -- altura total
+    TopBar     = 42,    -- barra superior
+    ProfileBar = 82,    -- perfil + stats
+    TabsBar    = 46,    -- abas horizontais
+    Pad        = 12,    -- margem geral
+}
+
+--=============================================================
+-- 💾 CONFIG DE PERSONALIZAÇÃO
+--=============================================================
+local CONFIG_FILE = "kiko_menu_personal.json"
+
+local DefaultPersonal = {
+    BgOpacity   = 0.05,
+    BgColor     = {18, 18, 22},
+    AccentColor = {220, 50, 50},
+    Blur        = false,
+    UIScale     = 1.0,
+}
+
+local Personal = {}
+
+local function LoadPersonal()
+    if not (writefile and readfile and isfile) then
+        Personal = table.clone(DefaultPersonal)
+        return
+    end
+    local ok = pcall(function()
+        if isfile(CONFIG_FILE) then
+            local data = HttpService:JSONDecode(readfile(CONFIG_FILE))
+            Personal = {}
+            for k, v in pairs(DefaultPersonal) do
+                Personal[k] = data[k] ~= nil and data[k] or v
+            end
+        else
+            Personal = table.clone(DefaultPersonal)
+        end
+    end)
+    if not ok then Personal = table.clone(DefaultPersonal) end
+end
+
+local function SavePersonal()
+    if not writefile then return false end
+    local ok = pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode(Personal))
+    end)
+    return ok
+end
+
+LoadPersonal()
+
+--=============================================================
+-- 🖥️ SCREEN GUI
+--=============================================================
 local parentGui
 pcall(function() parentGui = game:GetService("CoreGui") end)
 if not parentGui then parentGui = LocalPlayer:WaitForChild("PlayerGui") end
@@ -97,10 +175,32 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = parentGui
 
 --=============================================================
--- ⭐ CACHE DE AMIGOS
+-- 🔊 SISTEMA DE SOM
+--=============================================================
+local Sounds = {}
+local function mkSound(n, id, v)
+    local s = Instance.new("Sound")
+    s.Name = n; s.SoundId = "rbxassetid://" .. id; s.Volume = v or 0.3
+    s.Parent = SoundService
+    Sounds[n] = s
+end
+mkSound("Hover", "12221967", 0.08)
+mkSound("Click", "12221972", 0.18)
+mkSound("Toggle", "12221975", 0.22)
+mkSound("Open", "12221973", 0.28)
+mkSound("Close", "12221971", 0.22)
+mkSound("Section", "12221974", 0.22)
+mkSound("Load", "6042053626", 0.35)
+
+local function PS(n)
+    if not S.SoundEnabled then return end
+    local s = Sounds[n]; if s then pcall(function() s:Play() end) end
+end
+
+--=============================================================
+-- 👥 CACHE DE AMIGOS
 --=============================================================
 local FriendIds = {}
-local FriendsLoaded = false
 task.spawn(function()
     pcall(function()
         local cursor = ""
@@ -114,7 +214,6 @@ task.spawn(function()
             cursor = data.nextPageCursor or ""
             if cursor == "" then break end
         end
-        FriendsLoaded = true
     end)
 end)
 
@@ -132,6 +231,9 @@ local function SortPlayers(list)
     return list
 end
 
+--=============================================================
+-- 🛠️ HELPERS
+--=============================================================
 local function Corner(i, r)
     local c = Instance.new("UICorner", i)
     c.CornerRadius = UDim.new(0, r or 8)
@@ -141,25 +243,6 @@ local function Stroke(i, col, t, tr)
     local s = Instance.new("UIStroke", i)
     s.Color = col or C.Stroke; s.Thickness = t or 1; s.Transparency = tr or 0
     return s
-end
-
-local Sounds = {}
-local function mkSound(n, id, v)
-    local s = Instance.new("Sound")
-    s.Name = n; s.SoundId = "rbxassetid://" .. id; s.Volume = v or 0.3
-    s.Parent = SoundService
-    Sounds[n] = s
-end
-mkSound("Hover", "12221967", 0.10)
-mkSound("Click", "12221972", 0.20)
-mkSound("Toggle", "12221975", 0.25)
-mkSound("Open", "12221973", 0.30)
-mkSound("Close", "12221971", 0.25)
-mkSound("Section", "12221974", 0.25)
-
-local function PS(n)
-    if not S.SoundEnabled then return end
-    local s = Sounds[n]; if s then pcall(function() s:Play() end) end
 end
 
 local function GetTeamColor(p)
@@ -184,9 +267,17 @@ local function GetTeamColor(p)
     return Color3.new(1,1,1)
 end
 
+local function ColorEq(a, b, tol)
+    tol = tol or 0.005
+    return math.abs(a.R-b.R) < tol and math.abs(a.G-b.G) < tol and math.abs(a.B-b.B) < tol
+end
+
+--=============================================================
+-- 🔔 NOTIFICAÇÕES
+--=============================================================
 local NF = Instance.new("Frame", ScreenGui)
-NF.Size = UDim2.new(0, 220, 0, 100)
-NF.Position = UDim2.new(0.5, -110, 0.05, 0)
+NF.Size = UDim2.new(0, 280, 0, 100)
+NF.Position = UDim2.new(0.5, -140, 0.03, 0)
 NF.BackgroundTransparency = 1; NF.ZIndex = 500
 local NFL = Instance.new("UIListLayout", NF)
 NFL.SortOrder = Enum.SortOrder.LayoutOrder
@@ -196,26 +287,114 @@ NFL.HorizontalAlignment = Enum.HorizontalAlignment.Center
 local function Notify(txt, ok)
     local col = ok and C.Green or C.Red
     local n = Instance.new("TextLabel", NF)
-    n.Size = UDim2.new(1, 0, 0, 26)
+    n.Size = UDim2.new(1, 0, 0, 30)
     n.BackgroundColor3 = C.BgAlt
     n.TextColor3 = col; n.Text = txt
     n.Font = C.FontB; n.TextSize = 11
-    n.BackgroundTransparency = 0.2; n.ZIndex = 501
-    Corner(n, 6)
-    local st = Stroke(n, col, 1, 0)
-    task.delay(1.8, function()
-        local t1 = TweenService:Create(n, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1})
+    n.BackgroundTransparency = 0.1; n.ZIndex = 501
+    Corner(n, 8)
+    local st = Stroke(n, col, 1.5, 0)
+    n.Position = UDim2.new(0, 0, 0, -50)
+    TweenService:Create(n, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 0, 0)
+    }):Play()
+    task.delay(2, function()
+        local t1 = TweenService:Create(n, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1, Position = UDim2.new(0, 0, 0, -30)})
         local t2 = TweenService:Create(st, TweenInfo.new(0.3), {Transparency = 1})
         t1:Play(); t2:Play()
         t1.Completed:Connect(function() n:Destroy() end)
     end)
 end
 
-local function MakeDraggable(g, onClickNoDrag, blockWhenOpen, moveTarget)
+--=============================================================
+-- 🎨 APLICADORES DE PERSONALIZAÇÃO
+--=============================================================
+local LastBgApplied, LastBgAltApplied
+local LastAccent, LastAccentDk
+local MainScaleRef
+local LogoGradientRef
+
+local function ApplyBackground()
+    local newBg = Color3.fromRGB(Personal.BgColor[1], Personal.BgColor[2], Personal.BgColor[3])
+    local newBgAlt = newBg:Lerp(Color3.new(1,1,1), 0.055)
+    local transp = Personal.BgOpacity
+    
+    if ScreenGui then
+        for _, obj in pairs(ScreenGui:GetDescendants()) do
+            if obj:IsA("Frame") or obj:IsA("TextButton") then
+                local attr = obj:GetAttribute("KikoBg")
+                if attr == "main" then
+                    obj.BackgroundColor3 = newBg
+                    obj.BackgroundTransparency = transp
+                elseif attr == "alt" then
+                    obj.BackgroundColor3 = newBgAlt
+                    obj.BackgroundTransparency = math.min(transp + 0.08, 1)
+                end
+            end
+        end
+    end
+    LastBgApplied = newBg
+    LastBgAltApplied = newBgAlt
+end
+
+local function ApplyAccent()
+    local newAccent = Color3.fromRGB(Personal.AccentColor[1], Personal.AccentColor[2], Personal.AccentColor[3])
+    local newAccentDk = newAccent:Lerp(Color3.new(0,0,0), 0.4)
+    local oldAccent = LastAccent or C.Accent
+    local oldAccentDk = LastAccentDk or C.AccentDk
+    
+    local function shouldSkip(obj)
+        local p = obj
+        while p and p ~= ScreenGui do
+            if p:GetAttribute("KikoNoAccent") then return true end
+            p = p.Parent
+        end
+        return false
+    end
+    
+    for _, obj in pairs(ScreenGui:GetDescendants()) do
+        if not shouldSkip(obj) then
+            if obj:IsA("UIStroke") then
+                if ColorEq(obj.Color, oldAccent) then obj.Color = newAccent
+                elseif ColorEq(obj.Color, oldAccentDk) then obj.Color = newAccentDk end
+            elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+                if ColorEq(obj.TextColor3, oldAccent) then obj.TextColor3 = newAccent end
+            elseif obj:IsA("Frame") then
+                if ColorEq(obj.BackgroundColor3, oldAccent) then obj.BackgroundColor3 = newAccent
+                elseif ColorEq(obj.BackgroundColor3, oldAccentDk) then obj.BackgroundColor3 = newAccentDk end
+            end
+        end
+    end
+    
+    C.Accent = newAccent
+    C.AccentDk = newAccentDk
+    FOVCircle.Color = newAccent
+    if FloatStroke then FloatStroke.Color = newAccent end
+    if LogoGradientRef then
+        LogoGradientRef.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, newAccent),
+            ColorSequenceKeypoint.new(0.45, newAccent),
+            ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+            ColorSequenceKeypoint.new(0.55, newAccent),
+            ColorSequenceKeypoint.new(1, newAccent),
+        })
+    end
+    
+    LastAccent = newAccent
+    LastAccentDk = newAccentDk
+end
+
+local function ApplyScale()
+    if MainScaleRef then MainScaleRef.Scale = Personal.UIScale end
+end
+
+--=============================================================
+-- 🖱️ DRAG
+--=============================================================
+local function MakeDraggable(g, onClickNoDrag, moveTarget)
     moveTarget = moveTarget or g
     local drag, dIn, dS, sP, moved
     g.InputBegan:Connect(function(input)
-        if blockWhenOpen and MenuAberto then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             drag = true; moved = false
@@ -230,7 +409,6 @@ local function MakeDraggable(g, onClickNoDrag, blockWhenOpen, moveTarget)
         end
     end)
     g.InputChanged:Connect(function(input)
-        if blockWhenOpen and MenuAberto then return end
         if input.UserInputType == Enum.UserInputType.MouseMovement
         or input.UserInputType == Enum.UserInputType.Touch then dIn = input end
     end)
@@ -245,25 +423,27 @@ local function MakeDraggable(g, onClickNoDrag, blockWhenOpen, moveTarget)
     end)
 end
 
--- BOTÃO FLUTUANTE
+--=============================================================
+-- 🎈 BOTÃO FLUTUANTE
+--=============================================================
 local Float = Instance.new("Frame")
 Float.Name = "KikoFloat"
-Float.Size = UDim2.new(0, 46, 0, 46)
-Float.Position = UDim2.new(1, -70, 0, 80)
+Float.Size = UDim2.new(0, 52, 0, 52)
+Float.Position = UDim2.new(1, -75, 0, 80)
 Float.BackgroundColor3 = C.Bg
 Float.ZIndex = 50
 Float.Parent = ScreenGui
-Corner(Float, 23)
+Corner(Float, 26)
 local FloatStroke = Stroke(Float, C.Accent, 2, 0.2)
 
 local FloatIcon = Instance.new("ImageLabel", Float)
-FloatIcon.Size = UDim2.new(1, 0, 1, 0)
+FloatIcon.Size = UDim2.new(1, -4, 1, -4)
+FloatIcon.Position = UDim2.new(0, 2, 0, 2)
 FloatIcon.BackgroundTransparency = 1
 FloatIcon.Image = "rbxassetid://70505361093133"
 FloatIcon.ScaleType = Enum.ScaleType.Crop
 FloatIcon.ZIndex = 52
-local iconCorner = Instance.new("UICorner", FloatIcon)
-iconCorner.CornerRadius = UDim.new(1, 0)
+Corner(FloatIcon, 24)
 
 local FloatBtn = Instance.new("TextButton", Float)
 FloatBtn.Size = UDim2.new(1, 0, 1, 0)
@@ -272,93 +452,190 @@ FloatBtn.Text = ""
 FloatBtn.ZIndex = 51
 FloatBtn.AutoButtonColor = false
 
--- MAIN
+--=============================================================
+-- 🪟 JANELA PRINCIPAL — PORTRAIT
+--=============================================================
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 340, 0, 440)
-Main.Position = UDim2.new(0.5, -170, 0.5, -220)
+Main.Size = UDim2.new(0, DIM.W, 0, DIM.H)
+Main.Position = UDim2.new(0.5, 0, 0.5, 0)
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
 Main.BackgroundColor3 = C.Bg
 Main.Visible = false; Main.ClipsDescendants = true
 Main.ZIndex = 100; Main.Parent = ScreenGui
-Corner(Main, 12)
+Main:SetAttribute("KikoBg", "main")
+Corner(Main, 14)
 Stroke(Main, C.Stroke, 1, 0.2)
 
--- HEADER
-local Header = Instance.new("Frame", Main)
-Header.Size = UDim2.new(1, 0, 0, 42)
-Header.BackgroundColor3 = C.BgAlt
-Header.ZIndex = 101; Header.BorderSizePixel = 0
-Corner(Header, 12)
+MainScaleRef = Instance.new("UIScale", Main)
+MainScaleRef.Scale = Personal.UIScale
 
-local Logo = Instance.new("TextLabel", Header)
-Logo.Size = UDim2.new(1, -170, 1, 0)
+--=============================================================
+-- TOP BAR
+--=============================================================
+local TopBar = Instance.new("Frame", Main)
+TopBar.Size = UDim2.new(1, 0, 0, DIM.TopBar)
+TopBar.BackgroundColor3 = C.BgAlt
+TopBar.ZIndex = 101; TopBar.BorderSizePixel = 0
+TopBar:SetAttribute("KikoBg", "alt")
+Corner(TopBar, 14)
+local topFix = Instance.new("Frame", TopBar)
+topFix.Size = UDim2.new(1, 0, 0, 15)
+topFix.Position = UDim2.new(0, 0, 1, -15)
+topFix.BackgroundColor3 = C.BgAlt
+topFix.BorderSizePixel = 0
+topFix.ZIndex = 101
+topFix:SetAttribute("KikoBg", "alt")
+
+local Logo = Instance.new("TextLabel", TopBar)
+Logo.Size = UDim2.new(1, -160, 1, 0)
 Logo.Position = UDim2.new(0, 16, 0, 0)
 Logo.BackgroundTransparency = 1
-Logo.Text = "🎯  KIKO MENU"; Logo.TextColor3 = C.Text
-Logo.TextSize = 15; Logo.Font = C.FontB
+Logo.Text = "🎯  KIKO MENU"
+Logo.TextColor3 = C.Accent
+Logo.TextSize = 16; Logo.Font = C.FontB
 Logo.TextXAlignment = Enum.TextXAlignment.Left
 Logo.ZIndex = 102
-Logo.Active = true
 
-local FPSLbl = Instance.new("TextLabel", Header)
-FPSLbl.Size = UDim2.new(0, 45, 1, 0)
-FPSLbl.Position = UDim2.new(1, -140, 0, 0)
-FPSLbl.BackgroundTransparency = 1
-FPSLbl.Text = "FPS: 0"; FPSLbl.TextColor3 = C.Green
-FPSLbl.TextSize = 10; FPSLbl.Font = C.Font
-FPSLbl.TextXAlignment = Enum.TextXAlignment.Right
-FPSLbl.ZIndex = 102
+LogoGradientRef = Instance.new("UIGradient", Logo)
+LogoGradientRef.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, C.Accent),
+    ColorSequenceKeypoint.new(0.45, C.Accent),
+    ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(0.55, C.Accent),
+    ColorSequenceKeypoint.new(1, C.Accent),
+})
+LogoGradientRef.Rotation = 0
+LogoGradientRef.Offset = Vector2.new(-1, 0)
 
-local SearchIcon = Instance.new("TextButton", Header)
-SearchIcon.Size = UDim2.new(0, 28, 0, 28)
-SearchIcon.Position = UDim2.new(1, -72, 0, 7)
-SearchIcon.BackgroundColor3 = C.BgHover
-SearchIcon.Text = "🔍"; SearchIcon.TextColor3 = C.Text
-SearchIcon.TextSize = 14; SearchIcon.Font = Enum.Font.GothamBold
-SearchIcon.AutoButtonColor = false; SearchIcon.ZIndex = 105
-Corner(SearchIcon, 6)
+task.spawn(function()
+    while Logo.Parent do
+        local t = (tick() % 3.5) / 3.5
+        LogoGradientRef.Offset = Vector2.new(-1 + t * 2.5, 0)
+        RunService.RenderStepped:Wait()
+    end
+end)
 
-local CloseB = Instance.new("TextButton", Header)
+local VersionBox = Instance.new("Frame", TopBar)
+VersionBox.Size = UDim2.new(0, 56, 0, 20)
+VersionBox.Position = UDim2.new(1, -100, 0.5, -10)
+VersionBox.BackgroundColor3 = C.Bg
+VersionBox.BackgroundTransparency = 0.4
+VersionBox.ZIndex = 102
+VersionBox:SetAttribute("KikoBg", "main")
+Corner(VersionBox, 10)
+Stroke(VersionBox, C.Accent, 1, 0.4)
+
+local VersionLbl = Instance.new("TextLabel", VersionBox)
+VersionLbl.Size = UDim2.new(1, 0, 1, 0)
+VersionLbl.BackgroundTransparency = 1
+VersionLbl.Text = VERSION
+VersionLbl.TextColor3 = C.Accent
+VersionLbl.TextSize = 10
+VersionLbl.Font = C.FontB
+VersionLbl.TextXAlignment = Enum.TextXAlignment.Center
+VersionLbl.ZIndex = 103
+
+local CloseB = Instance.new("TextButton", TopBar)
 CloseB.Size = UDim2.new(0, 28, 0, 28)
-CloseB.Position = UDim2.new(1, -38, 0, 7)
+CloseB.Position = UDim2.new(1, -38, 0.5, -14)
 CloseB.BackgroundColor3 = C.BgHover
 CloseB.Text = "X"; CloseB.TextColor3 = C.Text
-CloseB.TextSize = 16; CloseB.Font = Enum.Font.GothamBold
+CloseB.TextSize = 15; CloseB.Font = Enum.Font.GothamBold
 CloseB.AutoButtonColor = false; CloseB.ZIndex = 105
-Corner(CloseB, 6)
+Corner(CloseB, 8)
 
-CloseB.MouseEnter:Connect(function() TweenService:Create(CloseB, TweenInfo.new(0.12), {BackgroundColor3 = C.Red, TextColor3 = Color3.new(1,1,1)}):Play() end)
-CloseB.MouseLeave:Connect(function() TweenService:Create(CloseB, TweenInfo.new(0.12), {BackgroundColor3 = C.BgHover, TextColor3 = C.Text}):Play() end)
+CloseB.MouseEnter:Connect(function() 
+    PS("Hover")
+    TweenService:Create(CloseB, TweenInfo.new(0.15), {BackgroundColor3 = C.Accent, TextColor3 = Color3.new(1,1,1)}):Play() 
+end)
+CloseB.MouseLeave:Connect(function() 
+    TweenService:Create(CloseB, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover, TextColor3 = C.Text}):Play() 
+end)
 
-MakeDraggable(Logo, nil, false, Main)
+MakeDraggable(TopBar, nil, Main)
 
--- SEARCH BOX
-local SearchBox = Instance.new("TextBox", Main)
-SearchBox.Size = UDim2.new(1, -24, 0, 38)
-SearchBox.Position = UDim2.new(0, 12, 0, 50)
-SearchBox.BackgroundColor3 = C.BgAlt
-SearchBox.TextColor3 = C.Text
-SearchBox.PlaceholderText = "🔍  Buscar função pelo nome..."
-SearchBox.PlaceholderColor3 = C.Dim
-SearchBox.Font = C.Font
-SearchBox.TextSize = 12
-SearchBox.Text = ""
-SearchBox.ClearTextOnFocus = false
-SearchBox.Visible = false
-SearchBox.ZIndex = 110
-Corner(SearchBox, 10)
-Stroke(SearchBox, C.Accent, 1.5, 0)
+--=============================================================
+-- PROFILE BAR (Avatar + Nome + Stats)
+--=============================================================
+local ProfileBar = Instance.new("Frame", Main)
+ProfileBar.Size = UDim2.new(1, -DIM.Pad*2, 0, DIM.ProfileBar)
+ProfileBar.Position = UDim2.new(0, DIM.Pad, 0, DIM.TopBar + 8)
+ProfileBar.BackgroundColor3 = C.BgAlt
+ProfileBar.ZIndex = 101
+ProfileBar:SetAttribute("KikoBg", "alt")
+Corner(ProfileBar, 10)
+Stroke(ProfileBar, C.Stroke, 1, 0.7)
 
--- TABS
+-- Avatar
+local AvatarFrame = Instance.new("Frame", ProfileBar)
+AvatarFrame.Size = UDim2.new(0, 58, 0, 58)
+AvatarFrame.Position = UDim2.new(0, 12, 0.5, -29)
+AvatarFrame.BackgroundColor3 = C.Bg
+AvatarFrame.ZIndex = 102
+AvatarFrame:SetAttribute("KikoBg", "main")
+Corner(AvatarFrame, 29)
+Stroke(AvatarFrame, C.Accent, 1.5, 0.2)
+
+local AvatarImg = Instance.new("ImageLabel", AvatarFrame)
+AvatarImg.Size = UDim2.new(1, -6, 1, -6)
+AvatarImg.Position = UDim2.new(0, 3, 0, 3)
+AvatarImg.BackgroundTransparency = 1
+AvatarImg.Image = "rbxthumb://type=AvatarHeadShot&id="..LocalPlayer.UserId.."&w=150&h=150"
+AvatarImg.ZIndex = 103
+Corner(AvatarImg, 26)
+
+-- Nome
+local NameLabel = Instance.new("TextLabel", ProfileBar)
+NameLabel.Text = string.upper(LocalPlayer.DisplayName)
+NameLabel.Font = C.FontB
+NameLabel.TextSize = 13
+NameLabel.TextColor3 = C.Text
+NameLabel.BackgroundTransparency = 1
+NameLabel.Size = UDim2.new(1, -90, 0, 18)
+NameLabel.Position = UDim2.new(0, 80, 0, 12)
+NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+NameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+NameLabel.ZIndex = 103
+
+-- Stats em linha única
+local StatsLbl = Instance.new("TextLabel", ProfileBar)
+StatsLbl.Size = UDim2.new(1, -90, 0, 16)
+StatsLbl.Position = UDim2.new(0, 80, 0, 34)
+StatsLbl.BackgroundTransparency = 1
+StatsLbl.Text = "FPS: 60   •   PING: 0ms   •   00:00:00"
+StatsLbl.TextColor3 = C.Green
+StatsLbl.TextSize = 10
+StatsLbl.Font = C.FontB
+StatsLbl.TextXAlignment = Enum.TextXAlignment.Left
+StatsLbl.ZIndex = 103
+
+-- Subtítulo
+local SubLbl = Instance.new("TextLabel", ProfileBar)
+SubLbl.Size = UDim2.new(1, -90, 0, 14)
+SubLbl.Position = UDim2.new(0, 80, 0, 54)
+SubLbl.BackgroundTransparency = 1
+SubLbl.Text = "⭐ Bem-vindo de volta, " .. LocalPlayer.DisplayName
+SubLbl.TextColor3 = C.Dim
+SubLbl.TextSize = 9
+SubLbl.Font = C.Font
+SubLbl.TextXAlignment = Enum.TextXAlignment.Left
+SubLbl.ZIndex = 103
+
+--=============================================================
+-- TABS BAR (HORIZONTAL SCROLL)
+--=============================================================
 local TabsBar = Instance.new("Frame", Main)
-TabsBar.Size = UDim2.new(1, -24, 0, 38)
-TabsBar.Position = UDim2.new(0, 12, 0, 50)
+TabsBar.Size = UDim2.new(1, -DIM.Pad*2, 0, DIM.TabsBar)
+TabsBar.Position = UDim2.new(0, DIM.Pad, 0, DIM.TopBar + DIM.ProfileBar + 16)
 TabsBar.BackgroundColor3 = C.BgAlt
 TabsBar.ZIndex = 101
+TabsBar:SetAttribute("KikoBg", "alt")
 Corner(TabsBar, 10)
 
 local TabsScroll = Instance.new("ScrollingFrame", TabsBar)
 TabsScroll.Size = UDim2.new(1, 0, 1, 0)
 TabsScroll.BackgroundTransparency = 1
+TabsScroll.BorderSizePixel = 0
 TabsScroll.ScrollBarThickness = 0
 TabsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 TabsScroll.ScrollingDirection = Enum.ScrollingDirection.X
@@ -367,41 +644,51 @@ TabsScroll.ZIndex = 102
 local TabsLayout = Instance.new("UIListLayout", TabsScroll)
 TabsLayout.FillDirection = Enum.FillDirection.Horizontal
 TabsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-TabsLayout.Padding = UDim.new(0, 4)
-local padT = Instance.new("UIPadding", TabsScroll)
-padT.PaddingLeft = UDim.new(0, 6); padT.PaddingRight = UDim.new(0, 6)
+TabsLayout.Padding = UDim.new(0, 6)
+local tabsPad = Instance.new("UIPadding", TabsScroll)
+tabsPad.PaddingLeft = UDim.new(0, 8)
+tabsPad.PaddingRight = UDim.new(0, 8)
 
 TabsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     TabsScroll.CanvasSize = UDim2.new(0, TabsLayout.AbsoluteContentSize.X + 20, 0, 0)
 end)
 
--- CONTENT
+--=============================================================
+-- ÁREA DE CONTEÚDO
+--=============================================================
+local ContentTop = DIM.TopBar + DIM.ProfileBar + DIM.TabsBar + 24
 local Content = Instance.new("ScrollingFrame", Main)
-Content.Size = UDim2.new(1, -24, 1, -108)
-Content.Position = UDim2.new(0, 12, 0, 96)
+Content.Size = UDim2.new(1, -DIM.Pad*2, 1, -(ContentTop + 10))
+Content.Position = UDim2.new(0, DIM.Pad, 0, ContentTop)
 Content.BackgroundTransparency = 1
+Content.BorderSizePixel = 0
 Content.ScrollBarThickness = 3
-Content.ScrollBarImageColor3 = C.Stroke
+Content.ScrollBarImageColor3 = C.Accent
 Content.CanvasSize = UDim2.new(0, 0, 0, 0)
 Content.ScrollingDirection = Enum.ScrollingDirection.Y
 Content.ZIndex = 101
 
 local ContentLayout = Instance.new("UIListLayout", Content)
-ContentLayout.Padding = UDim.new(0, 6)
+ContentLayout.Padding = UDim.new(0, 8)
+ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- PÁGINAS
+--=============================================================
+-- 📑 PÁGINAS (adaptadas p/ tabs horizontais)
+--=============================================================
 local Pages, TabButtons = {}, {}
 local ActivePage = nil
 
 local function CreatePage(name, emoji)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 88, 1, -8)
+    btn.Size = UDim2.new(0, 90, 0, 32)
     btn.BackgroundColor3 = C.Bg
+    btn.BackgroundTransparency = 0.4
     btn.Text = emoji .. "  " .. name
     btn.TextColor3 = C.Dim
     btn.TextSize = 11; btn.Font = C.FontB
     btn.AutoButtonColor = false; btn.ZIndex = 103
     btn.Parent = TabsScroll
+    btn:SetAttribute("KikoBg", "main")
     Corner(btn, 8)
 
     local page = Instance.new("Frame")
@@ -411,78 +698,84 @@ local function CreatePage(name, emoji)
     page.Visible = false; page.ZIndex = 102
     page.Parent = Content
     local pl = Instance.new("UIListLayout", page)
-    pl.Padding = UDim.new(0, 6)
+    pl.Padding = UDim.new(0, 8)
     pl.SortOrder = Enum.SortOrder.LayoutOrder
 
     btn.MouseButton1Click:Connect(function()
         PS("Click")
         for _, p in pairs(Pages) do p.Visible = false end
         for _, b in pairs(TabButtons) do
-            b.BackgroundColor3 = C.Bg; b.TextColor3 = C.Dim
+            b:SetAttribute("KikoBg", "main")
+            b.BackgroundColor3 = LastBgApplied or C.Bg
+            b.BackgroundTransparency = 0.4
+            b.TextColor3 = C.Dim
         end
         page.Visible = true; ActivePage = page
-        btn.BackgroundColor3 = C.BgHover; btn.TextColor3 = C.Accent
+        btn:SetAttribute("KikoBg", "")
+        btn.BackgroundColor3 = C.Accent
+        btn.BackgroundTransparency = 0
+        btn.TextColor3 = Color3.new(1,1,1)
         Content.CanvasPosition = Vector2.new(0, 0)
         task.wait()
         Content.CanvasSize = UDim2.new(0, 0, 0, page.AbsoluteSize.Y + 20)
+        
+        -- Centraliza o botão clicado na scroll
+        local btnX = btn.AbsolutePosition.X - TabsScroll.AbsolutePosition.X
+        local scrollW = TabsScroll.AbsoluteSize.X
+        local targetX = btnX - (scrollW / 2) + (btn.AbsoluteSize.X / 2)
+        TweenService:Create(TabsScroll, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+            CanvasPosition = Vector2.new(math.max(0, targetX), 0)
+        }):Play()
     end)
     btn.MouseEnter:Connect(function()
-        PS("Hover")
-        if ActivePage ~= page then btn.BackgroundColor3 = C.BgHover end
+        if ActivePage ~= page then
+            PS("Hover")
+            TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover, BackgroundTransparency = 0}):Play()
+        end
     end)
     btn.MouseLeave:Connect(function()
-        if ActivePage ~= page then btn.BackgroundColor3 = C.Bg end
+        if ActivePage ~= page then
+            TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = LastBgApplied or C.Bg, BackgroundTransparency = 0.4}):Play()
+        end
     end)
 
     table.insert(Pages, page); table.insert(TabButtons, btn)
     return page, btn
 end
 
--- SEARCH INDEX
-local SearchIndex = {}
-local function RegSearch(element, text, parentToggle)
-    table.insert(SearchIndex, {
-        element = element,
-        isConfig = parentToggle ~= nil,
-        parentToggle = parentToggle,
-        searchText = string.lower(text),
-    })
-end
-
 --=============================================================
--- TÍTULO (não colapsável) — usa FONTE TOP
+-- 🏷️ TÍTULOS DE SEÇÃO
 --=============================================================
 local function CreateTitle(parent, title, emoji)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 0, 34)
+    frame.Size = UDim2.new(1, 0, 0, 28)
     frame.BackgroundTransparency = 1
     frame.ZIndex = 103
     frame.Parent = parent
 
     local lbl = Instance.new("TextLabel", frame)
-    lbl.Size = UDim2.new(1, 0, 0, 24)
+    lbl.Size = UDim2.new(1, 0, 0, 22)
     lbl.BackgroundTransparency = 1
     lbl.Text = (emoji and emoji .. "  " or "") .. title
-    lbl.TextColor3 = C.Text
-    lbl.TextSize = 16
-    lbl.Font = C.FontTitle          -- ⭐ FONTE TOP (Bangers)
+    lbl.TextColor3 = C.Accent
+    lbl.TextSize = 12
+    lbl.Font = C.FontTitle
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.TextYAlignment = Enum.TextYAlignment.Bottom
     lbl.ZIndex = 104
 
     local line = Instance.new("Frame", frame)
     line.Size = UDim2.new(1, 0, 0, 1)
-    line.Position = UDim2.new(0, 0, 1, -4)
+    line.Position = UDim2.new(0, 0, 1, -3)
     line.BackgroundColor3 = C.Stroke
-    line.BackgroundTransparency = 0.4
+    line.BackgroundTransparency = 0.3
     line.BorderSizePixel = 0
     line.ZIndex = 104
-
     return frame
 end
 
 --=============================================================
--- TOGGLE SIMPLES
+-- 🔘 COMPONENTES
 --=============================================================
 local VisToggles = {}
 local VisSteppers = {}
@@ -490,124 +783,122 @@ local VisSteppers = {}
 local function CreateToggle(parent, text, default, callback)
     local state = default or false
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 34)
-    btn.BackgroundColor3 = C.Bg
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3 = C.BgAlt
     btn.Text = ""; btn.AutoButtonColor = false
     btn.ZIndex = 103; btn.Parent = parent
+    btn:SetAttribute("KikoBg", "alt")
     Corner(btn, 8)
+    Stroke(btn, C.Stroke, 1, 0.7)
 
     local lbl = Instance.new("TextLabel", btn)
     lbl.Size = UDim2.new(1, -70, 1, 0)
-    lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.Position = UDim2.new(0, 14, 0, 0)
     lbl.BackgroundTransparency = 1
     lbl.Text = text; lbl.TextColor3 = C.Text
-    lbl.TextSize = 11; lbl.Font = C.Font
+    lbl.TextSize = 11; lbl.Font = C.FontB
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.ZIndex = 104
 
     local pill = Instance.new("Frame", btn)
-    pill.Size = UDim2.new(0, 34, 0, 18)
-    pill.Position = UDim2.new(1, -46, 0.5, -9)
-    pill.BackgroundColor3 = state and C.Green or C.BgHover
+    pill.Size = UDim2.new(0, 38, 0, 18)
+    pill.Position = UDim2.new(1, -50, 0.5, -9)
+    pill.BackgroundColor3 = state and C.Accent or C.BgHover
     pill.BorderSizePixel = 0; pill.ZIndex = 104
-    Corner(pill, 10)
+    Corner(pill, 9)
 
     local ball = Instance.new("Frame", pill)
     ball.Size = UDim2.new(0, 14, 0, 14)
     ball.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
     ball.BackgroundColor3 = Color3.new(1,1,1)
     ball.BorderSizePixel = 0; ball.ZIndex = 105
-    Corner(ball, 10)
+    Corner(ball, 9)
 
     local function apply(v, noCb, noSound)
         state = v
         if not noSound then PS("Toggle") end
-        pill.BackgroundColor3 = state and C.Green or C.BgHover
-        ball.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        TweenService:Create(pill, TweenInfo.new(0.2), {BackgroundColor3 = state and C.Accent or C.BgHover}):Play()
+        TweenService:Create(ball, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        }):Play()
         if not noCb and callback then callback(state) end
     end
 
     VisToggles[text] = apply
     btn.MouseButton1Click:Connect(function() apply(not state) end)
-    btn.MouseEnter:Connect(function() btn.BackgroundColor3 = C.BgHover end)
-    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = C.Bg end)
+    btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover}):Play() end)
+    btn.MouseLeave:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = LastBgAltApplied or C.BgAlt}):Play() end)
 
-    RegSearch(btn, text)
     return btn, apply
 end
 
---=============================================================
--- TOGGLE COM CONFIG
---=============================================================
 local function CreateToggleWithConfig(parent, text, default, callback)
     local state = default or false
-
     local wrapper = Instance.new("Frame", parent)
-    wrapper.Size = UDim2.new(1, 0, 0, 34)
+    wrapper.Size = UDim2.new(1, 0, 0, 38)
     wrapper.AutomaticSize = Enum.AutomaticSize.Y
     wrapper.BackgroundTransparency = 1
     wrapper.ZIndex = 103
-
     local wrapperLayout = Instance.new("UIListLayout", wrapper)
     wrapperLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    wrapperLayout.Padding = UDim.new(0, 4)
+    wrapperLayout.Padding = UDim.new(0, 6)
 
     local btn = Instance.new("TextButton", wrapper)
-    btn.Size = UDim2.new(1, 0, 0, 34)
-    btn.BackgroundColor3 = C.Bg
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3 = C.BgAlt
     btn.Text = ""; btn.AutoButtonColor = false
-    btn.ZIndex = 104
-    btn.LayoutOrder = 1
+    btn.ZIndex = 104; btn.LayoutOrder = 1
+    btn:SetAttribute("KikoBg", "alt")
     Corner(btn, 8)
+    Stroke(btn, C.Stroke, 1, 0.7)
 
     local lbl = Instance.new("TextLabel", btn)
-    lbl.Size = UDim2.new(1, -80, 1, 0)
-    lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.Size = UDim2.new(1, -100, 1, 0)
+    lbl.Position = UDim2.new(0, 14, 0, 0)
     lbl.BackgroundTransparency = 1
     lbl.Text = text; lbl.TextColor3 = C.Text
-    lbl.TextSize = 11; lbl.Font = C.Font
+    lbl.TextSize = 11; lbl.Font = C.FontB
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.ZIndex = 105
 
     local arrow = Instance.new("TextLabel", btn)
     arrow.Size = UDim2.new(0, 14, 0, 14)
-    arrow.Position = UDim2.new(1, -64, 0.5, -7)
+    arrow.Position = UDim2.new(1, -70, 0.5, -7)
     arrow.BackgroundTransparency = 1
-    arrow.Text = "▾"
+    arrow.Text = "▼"
     arrow.TextColor3 = C.Dim
-    arrow.TextSize = 12
+    arrow.TextSize = 10
     arrow.Font = C.FontB
     arrow.ZIndex = 105
 
     local pill = Instance.new("Frame", btn)
-    pill.Size = UDim2.new(0, 34, 0, 18)
-    pill.Position = UDim2.new(1, -46, 0.5, -9)
-    pill.BackgroundColor3 = state and C.Green or C.BgHover
+    pill.Size = UDim2.new(0, 38, 0, 18)
+    pill.Position = UDim2.new(1, -50, 0.5, -9)
+    pill.BackgroundColor3 = state and C.Accent or C.BgHover
     pill.BorderSizePixel = 0; pill.ZIndex = 105
-    Corner(pill, 10)
+    Corner(pill, 9)
 
     local ball = Instance.new("Frame", pill)
     ball.Size = UDim2.new(0, 14, 0, 14)
     ball.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
     ball.BackgroundColor3 = Color3.new(1,1,1)
     ball.BorderSizePixel = 0; ball.ZIndex = 106
-    Corner(ball, 10)
+    Corner(ball, 9)
 
     local config = Instance.new("Frame", wrapper)
     config.Size = UDim2.new(1, 0, 0, 0)
     config.AutomaticSize = Enum.AutomaticSize.Y
-    config.BackgroundColor3 = C.BgAlt
-    config.BackgroundTransparency = 0.35
+    config.BackgroundColor3 = C.Bg
+    config.BackgroundTransparency = 0.3
     config.Visible = state
     config.ZIndex = 103
     config.LayoutOrder = 2
+    config:SetAttribute("KikoBg", "main")
     Corner(config, 8)
     Stroke(config, C.Stroke, 1, 0.6)
-
     local configLayout = Instance.new("UIListLayout", config)
-    configLayout.Padding = UDim.new(0, 4)
+    configLayout.Padding = UDim.new(0, 6)
     configLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
     local configPad = Instance.new("UIPadding", config)
     configPad.PaddingTop = UDim.new(0, 8)
     configPad.PaddingBottom = UDim.new(0, 8)
@@ -617,8 +908,10 @@ local function CreateToggleWithConfig(parent, text, default, callback)
     local function apply(v, noCb, noSound)
         state = v
         if not noSound then PS("Toggle") end
-        pill.BackgroundColor3 = state and C.Green or C.BgHover
-        ball.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        TweenService:Create(pill, TweenInfo.new(0.2), {BackgroundColor3 = state and C.Accent or C.BgHover}):Play()
+        TweenService:Create(ball, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        }):Play()
         config.Visible = state
         arrow.TextColor3 = state and C.Accent or C.Dim
         if not noCb and callback then callback(state) end
@@ -626,58 +919,54 @@ local function CreateToggleWithConfig(parent, text, default, callback)
 
     VisToggles[text] = apply
     btn.MouseButton1Click:Connect(function() apply(not state) end)
-    btn.MouseEnter:Connect(function() btn.BackgroundColor3 = C.BgHover end)
-    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = C.Bg end)
-
-    RegSearch(btn, text)
-    wrapper:SetAttribute("ToggleName", text)
+    btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover}):Play() end)
+    btn.MouseLeave:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = LastBgAltApplied or C.BgAlt}):Play() end)
 
     return config, apply, wrapper, btn
 end
 
---=============================================================
--- STEPPER
---=============================================================
 local function CreateStepper(parent, text, min, max, default, step, callback)
     local val = default or min
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 0, 34)
-    frame.BackgroundColor3 = C.Bg
+    frame.Size = UDim2.new(1, 0, 0, 38)
+    frame.BackgroundColor3 = C.BgAlt
     frame.ZIndex = 103; frame.Parent = parent
+    frame:SetAttribute("KikoBg", "alt")
     Corner(frame, 8)
+    Stroke(frame, C.Stroke, 1, 0.7)
 
     local lbl = Instance.new("TextLabel", frame)
-    lbl.Size = UDim2.new(1, -110, 1, 0)
-    lbl.Position = UDim2.new(0, 12, 0, 0)
+    lbl.Size = UDim2.new(1, -150, 1, 0)
+    lbl.Position = UDim2.new(0, 14, 0, 0)
     lbl.BackgroundTransparency = 1
     lbl.Text = text; lbl.TextColor3 = C.Text
-    lbl.TextSize = 11; lbl.Font = C.Font
+    lbl.TextSize = 11; lbl.Font = C.FontB
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.ZIndex = 104
 
     local vl = Instance.new("TextLabel", frame)
-    vl.Size = UDim2.new(0, 44, 1, 0)
-    vl.Position = UDim2.new(1, -104, 0, 0)
+    vl.Size = UDim2.new(0, 46, 1, 0)
+    vl.Position = UDim2.new(1, -114, 0, 0)
     vl.BackgroundTransparency = 1
     vl.Text = tostring(val); vl.TextColor3 = C.Accent
     vl.TextSize = 11; vl.Font = C.FontB
     vl.ZIndex = 104
 
     local minus = Instance.new("TextButton", frame)
-    minus.Size = UDim2.new(0, 24, 0, 24)
-    minus.Position = UDim2.new(1, -56, 0.5, -12)
+    minus.Size = UDim2.new(0, 26, 0, 26)
+    minus.Position = UDim2.new(1, -62, 0.5, -13)
     minus.BackgroundColor3 = C.BgHover
-    minus.Text = "−"; minus.TextColor3 = C.Text; minus.TextSize = 14
+    minus.Text = "−"; minus.TextColor3 = C.Text; minus.TextSize = 15
     minus.Font = C.FontB; minus.AutoButtonColor = false
-    minus.ZIndex = 104; Corner(minus, 6)
+    minus.ZIndex = 104; Corner(minus, 8)
 
     local plus = Instance.new("TextButton", frame)
-    plus.Size = UDim2.new(0, 24, 0, 24)
-    plus.Position = UDim2.new(1, -28, 0.5, -12)
+    plus.Size = UDim2.new(0, 26, 0, 26)
+    plus.Position = UDim2.new(1, -32, 0.5, -13)
     plus.BackgroundColor3 = C.BgHover
-    plus.Text = "+"; plus.TextColor3 = C.Text; plus.TextSize = 14
+    plus.Text = "+"; plus.TextColor3 = C.Text; plus.TextSize = 15
     plus.Font = C.FontB; plus.AutoButtonColor = false
-    plus.ZIndex = 104; Corner(plus, 6)
+    plus.ZIndex = 104; Corner(plus, 8)
 
     local function update(n, noCb)
         val = math.clamp(n, min, max)
@@ -689,39 +978,36 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     VisSteppers[text] = update
     minus.MouseButton1Click:Connect(function() PS("Click"); update(val - step) end)
     plus.MouseButton1Click:Connect(function() PS("Click"); update(val + step) end)
+    minus.MouseEnter:Connect(function() TweenService:Create(minus, TweenInfo.new(0.15), {BackgroundColor3 = C.AccentDk}):Play() end)
+    minus.MouseLeave:Connect(function() TweenService:Create(minus, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover}):Play() end)
+    plus.MouseEnter:Connect(function() TweenService:Create(plus, TweenInfo.new(0.15), {BackgroundColor3 = C.AccentDk}):Play() end)
+    plus.MouseLeave:Connect(function() TweenService:Create(plus, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover}):Play() end)
 
-    RegSearch(frame, text)
     return frame, update
 end
 
---=============================================================
--- BUTTON
---=============================================================
 local function CreateButton(parent, text, color, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.Size = UDim2.new(1, 0, 0, 36)
     btn.BackgroundColor3 = color or C.Accent
     btn.Text = text; btn.TextColor3 = Color3.new(1,1,1); btn.TextSize = 11
     btn.Font = C.FontB; btn.AutoButtonColor = false
     btn.ZIndex = 103; btn.Parent = parent
     Corner(btn, 8)
+    Stroke(btn, (color or C.Accent):Lerp(Color3.new(1,1,1), 0.2), 1, 0.5)
 
     local orig = color or C.Accent
     btn.MouseButton1Click:Connect(function() PS("Click"); if callback then callback() end end)
     btn.MouseEnter:Connect(function()
         PS("Hover")
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = orig:Lerp(Color3.new(1,1,1), 0.15)}):Play()
+        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = orig:Lerp(Color3.new(1,1,1), 0.2)}):Play()
     end)
     btn.MouseLeave:Connect(function()
         TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = orig}):Play()
     end)
-    RegSearch(btn, text)
     return btn
 end
 
---=============================================================
--- LABEL
---=============================================================
 local function CreateLabel(parent, text, h)
     local l = Instance.new("TextLabel", parent)
     l.Size = UDim2.new(1, 0, 0, h or 20)
@@ -735,24 +1021,27 @@ local function CreateLabel(parent, text, h)
 end
 
 --=============================================================
--- ABAS
+-- 📑 CRIAÇÃO DAS ABAS
 --=============================================================
-local MiraP    = CreatePage("Mira",       "🎯")
-local WLP      = CreatePage("Whitelist",  "📝")
-local VisualP  = CreatePage("Visual",     "👁️")
-local PersoP   = CreatePage("Personagem", "🏃")
-local TPP      = CreatePage("Teleporte",  "🌀")
-local HitP     = CreatePage("Hitbox",     "📦")
-local DefP     = CreatePage("Defusal",    "💣")
-local PresetP  = CreatePage("Presets",    "⚙️")
-local BindsP   = CreatePage("Atalhos",    "⌨️")
-local ServP    = CreatePage("Servidor",   "🌐")
-local MiscP    = CreatePage("Misc",       "🧰")
+local MiraP     = CreatePage("Mira",         "🎯")
+local VisualP   = CreatePage("Visual",       "👁️")
+local PersoP    = CreatePage("Personagem",   "🏃")
+local TPP       = CreatePage("Teleporte",    "🌀")
+local HitP      = CreatePage("Hitbox",       "📦")
+local DefP      = CreatePage("Defusal",      "💣")
+local WLP       = CreatePage("Whitelist",    "📝")
+local PresetP   = CreatePage("Presets",      "⚙️")
+local BindsP    = CreatePage("Atalhos",      "⌨️")
+local ServP     = CreatePage("Servidor",     "🌐")
+local MiscP     = CreatePage("Misc",         "🧰")
+local PersonalP = CreatePage("Personalizar", "🎨")
 
 MiraP.Visible = true
 ActivePage = MiraP
-TabButtons[1].BackgroundColor3 = C.BgHover
-TabButtons[1].TextColor3 = C.Accent
+TabButtons[1]:SetAttribute("KikoBg", "")
+TabButtons[1].BackgroundColor3 = C.Accent
+TabButtons[1].BackgroundTransparency = 0
+TabButtons[1].TextColor3 = Color3.new(1,1,1)
 
 local aimbotBtn, espBtn, hitboxBtn
 
@@ -774,13 +1063,15 @@ CreateToggle(MiraP, "Atirar Automaticamente", false, function(v) S.TriggerBot = 
 
 local Modes = {"Mais Próximo", "Menor Vida", "Mirando em Mim"}
 local ModeBtn = Instance.new("TextButton", MiraP)
-ModeBtn.Size = UDim2.new(1, 0, 0, 34)
-ModeBtn.BackgroundColor3 = C.Bg
+ModeBtn.Size = UDim2.new(1, 0, 0, 38)
+ModeBtn.BackgroundColor3 = C.BgAlt
 ModeBtn.TextColor3 = C.Text
 ModeBtn.Text = "Prioridade: " .. S.PriorityMode
-ModeBtn.TextSize = 11; ModeBtn.Font = C.Font
+ModeBtn.TextSize = 11; ModeBtn.Font = C.FontB
 ModeBtn.AutoButtonColor = false; ModeBtn.ZIndex = 103
+ModeBtn:SetAttribute("KikoBg", "alt")
 Corner(ModeBtn, 8)
+Stroke(ModeBtn, C.Stroke, 1, 0.7)
 ModeBtn.MouseButton1Click:Connect(function()
     PS("Click")
     local i = table.find(Modes, S.PriorityMode) or 1
@@ -788,22 +1079,22 @@ ModeBtn.MouseButton1Click:Connect(function()
     S.PriorityMode = Modes[i]
     ModeBtn.Text = "Prioridade: " .. S.PriorityMode
 end)
-RegSearch(ModeBtn, "Prioridade")
 
 local PartBtn = Instance.new("TextButton", MiraP)
-PartBtn.Size = UDim2.new(1, 0, 0, 34)
-PartBtn.BackgroundColor3 = C.Bg
+PartBtn.Size = UDim2.new(1, 0, 0, 38)
+PartBtn.BackgroundColor3 = C.BgAlt
 PartBtn.TextColor3 = C.Text
 PartBtn.Text = "Parte Alvo: Cabeça"
-PartBtn.TextSize = 11; PartBtn.Font = C.Font
+PartBtn.TextSize = 11; PartBtn.Font = C.FontB
 PartBtn.AutoButtonColor = false; PartBtn.ZIndex = 103
+PartBtn:SetAttribute("KikoBg", "alt")
 Corner(PartBtn, 8)
+Stroke(PartBtn, C.Stroke, 1, 0.7)
 PartBtn.MouseButton1Click:Connect(function()
     PS("Click")
     S.AimPart = (S.AimPart == "Head" and "HumanoidRootPart" or "Head")
     PartBtn.Text = "Parte Alvo: " .. (S.AimPart == "Head" and "Cabeça" or "Tronco")
 end)
-RegSearch(PartBtn, "Parte Alvo")
 
 CreateTitle(MiraP, "Filtros de Alvo", "🛡️")
 CreateToggle(MiraP, "Ignorar Aliados", false, function(v) S.TeamCheck = v end)
@@ -811,240 +1102,19 @@ CreateToggle(MiraP, "Ignorar Atrás de Paredes", false, function(v) S.WallCheck 
 CreateToggle(MiraP, "Mira em NPCs", false, function(v) S.AimNPC = v end)
 
 --=============================================================
--- 📝 WHITELIST
---=============================================================
-local wlDesc = Instance.new("TextLabel", WLP)
-wlDesc.Size = UDim2.new(1, 0, 0, 46)
-wlDesc.BackgroundColor3 = C.BgAlt
-wlDesc.BackgroundTransparency = 0.4
-wlDesc.Text = "  ℹ️  Jogadores na whitelist NÃO serão afetados por Aimbot, Silent, Hitbox e Auto TP. Clique no card para adicionar/remover."
-wlDesc.TextColor3 = C.Dim
-wlDesc.TextSize = 10; wlDesc.Font = C.Font
-wlDesc.TextWrapped = true
-wlDesc.TextXAlignment = Enum.TextXAlignment.Left
-wlDesc.TextYAlignment = Enum.TextYAlignment.Center
-wlDesc.ZIndex = 103
-Corner(wlDesc, 8)
-Stroke(wlDesc, C.Stroke, 1, 0.5)
-
-local wlCountLabel = Instance.new("TextLabel", WLP)
-wlCountLabel.Size = UDim2.new(1, 0, 0, 22)
-wlCountLabel.BackgroundTransparency = 1
-wlCountLabel.Text = "✓ Salvos: 0 jogadores"
-wlCountLabel.TextColor3 = C.Accent
-wlCountLabel.TextSize = 11; wlCountLabel.Font = C.FontB
-wlCountLabel.TextXAlignment = Enum.TextXAlignment.Left
-wlCountLabel.ZIndex = 104
-
-local wlActions = Instance.new("Frame", WLP)
-wlActions.Size = UDim2.new(1, 0, 0, 30)
-wlActions.BackgroundTransparency = 1
-wlActions.ZIndex = 103
-
-local wlRefreshBtn = Instance.new("TextButton", wlActions)
-wlRefreshBtn.Size = UDim2.new(0.48, 0, 1, 0)
-wlRefreshBtn.BackgroundColor3 = C.Accent
-wlRefreshBtn.Text = "🔄 Atualizar Lista"
-wlRefreshBtn.TextColor3 = Color3.new(1,1,1)
-wlRefreshBtn.TextSize = 11; wlRefreshBtn.Font = C.FontB
-wlRefreshBtn.AutoButtonColor = false; wlRefreshBtn.ZIndex = 104
-Corner(wlRefreshBtn, 8)
-
-local wlClearBtn = Instance.new("TextButton", wlActions)
-wlClearBtn.Size = UDim2.new(0.48, 0, 1, 0)
-wlClearBtn.Position = UDim2.new(0.52, 0, 0, 0)
-wlClearBtn.BackgroundColor3 = C.Red
-wlClearBtn.Text = "🗑 Limpar Todos"
-wlClearBtn.TextColor3 = Color3.new(1,1,1)
-wlClearBtn.TextSize = 11; wlClearBtn.Font = C.FontB
-wlClearBtn.AutoButtonColor = false; wlClearBtn.ZIndex = 104
-Corner(wlClearBtn, 8)
-
-local wlScroll = Instance.new("ScrollingFrame", WLP)
-wlScroll.Size = UDim2.new(1, 0, 0, 340)
-wlScroll.BackgroundColor3 = C.Bg
-wlScroll.BackgroundTransparency = 0.4
-wlScroll.BorderSizePixel = 0
-wlScroll.ScrollBarThickness = 3
-wlScroll.ScrollBarImageColor3 = C.Accent
-wlScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-wlScroll.ZIndex = 103
-Corner(wlScroll, 10)
-Stroke(wlScroll, C.Stroke, 1, 0.5)
-
-local wlLayout = Instance.new("UIListLayout", wlScroll)
-wlLayout.Padding = UDim.new(0, 6)
-wlLayout.SortOrder = Enum.SortOrder.LayoutOrder
-local wlPad = Instance.new("UIPadding", wlScroll)
-wlPad.PaddingTop = UDim.new(0, 6); wlPad.PaddingBottom = UDim.new(0, 6)
-wlPad.PaddingLeft = UDim.new(0, 6); wlPad.PaddingRight = UDim.new(0, 6)
-wlLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    wlScroll.CanvasSize = UDim2.new(0, 0, 0, wlLayout.AbsoluteContentSize.Y + 14)
-end)
-
-local function UpdateWLCount()
-    local count = 0
-    for _, v in pairs(S.Whitelist) do
-        if v then count = count + 1 end
-    end
-    wlCountLabel.Text = "✓ Salvos: " .. count .. " jogador" .. (count == 1 and "" or "es")
-end
-
-local function BuildWLUI()
-    for _, v in pairs(wlScroll:GetChildren()) do
-        if v:IsA("Frame") or v:IsA("TextButton") then v:Destroy() end
-    end
-
-    local sorted = {}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then table.insert(sorted, p) end
-    end
-    SortPlayers(sorted)
-
-    if #sorted == 0 then
-        local empty = Instance.new("TextLabel", wlScroll)
-        empty.Size = UDim2.new(1, 0, 0, 60)
-        empty.BackgroundTransparency = 1
-        empty.Text = "Nenhum jogador no servidor"
-        empty.TextColor3 = C.Dim
-        empty.TextSize = 11; empty.Font = C.Font
-        empty.ZIndex = 104
-        UpdateWLCount()
-        return
-    end
-
-    for _, p in ipairs(sorted) do
-        local isWL = S.Whitelist[p.UserId] and true or false
-        local isFr = IsFriend(p)
-
-        -- ⭐ CARD (agora mais alto pra acomodar o badge AMIGO sem sobrepor)
-        local card = Instance.new("TextButton", wlScroll)
-        card.Size = UDim2.new(1, -4, 0, 60)
-        card.BackgroundColor3 = isWL and Color3.fromRGB(0, 180, 90) or C.BgHover
-        card.BackgroundTransparency = isWL and 0.15 or 0.3
-        card.Text = ""; card.AutoButtonColor = false
-        card.ZIndex = 104
-        Corner(card, 10)
-        Stroke(card, isWL and C.Green or (isFr and C.Friend or C.Stroke), 1.5, isWL and 0.2 or 0.5)
-
-        -- Avatar
-        local avatarFrame = Instance.new("Frame", card)
-        avatarFrame.Size = UDim2.new(0, 44, 0, 44)
-        avatarFrame.Position = UDim2.new(0, 8, 0.5, -22)
-        avatarFrame.BackgroundColor3 = C.Bg
-        avatarFrame.BackgroundTransparency = 0.2
-        avatarFrame.ZIndex = 105
-        Corner(avatarFrame, 22)
-        Stroke(avatarFrame, isWL and C.Green or (isFr and C.Friend or C.Accent), 1.5, 0.3)
-
-        local avatarImg = Instance.new("ImageLabel", avatarFrame)
-        avatarImg.Size = UDim2.new(1, -4, 1, -4)
-        avatarImg.Position = UDim2.new(0, 2, 0, 2)
-        avatarImg.BackgroundTransparency = 1
-        avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(p.UserId) .. "&w=150&h=150"
-        avatarImg.ZIndex = 106
-        Corner(avatarImg, 21)
-
-        -- Display Name
-        local dn = Instance.new("TextLabel", card)
-        dn.Size = UDim2.new(1, -230, 0, 18)
-        dn.Position = UDim2.new(0, 60, 0, 8)
-        dn.BackgroundTransparency = 1
-        dn.Text = p.DisplayName
-        dn.TextColor3 = isWL and Color3.fromRGB(180, 255, 200) or (isFr and Color3.fromRGB(180, 220, 255) or C.Text)
-        dn.TextSize = 12; dn.Font = C.FontB
-        dn.TextXAlignment = Enum.TextXAlignment.Left
-        dn.TextTruncate = Enum.TextTruncate.AtEnd
-        dn.ZIndex = 105
-
-        -- Username
-        local un = Instance.new("TextLabel", card)
-        un.Size = UDim2.new(1, -230, 0, 14)
-        un.Position = UDim2.new(0, 60, 0, 28)
-        un.BackgroundTransparency = 1
-        un.Text = "@" .. p.Name
-        un.TextColor3 = isWL and Color3.fromRGB(200, 255, 220) or C.Dim
-        un.TextSize = 10; un.Font = C.Font
-        un.TextXAlignment = Enum.TextXAlignment.Left
-        un.TextTruncate = Enum.TextTruncate.AtEnd
-        un.ZIndex = 105
-
-        -- Badge SALVO / LIVRE (canto direito)
-        local badge = Instance.new("TextLabel", card)
-        badge.Size = UDim2.new(0, 62, 0, 20)
-        badge.Position = UDim2.new(1, -70, 0.5, -10)
-        badge.BackgroundColor3 = isWL and Color3.fromRGB(0, 220, 110) or C.BgAlt
-        badge.BackgroundTransparency = isWL and 0 or 0.3
-        badge.Text = isWL and "✓ SALVO" or "LIVRE"
-        badge.TextColor3 = isWL and Color3.new(1,1,1) or C.Dim
-        badge.TextSize = 9; badge.Font = C.FontB
-        badge.ZIndex = 105
-        Corner(badge, 6)
-
-        -- ⭐ Badge AMIGO (ao lado do badge SALVO/LIVRE, à esquerda dele)
-        if isFr then
-            local frTag = Instance.new("TextLabel", card)
-            frTag.Size = UDim2.new(0, 60, 0, 20)
-            frTag.Position = UDim2.new(1, -136, 0.5, -10)  -- ⭐ ao lado do badge
-            frTag.BackgroundColor3 = C.Friend
-            frTag.BackgroundTransparency = 0.05
-            frTag.Text = "⭐ AMIGO"
-            frTag.TextColor3 = Color3.new(1,1,1)
-            frTag.TextSize = 9; frTag.Font = C.FontB
-            frTag.ZIndex = 106
-            Corner(frTag, 6)
-        end
-
-        card.MouseButton1Click:Connect(function()
-            PS("Click")
-            S.Whitelist[p.UserId] = not S.Whitelist[p.UserId]
-            local state = S.Whitelist[p.UserId]
-            TweenService:Create(card, TweenInfo.new(0.2), {
-                BackgroundColor3 = state and Color3.fromRGB(0, 180, 90) or C.BgHover,
-                BackgroundTransparency = state and 0.15 or 0.3
-            }):Play()
-            local cs = card:FindFirstChildOfClass("UIStroke")
-            if cs then
-                TweenService:Create(cs, TweenInfo.new(0.2), {
-                    Color = state and C.Green or (isFr and C.Friend or C.Stroke),
-                    Transparency = state and 0.2 or 0.5
-                }):Play()
-            end
-            dn.TextColor3 = state and Color3.fromRGB(180, 255, 200) or (isFr and Color3.fromRGB(180, 220, 255) or C.Text)
-            un.TextColor3 = state and Color3.fromRGB(200, 255, 220) or C.Dim
-            badge.BackgroundColor3 = state and Color3.fromRGB(0, 220, 110) or C.BgAlt
-            badge.BackgroundTransparency = state and 0 or 0.3
-            badge.Text = state and "✓ SALVO" or "LIVRE"
-            badge.TextColor3 = state and Color3.new(1,1,1) or C.Dim
-            UpdateWLCount()
-        end)
-    end
-    UpdateWLCount()
-end
-
-wlRefreshBtn.MouseButton1Click:Connect(function() PS("Click"); BuildWLUI() end)
-wlClearBtn.MouseButton1Click:Connect(function() PS("Click"); S.Whitelist = {}; BuildWLUI(); Notify("Whitelist limpa!", true) end)
-Players.PlayerAdded:Connect(function() task.wait(0.5); BuildWLUI() end)
-Players.PlayerRemoving:Connect(function() task.wait(0.5); BuildWLUI() end)
-task.defer(function() task.wait(1); BuildWLUI() end)
-task.delay(4, function() BuildWLUI() end)
-task.delay(8, function() BuildWLUI() end)
-
---=============================================================
 -- 👁️ VISUAL
 --=============================================================
-CreateTitle(VisualP, "Jogadores", "👁️")
-local cfgESP, espApply, espWrap, espBtnT = CreateToggleWithConfig(VisualP, "Ativar ESP", false, function(v) S.ESP = v end)
-espBtn = espBtnT
-CreateToggle(cfgESP, "Caixas", false, function(v) S.Boxes = v end)
-CreateToggle(cfgESP, "Nomes", false, function(v) S.Names = v end)
-CreateToggle(cfgESP, "Distância", false, function(v) S.Distance = v end)
-CreateToggle(cfgESP, "Linhas", false, function(v) S.Lines = v end)
-CreateToggle(cfgESP, "Cor do Time", false, function(v) S.TeamColor = v end)
-CreateToggle(cfgESP, "Destaque (Chams)", false, function(v) S.Highlight = v end)
+CreateTitle(VisualP, "ESP - Jogadores", "👁️")
+CreateToggle(VisualP, "Ativar ESP", false, function(v) S.ESP = v end)
+CreateToggle(VisualP, "Caixas", false, function(v) S.Boxes = v end)
+CreateToggle(VisualP, "Nomes", false, function(v) S.Names = v end)
+CreateToggle(VisualP, "Distância", false, function(v) S.Distance = v end)
+CreateToggle(VisualP, "Linhas", false, function(v) S.Lines = v end)
+CreateToggle(VisualP, "Cor do Time", false, function(v) S.TeamColor = v end)
+CreateToggle(VisualP, "Destaque (Chams)", false, function(v) S.Highlight = v end)
 
-CreateTitle(VisualP, "NPCs", "🤖")
-CreateToggle(VisualP, "ESP em NPCs", false, function(v) S.ESPNPC = v end)
+CreateTitle(VisualP, "ESP - NPCs", "🤖")
+CreateToggle(VisualP, "Ativar ESP em NPCs", false, function(v) S.ESPNPC = v end)
 
 --=============================================================
 -- 🏃 PERSONAGEM
@@ -1061,10 +1131,10 @@ local cfgFly = CreateToggleWithConfig(PersoP, "Ativar Modo Voo", false, function
     S.FlyMode = v
     if v then flyOn() else flyOff() end
 end)
-CreateStepper(cfgFly, "Multiplicador de Velocidade", 1, 10, 1, 1, function(v) getgenv().speeds = v end)
+CreateStepper(cfgFly, "Multiplicador", 1, 10, 1, 1, function(v) getgenv().speeds = v end)
 
 local upDownFrame = Instance.new("Frame", cfgFly)
-upDownFrame.Size = UDim2.new(1, 0, 0, 34)
+upDownFrame.Size = UDim2.new(1, 0, 0, 38)
 upDownFrame.BackgroundTransparency = 1
 upDownFrame.ZIndex = 103
 
@@ -1114,52 +1184,179 @@ CreateToggle(PersoP, "Terceira Pessoa", false, function(v) S.ForceThirdPerson = 
 -- 🌀 TELEPORTE
 --=============================================================
 CreateTitle(TPP, "Jogadores Online", "👥")
-local SelLab = CreateLabel(TPP, "🎯 Alvo: Nenhum", 25)
+
+local SelBox = Instance.new("Frame", TPP)
+SelBox.Size = UDim2.new(1, 0, 0, 30)
+SelBox.BackgroundColor3 = C.BgAlt
+SelBox.BackgroundTransparency = 0.2
+SelBox.ZIndex = 103
+SelBox:SetAttribute("KikoBg", "alt")
+Corner(SelBox, 8)
+Stroke(SelBox, C.Green, 1, 0.5)
+
+local SelLab = Instance.new("TextLabel", SelBox)
+SelLab.Size = UDim2.new(1, -20, 1, 0)
+SelLab.Position = UDim2.new(0, 10, 0, 0)
+SelLab.BackgroundTransparency = 1
+SelLab.Text = "🎯 Alvo: Nenhum"
 SelLab.TextColor3 = C.Green
+SelLab.TextSize = 11
+SelLab.Font = C.FontB
+SelLab.TextXAlignment = Enum.TextXAlignment.Left
+SelLab.ZIndex = 104
 
 local plist = Instance.new("ScrollingFrame", TPP)
-plist.Size = UDim2.new(1, 0, 0, 140)
+plist.Size = UDim2.new(1, 0, 0, 220)
 plist.BackgroundColor3 = C.Bg
+plist.BackgroundTransparency = 0.3
 plist.BorderSizePixel = 0
-plist.ScrollBarThickness = 2
+plist.ScrollBarThickness = 3
+plist.ScrollBarImageColor3 = C.Accent
 plist.CanvasSize = UDim2.new(0, 0, 0, 0)
 plist.ZIndex = 103
-Corner(plist, 8)
+plist:SetAttribute("KikoBg", "main")
+Corner(plist, 10)
+Stroke(plist, C.Stroke, 1, 0.5)
 local pll = Instance.new("UIListLayout", plist)
-pll.Padding = UDim.new(0, 2)
+pll.Padding = UDim.new(0, 6)
+pll.SortOrder = Enum.SortOrder.LayoutOrder
+local plistPad = Instance.new("UIPadding", plist)
+plistPad.PaddingTop = UDim.new(0, 6); plistPad.PaddingBottom = UDim.new(0, 6)
+plistPad.PaddingLeft = UDim.new(0, 6); plistPad.PaddingRight = UDim.new(0, 6)
+pll:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    plist.CanvasSize = UDim2.new(0, 0, 0, pll.AbsoluteContentSize.Y + 14)
+end)
+
+local currentSelectedBtn = nil
 
 local function UpList()
     for _, v in pairs(plist:GetChildren()) do
         if v:IsA("TextButton") then v:Destroy() end
     end
+    currentSelectedBtn = nil
+    
     local sorted = {}
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then table.insert(sorted, p) end
     end
     SortPlayers(sorted)
 
+    if #sorted == 0 then
+        local empty = Instance.new("TextLabel", plist)
+        empty.Size = UDim2.new(1, 0, 0, 60)
+        empty.BackgroundTransparency = 1
+        empty.Text = "Nenhum jogador no servidor"
+        empty.TextColor3 = C.Dim
+        empty.TextSize = 11; empty.Font = C.Font
+        empty.ZIndex = 104
+        return
+    end
+
     for _, p in ipairs(sorted) do
         local isFr = IsFriend(p)
-        local b = Instance.new("TextButton", plist)
-        b.Size = UDim2.new(1, -4, 0, 25)
-        b.Text = (isFr and "⭐ " or "") .. p.DisplayName
-        b.BackgroundColor3 = isFr and Color3.fromRGB(0, 90, 150) or C.BgHover
-        b.TextColor3 = isFr and Color3.fromRGB(180, 220, 255) or C.Text
-        b.TextSize = 10; b.Font = C.Font
-        b.AutoButtonColor = false; b.ZIndex = 104
-        Corner(b, 6)
-        b.MouseButton1Click:Connect(function()
+        local card = Instance.new("TextButton", plist)
+        card.Size = UDim2.new(1, -4, 0, 44)
+        card.BackgroundColor3 = C.BgAlt
+        card.BackgroundTransparency = 0.15
+        card.Text = ""; card.AutoButtonColor = false
+        card.ZIndex = 104
+        card:SetAttribute("KikoBg", "alt")
+        Corner(card, 8)
+        local cardStroke = Stroke(card, isFr and C.Friend or C.Stroke, 1, 0.6)
+
+        local av = Instance.new("Frame", card)
+        av.Size = UDim2.new(0, 32, 0, 32)
+        av.Position = UDim2.new(0, 8, 0.5, -16)
+        av.BackgroundColor3 = C.Bg
+        av.BackgroundTransparency = 0.2
+        av.ZIndex = 105
+        Corner(av, 16)
+        Stroke(av, isFr and C.Friend or C.Accent, 1.5, 0.4)
+
+        local avImg = Instance.new("ImageLabel", av)
+        avImg.Size = UDim2.new(1, -4, 1, -4)
+        avImg.Position = UDim2.new(0, 2, 0, 2)
+        avImg.BackgroundTransparency = 1
+        avImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(p.UserId) .. "&w=100&h=100"
+        avImg.ZIndex = 106
+        Corner(avImg, 14)
+
+        local dn = Instance.new("TextLabel", card)
+        dn.Size = UDim2.new(1, -100, 0, 16)
+        dn.Position = UDim2.new(0, 48, 0, 6)
+        dn.BackgroundTransparency = 1
+        dn.Text = p.DisplayName
+        dn.TextColor3 = isFr and Color3.fromRGB(180, 220, 255) or C.Text
+        dn.TextSize = 11; dn.Font = C.FontB
+        dn.TextXAlignment = Enum.TextXAlignment.Left
+        dn.TextTruncate = Enum.TextTruncate.AtEnd
+        dn.ZIndex = 105
+
+        local un = Instance.new("TextLabel", card)
+        un.Size = UDim2.new(1, -100, 0, 12)
+        un.Position = UDim2.new(0, 48, 0, 24)
+        un.BackgroundTransparency = 1
+        un.Text = "@" .. p.Name
+        un.TextColor3 = C.Dim
+        un.TextSize = 9; un.Font = C.Font
+        un.TextXAlignment = Enum.TextXAlignment.Left
+        un.TextTruncate = Enum.TextTruncate.AtEnd
+        un.ZIndex = 105
+
+        if isFr then
+            local frBadge = Instance.new("TextLabel", card)
+            frBadge.Size = UDim2.new(0, 22, 0, 22)
+            frBadge.Position = UDim2.new(1, -34, 0.5, -11)
+            frBadge.BackgroundColor3 = C.Friend
+            frBadge.BackgroundTransparency = 0.1
+            frBadge.Text = "⭐"
+            frBadge.TextColor3 = Color3.new(1,1,1)
+            frBadge.TextSize = 12
+            frBadge.Font = C.FontB
+            frBadge.ZIndex = 106
+            Corner(frBadge, 11)
+        end
+
+        card.MouseEnter:Connect(function()
+            TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover}):Play()
+        end)
+        card.MouseLeave:Connect(function()
+            if currentSelectedBtn ~= card then
+                TweenService:Create(card, TweenInfo.new(0.15), {BackgroundColor3 = LastBgAltApplied or C.BgAlt}):Play()
+            end
+        end)
+
+        card.MouseButton1Click:Connect(function()
+            PS("Click")
             S.SelectedPlayer = p
             SelLab.Text = "🎯 Alvo: " .. (isFr and "⭐ " or "") .. p.DisplayName
+            
+            if currentSelectedBtn and currentSelectedBtn ~= card then
+                local prevStroke = currentSelectedBtn:FindFirstChildOfClass("UIStroke")
+                TweenService:Create(currentSelectedBtn, TweenInfo.new(0.2), {
+                    BackgroundColor3 = LastBgAltApplied or C.BgAlt
+                }):Play()
+                if prevStroke then
+                    TweenService:Create(prevStroke, TweenInfo.new(0.2), {
+                        Color = C.Stroke, Transparency = 0.6
+                    }):Play()
+                end
+            end
+            
+            currentSelectedBtn = card
+            TweenService:Create(card, TweenInfo.new(0.2), {
+                BackgroundColor3 = C.Accent, BackgroundTransparency = 0.1
+            }):Play()
+            TweenService:Create(cardStroke, TweenInfo.new(0.2), {
+                Color = C.Accent, Transparency = 0
+            }):Play()
         end)
     end
-    plist.CanvasSize = UDim2.new(0, 0, 0, pll.AbsoluteContentSize.Y)
 end
 UpList()
-Players.PlayerAdded:Connect(UpList)
-Players.PlayerRemoving:Connect(UpList)
+Players.PlayerAdded:Connect(function() task.wait(0.5); UpList() end)
+Players.PlayerRemoving:Connect(function() task.wait(0.5); UpList() end)
 task.delay(4, UpList)
-task.delay(8, UpList)
 
 CreateTitle(TPP, "Ações", "🌀")
 CreateButton(TPP, "📡 Teleportar até Alvo", C.Accent, function()
@@ -1210,6 +1407,210 @@ CreateButton(DefP, "🔴 Definir Alvo: Time Vermelho", Color3.fromRGB(229,72,72)
 end)
 
 --=============================================================
+-- 📝 WHITELIST
+--=============================================================
+local wlDesc = Instance.new("TextLabel", WLP)
+wlDesc.Size = UDim2.new(1, 0, 0, 46)
+wlDesc.BackgroundColor3 = C.BgAlt
+wlDesc.BackgroundTransparency = 0.4
+wlDesc.Text = "  ℹ️  Jogadores na whitelist NÃO serão afetados por Aimbot, Silent, Hitbox e Auto TP. Clique no card para adicionar/remover."
+wlDesc.TextColor3 = C.Dim
+wlDesc.TextSize = 10; wlDesc.Font = C.Font
+wlDesc.TextWrapped = true
+wlDesc.TextXAlignment = Enum.TextXAlignment.Left
+wlDesc.TextYAlignment = Enum.TextYAlignment.Center
+wlDesc.ZIndex = 103
+wlDesc:SetAttribute("KikoBg", "alt")
+Corner(wlDesc, 8)
+Stroke(wlDesc, C.Stroke, 1, 0.5)
+
+local wlCountLabel = Instance.new("TextLabel", WLP)
+wlCountLabel.Size = UDim2.new(1, 0, 0, 22)
+wlCountLabel.BackgroundTransparency = 1
+wlCountLabel.Text = "✓ Salvos: 0 jogadores"
+wlCountLabel.TextColor3 = C.Accent
+wlCountLabel.TextSize = 12; wlCountLabel.Font = C.FontB
+wlCountLabel.TextXAlignment = Enum.TextXAlignment.Left
+wlCountLabel.ZIndex = 104
+
+local wlActions = Instance.new("Frame", WLP)
+wlActions.Size = UDim2.new(1, 0, 0, 34)
+wlActions.BackgroundTransparency = 1
+wlActions.ZIndex = 103
+
+local wlRefreshBtn = Instance.new("TextButton", wlActions)
+wlRefreshBtn.Size = UDim2.new(0.48, 0, 1, 0)
+wlRefreshBtn.BackgroundColor3 = C.Accent
+wlRefreshBtn.Text = "🔄 Atualizar"
+wlRefreshBtn.TextColor3 = Color3.new(1,1,1)
+wlRefreshBtn.TextSize = 11; wlRefreshBtn.Font = C.FontB
+wlRefreshBtn.AutoButtonColor = false; wlRefreshBtn.ZIndex = 104
+Corner(wlRefreshBtn, 8)
+
+local wlClearBtn = Instance.new("TextButton", wlActions)
+wlClearBtn.Size = UDim2.new(0.48, 0, 1, 0)
+wlClearBtn.Position = UDim2.new(0.52, 0, 0, 0)
+wlClearBtn.BackgroundColor3 = C.AccentDk
+wlClearBtn.Text = "🗑 Limpar"
+wlClearBtn.TextColor3 = Color3.new(1,1,1)
+wlClearBtn.TextSize = 11; wlClearBtn.Font = C.FontB
+wlClearBtn.AutoButtonColor = false; wlClearBtn.ZIndex = 104
+Corner(wlClearBtn, 8)
+
+local wlScroll = Instance.new("ScrollingFrame", WLP)
+wlScroll.Size = UDim2.new(1, 0, 0, 380)
+wlScroll.BackgroundColor3 = C.Bg
+wlScroll.BackgroundTransparency = 0.3
+wlScroll.BorderSizePixel = 0
+wlScroll.ScrollBarThickness = 3
+wlScroll.ScrollBarImageColor3 = C.Accent
+wlScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+wlScroll.ZIndex = 103
+wlScroll:SetAttribute("KikoBg", "main")
+Corner(wlScroll, 10)
+Stroke(wlScroll, C.Stroke, 1, 0.5)
+
+local wlLayout = Instance.new("UIListLayout", wlScroll)
+wlLayout.Padding = UDim.new(0, 6)
+wlLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local wlPad = Instance.new("UIPadding", wlScroll)
+wlPad.PaddingTop = UDim.new(0, 6); wlPad.PaddingBottom = UDim.new(0, 6)
+wlPad.PaddingLeft = UDim.new(0, 6); wlPad.PaddingRight = UDim.new(0, 6)
+wlLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    wlScroll.CanvasSize = UDim2.new(0, 0, 0, wlLayout.AbsoluteContentSize.Y + 14)
+end)
+
+local function UpdateWLCount()
+    local count = 0
+    for _, v in pairs(S.Whitelist) do
+        if v then count = count + 1 end
+    end
+    wlCountLabel.Text = "✓ Salvos: " .. count .. " jogador" .. (count == 1 and "" or "es")
+end
+
+local function BuildWLUI()
+    for _, v in pairs(wlScroll:GetChildren()) do
+        if v:IsA("Frame") or v:IsA("TextButton") then v:Destroy() end
+    end
+
+    local sorted = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then table.insert(sorted, p) end
+    end
+    SortPlayers(sorted)
+
+    if #sorted == 0 then
+        local empty = Instance.new("TextLabel", wlScroll)
+        empty.Size = UDim2.new(1, 0, 0, 60)
+        empty.BackgroundTransparency = 1
+        empty.Text = "Nenhum jogador no servidor"
+        empty.TextColor3 = C.Dim
+        empty.TextSize = 11; empty.Font = C.Font
+        empty.ZIndex = 104
+        UpdateWLCount()
+        return
+    end
+
+    for _, p in ipairs(sorted) do
+        local isWL = S.Whitelist[p.UserId] and true or false
+        local isFr = IsFriend(p)
+
+        local card = Instance.new("TextButton", wlScroll)
+        card.Size = UDim2.new(1, -4, 0, 52)
+        card.BackgroundColor3 = isWL and Color3.fromRGB(0, 120, 60) or C.BgAlt
+        card.BackgroundTransparency = isWL and 0.2 or 0.3
+        card.Text = ""; card.AutoButtonColor = false
+        card.ZIndex = 104
+        card:SetAttribute("KikoBg", isWL and "" or "alt")
+        Corner(card, 10)
+        Stroke(card, isWL and C.Green or (isFr and C.Friend or C.Stroke), 1.5, isWL and 0.2 or 0.5)
+
+        local avatarFrame = Instance.new("Frame", card)
+        avatarFrame.Size = UDim2.new(0, 40, 0, 40)
+        avatarFrame.Position = UDim2.new(0, 8, 0.5, -20)
+        avatarFrame.BackgroundColor3 = C.Bg
+        avatarFrame.BackgroundTransparency = 0.2
+        avatarFrame.ZIndex = 105
+        Corner(avatarFrame, 20)
+        Stroke(avatarFrame, isWL and C.Green or (isFr and C.Friend or C.Accent), 1.5, 0.3)
+
+        local avatarImg = Instance.new("ImageLabel", avatarFrame)
+        avatarImg.Size = UDim2.new(1, -4, 1, -4)
+        avatarImg.Position = UDim2.new(0, 2, 0, 2)
+        avatarImg.BackgroundTransparency = 1
+        avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(p.UserId) .. "&w=150&h=150"
+        avatarImg.ZIndex = 106
+        Corner(avatarImg, 19)
+
+        local dn = Instance.new("TextLabel", card)
+        dn.Size = UDim2.new(1, -180, 0, 16)
+        dn.Position = UDim2.new(0, 56, 0, 8)
+        dn.BackgroundTransparency = 1
+        dn.Text = p.DisplayName
+        dn.TextColor3 = isWL and Color3.fromRGB(180, 255, 200) or (isFr and Color3.fromRGB(180, 220, 255) or C.Text)
+        dn.TextSize = 11; dn.Font = C.FontB
+        dn.TextXAlignment = Enum.TextXAlignment.Left
+        dn.TextTruncate = Enum.TextTruncate.AtEnd
+        dn.ZIndex = 105
+
+        local un = Instance.new("TextLabel", card)
+        un.Size = UDim2.new(1, -180, 0, 14)
+        un.Position = UDim2.new(0, 56, 0, 26)
+        un.BackgroundTransparency = 1
+        un.Text = "@" .. p.Name
+        un.TextColor3 = isWL and Color3.fromRGB(200, 255, 220) or C.Dim
+        un.TextSize = 9; un.Font = C.Font
+        un.TextXAlignment = Enum.TextXAlignment.Left
+        un.TextTruncate = Enum.TextTruncate.AtEnd
+        un.ZIndex = 105
+
+        local badge = Instance.new("TextLabel", card)
+        badge.Size = UDim2.new(0, 60, 0, 20)
+        badge.Position = UDim2.new(1, -68, 0.5, -10)
+        badge.BackgroundColor3 = isWL and Color3.fromRGB(0, 220, 110) or C.BgHover
+        badge.BackgroundTransparency = isWL and 0 or 0.3
+        badge.Text = isWL and "✓ SALVO" or "LIVRE"
+        badge.TextColor3 = isWL and Color3.new(1,1,1) or C.Dim
+        badge.TextSize = 9; badge.Font = C.FontB
+        badge.ZIndex = 105
+        Corner(badge, 6)
+
+        card.MouseButton1Click:Connect(function()
+            PS("Toggle")
+            S.Whitelist[p.UserId] = not S.Whitelist[p.UserId]
+            local state = S.Whitelist[p.UserId]
+            card:SetAttribute("KikoBg", state and "" or "alt")
+            TweenService:Create(card, TweenInfo.new(0.25), {
+                BackgroundColor3 = state and Color3.fromRGB(0, 120, 60) or (LastBgAltApplied or C.BgAlt),
+                BackgroundTransparency = state and 0.2 or (Personal.BgOpacity + 0.08)
+            }):Play()
+            local cs = card:FindFirstChildOfClass("UIStroke")
+            if cs then
+                TweenService:Create(cs, TweenInfo.new(0.25), {
+                    Color = state and C.Green or (isFr and C.Friend or C.Stroke),
+                    Transparency = state and 0.2 or 0.5
+                }):Play()
+            end
+            dn.TextColor3 = state and Color3.fromRGB(180, 255, 200) or (isFr and Color3.fromRGB(180, 220, 255) or C.Text)
+            un.TextColor3 = state and Color3.fromRGB(200, 255, 220) or C.Dim
+            badge.BackgroundColor3 = state and Color3.fromRGB(0, 220, 110) or C.BgHover
+            badge.BackgroundTransparency = state and 0 or 0.3
+            badge.Text = state and "✓ SALVO" or "LIVRE"
+            badge.TextColor3 = state and Color3.new(1,1,1) or C.Dim
+            UpdateWLCount()
+        end)
+    end
+    UpdateWLCount()
+end
+
+wlRefreshBtn.MouseButton1Click:Connect(function() PS("Click"); BuildWLUI() end)
+wlClearBtn.MouseButton1Click:Connect(function() PS("Click"); S.Whitelist = {}; BuildWLUI(); Notify("Whitelist limpa!", true) end)
+Players.PlayerAdded:Connect(function() task.wait(0.5); BuildWLUI() end)
+Players.PlayerRemoving:Connect(function() task.wait(0.5); BuildWLUI() end)
+task.defer(function() task.wait(1); BuildWLUI() end)
+task.delay(4, BuildWLUI)
+
+--=============================================================
 -- ⚙️ PRESETS
 --=============================================================
 CreateTitle(PresetP, "Predefinições", "⚙️")
@@ -1226,7 +1627,7 @@ CreateButton(PresetP, "🎯 Carregar: Modo Legit", Color3.fromRGB(0, 100, 50), f
 end)
 
 CreateButton(PresetP, "🤖 Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), function()
-    if VisToggles["ESP em NPCs"] then VisToggles["ESP em NPCs"](true) end
+    if VisToggles["Ativar ESP em NPCs"] then VisToggles["Ativar ESP em NPCs"](true) end
     if VisToggles["Destaque (Chams)"] then VisToggles["Destaque (Chams)"](true) end
     if VisToggles["Ativar Assistência"] then VisToggles["Ativar Assistência"](true) end
     if VisToggles["Mira em NPCs"] then VisToggles["Mira em NPCs"](true) end
@@ -1256,7 +1657,7 @@ local function SpawnFloat(name, cb)
         if v.Name == "FloatBtn_" .. name then return end
     end
     local idx = CountFloats()
-    local offsetX = -130 - (idx * 55)
+    local offsetX = -140 - (idx * 60)
 
     local ff = Instance.new("Frame", ScreenGui)
     ff.Name = "FloatBtn_" .. name
@@ -1271,7 +1672,7 @@ local function SpawnFloat(name, cb)
     icon.Size = UDim2.new(1, 0, 1, 0)
     icon.BackgroundTransparency = 1
     icon.Text = name; icon.TextColor3 = C.Text
-    icon.TextSize = 9; icon.Font = C.FontB
+    icon.TextSize = 10; icon.Font = C.FontB
     icon.ZIndex = 62
 
     local b = Instance.new("TextButton", ff)
@@ -1281,11 +1682,11 @@ local function SpawnFloat(name, cb)
     b.AutoButtonColor = false
 
     local close = Instance.new("TextButton", ff)
-    close.Size = UDim2.new(0, 18, 0, 18)
-    close.Position = UDim2.new(1, -12, 0, -6)
-    close.BackgroundColor3 = C.Red
-    close.Text = "×"; close.TextColor3 = Color3.new(1,1,1); close.TextSize = 10
-    close.AutoButtonColor = false; close.ZIndex = 63
+    close.Size = UDim2.new(0, 20, 0, 20)
+    close.Position = UDim2.new(1, -14, 0, -6)
+    close.BackgroundColor3 = C.Accent
+    close.Text = "×"; close.TextColor3 = Color3.new(1,1,1); close.TextSize = 12
+    close.Font = C.FontB; close.AutoButtonColor = false; close.ZIndex = 63
     Corner(close, 10)
 
     local dragging, startMouse, startFrame, moved
@@ -1315,17 +1716,17 @@ local function SpawnFloat(name, cb)
             dragging = false; moved = false
         end
     end)
-    close.MouseButton1Click:Connect(function() ff:Destroy() end)
+    close.MouseButton1Click:Connect(function() PS("Click"); ff:Destroy() end)
 end
 
-CreateButton(PresetP, "Criar Botão: Mira", Color3.fromRGB(50, 50, 150), function()
+CreateButton(PresetP, "Criar Botão: Mira", Color3.fromRGB(80, 40, 120), function()
     SpawnFloat("AIM", function()
         local n = not S.AimAssist
         if VisToggles["Ativar Assistência"] then VisToggles["Ativar Assistência"](n) end
         Notify("MIRA: " .. (n and "ON" or "OFF"), n)
     end)
 end)
-CreateButton(PresetP, "Criar Botão: Visual", Color3.fromRGB(50, 50, 150), function()
+CreateButton(PresetP, "Criar Botão: Visual", Color3.fromRGB(80, 40, 120), function()
     SpawnFloat("VIS", function()
         local n = not S.ESP
         if VisToggles["Ativar ESP"] then VisToggles["Ativar ESP"](n) end
@@ -1333,7 +1734,7 @@ CreateButton(PresetP, "Criar Botão: Visual", Color3.fromRGB(50, 50, 150), funct
         Notify("VISUAL: " .. (n and "ON" or "OFF"), n)
     end)
 end)
-CreateButton(PresetP, "Criar Botão: Hitbox", Color3.fromRGB(50, 50, 150), function()
+CreateButton(PresetP, "Criar Botão: Hitbox", Color3.fromRGB(80, 40, 120), function()
     SpawnFloat("HB", function()
         local n = not S.HitboxEnabled
         if VisToggles["Aumentar Hitbox (Jogadores)"] then VisToggles["Aumentar Hitbox (Jogadores)"](n) end
@@ -1350,19 +1751,21 @@ local function KeyName(mod, key)
     if mod == Enum.KeyCode.LeftAlt or mod == Enum.KeyCode.RightAlt then m = "Alt + "
     elseif mod == Enum.KeyCode.LeftControl or mod == Enum.KeyCode.RightControl then m = "Ctrl + "
     elseif mod == Enum.KeyCode.LeftShift or mod == Enum.KeyCode.RightShift then m = "Shift + " end
-    return m .. (key.Name or "None")
+    return m .. (key and key.Name or "None")
 end
 
-local function BindRow(parent, label, key, btn)
+local function BindRow(parent, label, key)
     local f = Instance.new("Frame", parent)
-    f.Size = UDim2.new(1, 0, 0, 35)
-    f.BackgroundColor3 = C.Bg
+    f.Size = UDim2.new(1, 0, 0, 38)
+    f.BackgroundColor3 = C.BgAlt
     f.ZIndex = 103
+    f:SetAttribute("KikoBg", "alt")
     Corner(f, 8)
+    Stroke(f, C.Stroke, 1, 0.7)
 
     local l = Instance.new("TextLabel", f)
-    l.Size = UDim2.new(0.6, 0, 1, 0)
-    l.Position = UDim2.new(0, 10, 0, 0)
+    l.Size = UDim2.new(0.5, 0, 1, 0)
+    l.Position = UDim2.new(0, 14, 0, 0)
     l.BackgroundTransparency = 1
     l.TextColor3 = C.Text; l.TextSize = 11
     l.TextXAlignment = Enum.TextXAlignment.Left
@@ -1370,10 +1773,10 @@ local function BindRow(parent, label, key, btn)
     l.Text = label; l.ZIndex = 104
 
     local b = Instance.new("TextButton", f)
-    b.Size = UDim2.new(0.4, -10, 0.8, 0)
-    b.Position = UDim2.new(0.6, 0, 0.1, 0)
+    b.Size = UDim2.new(0.45, 0, 0.7, 0)
+    b.Position = UDim2.new(0.5, 0, 0.15, 0)
     b.BackgroundColor3 = C.BgHover
-    b.TextColor3 = C.Green; b.TextSize = 10
+    b.TextColor3 = C.Green; b.TextSize = 11
     b.Font = C.FontB; b.AutoButtonColor = false
     b.ZIndex = 104
     Corner(b, 6)
@@ -1389,9 +1792,9 @@ local function BindRow(parent, label, key, btn)
 end
 
 CreateTitle(BindsP, "Configurar Teclas", "⌨️")
-BindRow(BindsP, "Aimbot", "AimAssist", aimbotBtn)
-BindRow(BindsP, "ESP (Visual)", "Visuals", espBtn)
-BindRow(BindsP, "Hitbox", "Hitbox", hitboxBtn)
+BindRow(BindsP, "Aimbot", "AimAssist")
+BindRow(BindsP, "ESP (Visual)", "Visuals")
+BindRow(BindsP, "Hitbox", "Hitbox")
 CreateLabel(BindsP,
     "• Ctrl Direito / Delete = abrir menu.\n" ..
     "• Esc = cancelar captura de tecla.", 40)
@@ -1487,7 +1890,7 @@ CreateToggle(MiscP, "Remover Sombras", false, function(v)
     S.RemoveShadows = v
     Lighting.GlobalShadows = not v
 end)
-CreateStepper(MiscP, "Limite de FPS", 30, 240, 120, 30, function(v)
+CreateStepper(MiscP, "Limite de FPS", 30, 360, 240, 30, function(v)
     if setfpscap then setfpscap(v) end
 end)
 
@@ -1541,47 +1944,260 @@ CreateLabel(MiscP,
     "🎯 Kiko Menu " .. VERSION .. "\n\n" ..
     "Atalhos:\n" ..
     "• Ctrl Direito / Delete — abrir/fechar\n" ..
-    "• 🔍 — buscar função pelo nome\n" ..
-    "• Arraste o título para mover o menu", 130)
+    "• Arraste o topo para mover o menu\n" ..
+    "• Timer conta desde o momento da execução", 100)
 
 --=============================================================
--- 🔍 SISTEMA DE BUSCA
+-- 🎨 PERSONALIZAÇÃO
 --=============================================================
-SearchIcon.MouseButton1Click:Connect(function()
+CreateTitle(PersonalP, "Aparência do Menu", "🎨")
+
+CreateLabel(PersonalP, "💡 Opacidade do fundo (0 = transparente, 1 = sólido)", 18)
+CreateStepper(PersonalP, "Opacidade do Fundo", 0, 1, Personal.BgOpacity, 0.05, function(v)
+    Personal.BgOpacity = v
+    ApplyBackground()
+    SavePersonal()
+end)
+
+CreateToggle(PersonalP, "Efeito Blur no Fundo", Personal.Blur, function(v)
+    Personal.Blur = v
+    pcall(function()
+        if v then
+            if not Lighting:FindFirstChild("KikoBlur") then
+                local b = Instance.new("BlurEffect", Lighting)
+                b.Name = "KikoBlur"
+                b.Size = 12
+            end
+        else
+            local b = Lighting:FindFirstChild("KikoBlur")
+            if b then b:Destroy() end
+        end
+    end)
+    SavePersonal()
+end)
+
+-- ============ CORES DO FUNDO ============
+CreateTitle(PersonalP, "Cores do Fundo", "🌈")
+CreateLabel(PersonalP, "Selecione uma opção abaixo:", 18)
+
+local bgColors = {
+    {name = "Preto",   rgb = {10, 10, 12}},
+    {name = "Escuro",  rgb = {18, 18, 22}},
+    {name = "Grafite", rgb = {30, 30, 35}},
+    {name = "Azulado", rgb = {15, 20, 35}},
+    {name = "Roxo",    rgb = {25, 15, 35}},
+    {name = "Verde",   rgb = {15, 25, 18}},
+}
+
+local bgRow1 = Instance.new("Frame", PersonalP)
+bgRow1.Size = UDim2.new(1, 0, 0, 42)
+bgRow1.BackgroundTransparency = 1
+bgRow1.ZIndex = 103
+local bgRow2 = Instance.new("Frame", PersonalP)
+bgRow2.Size = UDim2.new(1, 0, 0, 42)
+bgRow2.BackgroundTransparency = 1
+bgRow2.ZIndex = 103
+
+local function MakeColorBtn(parent, data, xPos, isAccentBtn, refsTable)
+    local demoColor = Color3.fromRGB(data.rgb[1], data.rgb[2], data.rgb[3])
+    
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(0.31, 0, 1, 0)
+    btn.Position = UDim2.new(xPos, 0, 0, 0)
+    btn.BackgroundColor3 = C.BgAlt
+    btn.BackgroundTransparency = 0.15
+    btn.Text = ""; btn.AutoButtonColor = false
+    btn.ZIndex = 104
+    btn:SetAttribute("KikoBg", "alt")
+    btn:SetAttribute("KikoNoAccent", true)
+    Corner(btn, 8)
+    local st = Stroke(btn, C.Stroke, 1, 0.5)
+    st:SetAttribute("KikoNoAccent", true)
+
+    -- Círculo de preview
+    local preview = Instance.new("Frame", btn)
+    preview.Size = UDim2.new(0, 22, 0, 22)
+    preview.Position = UDim2.new(0, 10, 0.5, -11)
+    preview.BackgroundColor3 = demoColor
+    preview.ZIndex = 105
+    preview:SetAttribute("KikoNoAccent", true)
+    Corner(preview, 11)
+    local prevSt = Stroke(preview, Color3.new(1,1,1), 1.5, 0.6)
+    prevSt:SetAttribute("KikoNoAccent", true)
+
+    local lbl = Instance.new("TextLabel", btn)
+    lbl.Size = UDim2.new(1, -42, 1, 0)
+    lbl.Position = UDim2.new(0, 38, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = data.name
+    lbl.TextColor3 = C.Text
+    lbl.TextSize = 11
+    lbl.Font = C.FontB
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.ZIndex = 105
+    lbl:SetAttribute("KikoNoAccent", true)
+
+    local check = Instance.new("TextLabel", btn)
+    check.Size = UDim2.new(0, 16, 0, 16)
+    check.Position = UDim2.new(1, -20, 0, 4)
+    check.BackgroundTransparency = 1
+    check.Text = "✓"
+    check.TextColor3 = demoColor
+    check.TextSize = 14
+    check.Font = C.FontB
+    check.Visible = false
+    check.ZIndex = 106
+    check:SetAttribute("KikoNoAccent", true)
+
+    local function setSelected(sel)
+        check.Visible = sel
+        if sel then
+            TweenService:Create(st, TweenInfo.new(0.2), {
+                Color = demoColor, Transparency = 0, Thickness = 2
+            }):Play()
+        else
+            TweenService:Create(st, TweenInfo.new(0.2), {
+                Color = C.Stroke, Transparency = 0.5, Thickness = 1
+            }):Play()
+        end
+    end
+    
+    refsTable[#refsTable+1] = setSelected
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover, BackgroundTransparency = 0}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = LastBgAltApplied or C.BgAlt,
+            BackgroundTransparency = Personal.BgOpacity + 0.08
+        }):Play()
+    end)
+
+    btn.MouseButton1Click:Connect(function()
+        PS("Click")
+        for _, fn in pairs(refsTable) do fn(false) end
+        setSelected(true)
+        if isAccentBtn then
+            Personal.AccentColor = data.rgb
+            ApplyAccent()
+        else
+            Personal.BgColor = data.rgb
+            ApplyBackground()
+        end
+        SavePersonal()
+        TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = demoColor:Lerp(Color3.new(1,1,1), 0.3)}):Play()
+        task.wait(0.12)
+        TweenService:Create(btn, TweenInfo.new(0.25), {BackgroundColor3 = LastBgAltApplied or C.BgAlt}):Play()
+    end)
+
+    local cur = isAccentBtn and Personal.AccentColor or Personal.BgColor
+    if cur[1] == data.rgb[1] and cur[2] == data.rgb[2] and cur[3] == data.rgb[3] then
+        setSelected(true)
+    end
+end
+
+local bgRefsRow1, bgRefsRow2 = {}, {}
+for i = 1, 3 do MakeColorBtn(bgRow1, bgColors[i], (i-1) * 0.345, false, bgRefsRow1) end
+for i = 4, 6 do MakeColorBtn(bgRow2, bgColors[i], (i-4) * 0.345, false, bgRefsRow2) end
+
+-- ============ CORES DE DESTAQUE ============
+CreateTitle(PersonalP, "Cor de Destaque", "🎯")
+CreateLabel(PersonalP, "Cor dos botões, textos e detalhes:", 18)
+
+local accentColors = {
+    {name = "Vermelho", rgb = {220, 50, 50}},
+    {name = "Azul",     rgb = {80, 140, 240}},
+    {name = "Verde",    rgb = {60, 200, 120}},
+    {name = "Roxo",     rgb = {170, 90, 230}},
+    {name = "Dourado",  rgb = {230, 180, 60}},
+    {name = "Rosa",     rgb = {240, 100, 170}},
+}
+
+local acRow1 = Instance.new("Frame", PersonalP)
+acRow1.Size = UDim2.new(1, 0, 0, 42)
+acRow1.BackgroundTransparency = 1
+acRow1.ZIndex = 103
+local acRow2 = Instance.new("Frame", PersonalP)
+acRow2.Size = UDim2.new(1, 0, 0, 42)
+acRow2.BackgroundTransparency = 1
+acRow2.ZIndex = 103
+
+local acRefsRow1, acRefsRow2 = {}, {}
+for i = 1, 3 do MakeColorBtn(acRow1, accentColors[i], (i-1) * 0.345, true, acRefsRow1) end
+for i = 4, 6 do MakeColorBtn(acRow2, accentColors[i], (i-4) * 0.345, true, acRefsRow2) end
+
+-- ============ LAYOUT ============
+CreateTitle(PersonalP, "Layout", "📐")
+CreateLabel(PersonalP, "Escala do menu (0.7x a 1.4x):", 18)
+CreateStepper(PersonalP, "Escala da UI", 0.7, 1.4, Personal.UIScale, 0.05, function(v)
+    Personal.UIScale = v
+    ApplyScale()
+    SavePersonal()
+end)
+
+-- ============ GERENCIAR ============
+CreateTitle(PersonalP, "Gerenciar", "💾")
+
+local mgrRow = Instance.new("Frame", PersonalP)
+mgrRow.Size = UDim2.new(1, 0, 0, 38)
+mgrRow.BackgroundTransparency = 1
+mgrRow.ZIndex = 103
+
+local saveBtn = Instance.new("TextButton", mgrRow)
+saveBtn.Size = UDim2.new(0.48, 0, 1, 0)
+saveBtn.BackgroundColor3 = C.Green
+saveBtn.Text = "💾 Salvar"
+saveBtn.TextColor3 = Color3.new(0,0,0)
+saveBtn.TextSize = 11
+saveBtn.Font = C.FontB
+saveBtn.AutoButtonColor = false
+saveBtn.ZIndex = 104
+Corner(saveBtn, 8)
+saveBtn.MouseButton1Click:Connect(function()
     PS("Click")
-    SearchBox.Visible = not SearchBox.Visible
-    if SearchBox.Visible then SearchBox:CaptureFocus()
-    else SearchBox.Text = "" end
+    if SavePersonal() then Notify("💾 Personalização salva!", true)
+    else Notify("Executor sem writefile", false) end
+end)
+saveBtn.MouseEnter:Connect(function()
+    TweenService:Create(saveBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.Green:Lerp(Color3.new(1,1,1), 0.2)}):Play()
+end)
+saveBtn.MouseLeave:Connect(function()
+    TweenService:Create(saveBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.Green}):Play()
 end)
 
-SearchBox.FocusLost:Connect(function(enterPressed)
-    if not enterPressed and SearchBox.Text == "" then SearchBox.Visible = false end
+local resetBtn = Instance.new("TextButton", mgrRow)
+resetBtn.Size = UDim2.new(0.48, 0, 1, 0)
+resetBtn.Position = UDim2.new(0.52, 0, 0, 0)
+resetBtn.BackgroundColor3 = C.AccentDk
+resetBtn.Text = "🔄 Resetar Padrão"
+resetBtn.TextColor3 = Color3.new(1,1,1)
+resetBtn.TextSize = 11
+resetBtn.Font = C.FontB
+resetBtn.AutoButtonColor = false
+resetBtn.ZIndex = 104
+Corner(resetBtn, 8)
+resetBtn.MouseButton1Click:Connect(function()
+    PS("Click")
+    Personal = table.clone(DefaultPersonal)
+    Personal.BgColor = {18, 18, 22}
+    Personal.AccentColor = {220, 50, 50}
+    ApplyBackground()
+    ApplyAccent()
+    ApplyScale()
+    if SavePersonal() then Notify("Personalização resetada!", true) end
+end)
+resetBtn.MouseEnter:Connect(function()
+    TweenService:Create(resetBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.AccentDk:Lerp(Color3.new(1,1,1), 0.2)}):Play()
+end)
+resetBtn.MouseLeave:Connect(function()
+    TweenService:Create(resetBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.AccentDk}):Play()
 end)
 
-SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-    local q = string.lower(SearchBox.Text)
-    if q == "" then
-        for _, e in pairs(SearchIndex) do
-            if not e.isConfig then e.element.Visible = true end
-        end
-        return
-    end
-
-    local matchedToggle = {}
-    for _, e in pairs(SearchIndex) do
-        local m = string.find(e.searchText, q, 1, true) ~= nil
-        e._matched = m
-        if m and e.isConfig and e.parentToggle then
-            matchedToggle[e.parentToggle] = true
-        end
-    end
-
-    for _, e in pairs(SearchIndex) do
-        if not e.isConfig then
-            e.element.Visible = e._matched or matchedToggle[e.element] or false
-        end
-    end
-end)
+CreateLabel(PersonalP,
+    "💡 Alterações são salvas automaticamente\n" ..
+    "📁 Arquivo: kiko_menu_personal.json\n" ..
+    "🔧 Requer executor com writefile/readfile", 50)
 
 --=============================================================
 -- 🕊️ FLY
@@ -1689,7 +2305,6 @@ function flyOn()
         LocalPlayer.Character.Animate.Disabled = false
         getgenv().tpwalking = false
     end
-
     Notify("🕊️ Modo Voo ATIVADO", true)
 end
 
@@ -1732,35 +2347,38 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 --=============================================================
--- TOGGLE MENU
+-- 🔄 TOGGLE MENU
 --=============================================================
 local function ToggleMenu()
     if MenuAberto then
         PS("Close")
         MenuAberto = false
-        local anim = TweenService:Create(Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            BackgroundTransparency = 1, Size = UDim2.new(0, 330, 0, 430)
-        })
-        anim:Play()
-        anim.Completed:Connect(function()
+        TweenService:Create(Main, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, DIM.W - 20, 0, DIM.H - 20)
+        }):Play()
+        local fade = TweenService:Create(Main, TweenInfo.new(0.22), {BackgroundTransparency = Personal.BgOpacity + 0.4})
+        fade:Play()
+        fade.Completed:Connect(function()
             Main.Visible = false
-            Main.BackgroundTransparency = 0
-            Main.Size = UDim2.new(0, 340, 0, 440)
+            Main.BackgroundTransparency = Personal.BgOpacity
+            Main.Size = UDim2.new(0, DIM.W, 0, DIM.H)
         end)
     else
         PS("Open")
         MenuAberto = true
         Main.Visible = true
-        Main.BackgroundTransparency = 1
-        Main.Size = UDim2.new(0, 330, 0, 430)
-        TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            BackgroundTransparency = 0, Size = UDim2.new(0, 340, 0, 440)
+        Main.BackgroundTransparency = Personal.BgOpacity + 0.4
+        Main.Size = UDim2.new(0, DIM.W - 20, 0, DIM.H - 20)
+        TweenService:Create(Main, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundTransparency = Personal.BgOpacity,
+            Size = UDim2.new(0, DIM.W, 0, DIM.H)
         }):Play()
     end
 end
 
 CloseB.MouseButton1Click:Connect(function() PS("Click"); ToggleMenu() end)
 
+-- Botão flutuante
 do
     local fbDragging = false
     local fbStartMouse = nil
@@ -1799,7 +2417,7 @@ do
 end
 
 --=============================================================
--- INPUTS
+-- ⌨️ INPUTS
 --=============================================================
 UIS.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.Delete then
@@ -1867,7 +2485,7 @@ UIS.InputBegan:Connect(function(input, gp)
 end)
 
 --=============================================================
--- NPC CACHE
+-- 🤖 NPC CACHE + ESP
 --=============================================================
 local NPCCache = {}
 local ESPCont = {}
@@ -1954,8 +2572,35 @@ local function IsVisible(part)
 end
 
 --=============================================================
--- UPDATE CANVAS
+-- 📊 STATS
 --=============================================================
+local currentFPS = 60
+task.spawn(function()
+    local frames = 0
+    local t0 = tick()
+    while true do
+        RunService.RenderStepped:Wait()
+        frames = frames + 1
+        local now = tick()
+        if now - t0 >= 0.5 then
+            currentFPS = math.floor(frames / (now - t0))
+            frames = 0
+            t0 = now
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.5) do
+        local elapsed = tick() - SCRIPT_START_TIME
+        local ping = 0
+        pcall(function()
+            ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
+        end)
+        StatsLbl.Text = "FPS: "..currentFPS.."   •   PING: "..ping.."ms   •   "..FormatTime(elapsed)
+    end
+end)
+
 task.spawn(function()
     while true do
         RunService.RenderStepped:Wait()
@@ -1969,14 +2614,35 @@ task.spawn(function()
 end)
 
 --=============================================================
--- MAIN LOOP
+-- 🎨 APLICAR PERSONALIZAÇÃO INICIAL
+--=============================================================
+LastBgApplied = C.Bg
+LastBgAltApplied = C.BgAlt
+LastAccent = C.Accent
+LastAccentDk = C.AccentDk
+
+task.defer(function()
+    task.wait(0.1)
+    ApplyBackground()
+    ApplyAccent()
+    ApplyScale()
+    if TabButtons[1] then
+        TabButtons[1]:SetAttribute("KikoBg", "")
+        TabButtons[1].BackgroundColor3 = C.Accent
+        TabButtons[1].BackgroundTransparency = 0
+        TabButtons[1].TextColor3 = Color3.new(1,1,1)
+    end
+end)
+
+--=============================================================
+-- 🎯 MAIN LOOP
 --=============================================================
 RunService.RenderStepped:Connect(function()
     if MenuAberto then
         UIS.MouseIconEnabled = true
         UIS.MouseBehavior = Enum.MouseBehavior.Default
     end
-    FPSLbl.Text = "FPS: " .. math.floor(1/RunService.RenderStepped:Wait())
+    
     FOVCircle.Visible = S.ShowFOV and S.AimAssist
     FOVCircle.Radius = S.AimFOV
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
@@ -2136,7 +2802,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --=============================================================
--- LOOP HITBOX + AUTO NEAREST
+-- 📦 LOOP HITBOX + AUTO NEAREST
 --=============================================================
 task.spawn(function()
     while true do
@@ -2228,7 +2894,7 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification", {
         Title = "🎯 Kiko Menu",
-        Text = "v5.12",
+        Text = VERSION .. " — Portrait Edition!",
         Duration = 4,
     })
 end)
