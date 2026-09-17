@@ -1,5 +1,5 @@
 --=============================================================
--- 🎯 KIKO MENU v6.4 — PORTRAIT EDITION
+-- 🎯 KIKO MENU v7.0 — POWER EDITION
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -37,6 +37,7 @@ end
 getgenv().Settings = {
     ESP = false, ESPNPC = false, TeamColor = false,
     Boxes = false, Names = false, Distance = false, Lines = false, Highlight = false,
+    ESPHP = false,
     AimAssist = false, AimPart = "Head", AimFOV = 100, AimSmooth = 0.1,
     ShowFOV = false, WallCheck = false, TeamCheck = false, AimNPC = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
@@ -50,17 +51,27 @@ getgenv().Settings = {
     AutoTeamColorCheck = false, ColorAimbot = false, ColorAimbotTarget = nil,
     BoostFPS = false, RemoveShadows = false, Fullbright = false, NoFog = false,
     AntiAFK = false,
+    -- Novos
+    NoRecoil = false,
+    NoSpread = false,
+    InfiniteAmmo = false,
+    FasterReload = false,
+    RadarEnabled = false,
+    RadarSize = 120,
+    RadarRange = 150,
+    ParticlesEnabled = true,
     Whitelist = {},
     SoundEnabled = true,
     Binds = {
         AimAssist   = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Two},
         Visuals     = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Three},
         Hitbox      = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Four},
+        Panic       = {Mod = Enum.KeyCode.LeftControl, Key = Enum.KeyCode.P},
     }
 }
 
 local S = getgenv().Settings
-local VERSION = "v6.4"
+local VERSION = "v7.0"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -107,18 +118,19 @@ local C = {
 -- 📐 DIMENSÕES (PORTRAIT)
 --=============================================================
 local DIM = {
-    W          = 440,   -- largura total
-    H          = 720,   -- altura total
-    TopBar     = 42,    -- barra superior
-    ProfileBar = 82,    -- perfil + stats
-    TabsBar    = 46,    -- abas horizontais
-    Pad        = 12,    -- margem geral
+    W          = 440,
+    H          = 720,
+    TopBar     = 42,
+    ProfileBar = 82,
+    TabsBar    = 46,
+    Pad        = 12,
 }
 
 --=============================================================
 -- 💾 CONFIG DE PERSONALIZAÇÃO
 --=============================================================
-local CONFIG_FILE = "kiko_menu_personal.json"
+local CONFIG_FILE  = "kiko_menu_personal.json"
+local PRESETS_FILE = "kiko_menu_presets.json"
 
 local DefaultPersonal = {
     BgOpacity   = 0.05,
@@ -129,6 +141,7 @@ local DefaultPersonal = {
 }
 
 local Personal = {}
+local SavedPresets = {}
 
 local function LoadPersonal()
     if not (writefile and readfile and isfile) then
@@ -157,7 +170,25 @@ local function SavePersonal()
     return ok
 end
 
+local function LoadPresets()
+    if not (readfile and isfile) then return end
+    pcall(function()
+        if isfile(PRESETS_FILE) then
+            SavedPresets = HttpService:JSONDecode(readfile(PRESETS_FILE)) or {}
+        end
+    end)
+end
+
+local function SavePresets()
+    if not writefile then return false end
+    local ok = pcall(function()
+        writefile(PRESETS_FILE, HttpService:JSONEncode(SavedPresets))
+    end)
+    return ok
+end
+
 LoadPersonal()
+LoadPresets()
 
 --=============================================================
 -- 🖥️ SCREEN GUI
@@ -192,9 +223,52 @@ mkSound("Close", "12221971", 0.22)
 mkSound("Section", "12221974", 0.22)
 mkSound("Load", "6042053626", 0.35)
 
+--=============================================================
+-- ✨ PARTÍCULAS AO CLICAR
+--=============================================================
+local ParticleHolder = Instance.new("Frame", ScreenGui)
+ParticleHolder.Size = UDim2.new(1, 0, 1, 0)
+ParticleHolder.BackgroundTransparency = 1
+ParticleHolder.ZIndex = 9999
+ParticleHolder.Active = false
+ParticleHolder.Parent = ScreenGui
+
+local function EmitParticles(pos, color, count)
+    if not S.ParticlesEnabled then return end
+    count = count or 8
+    for i = 1, count do
+        local p = Instance.new("Frame", ParticleHolder)
+        local size = math.random(3, 6)
+        p.Size = UDim2.new(0, size, 0, size)
+        p.Position = UDim2.new(0, pos.X - size/2, 0, pos.Y - size/2)
+        p.BackgroundColor3 = color or C.Accent
+        p.BorderSizePixel = 0
+        p.ZIndex = 9999
+        local c = Instance.new("UICorner", p)
+        c.CornerRadius = UDim.new(1, 0)
+        
+        local angle = math.random() * math.pi * 2
+        local distance = math.random(30, 70)
+        local targetX = pos.X + math.cos(angle) * distance
+        local targetY = pos.Y + math.sin(angle) * distance
+        
+        TweenService:Create(p, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, targetX - size/2, 0, targetY - size/2),
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0, 1, 0, 1)
+        }):Play()
+        
+        task.delay(0.55, function() p:Destroy() end)
+    end
+end
+
 local function PS(n)
     if not S.SoundEnabled then return end
     local s = Sounds[n]; if s then pcall(function() s:Play() end) end
+    if n == "Click" or n == "Toggle" then
+        local mouse = UIS:GetMouseLocation()
+        EmitParticles(Vector2.new(mouse.X, mouse.Y), C.Accent, n == "Click" and 8 or 5)
+    end
 end
 
 --=============================================================
@@ -217,9 +291,7 @@ task.spawn(function()
     end)
 end)
 
-local function IsFriend(p)
-    return p and FriendIds[p.UserId] == true
-end
+local function IsFriend(p) return p and FriendIds[p.UserId] == true end
 
 local function SortPlayers(list)
     table.sort(list, function(a, b)
@@ -453,7 +525,7 @@ FloatBtn.ZIndex = 51
 FloatBtn.AutoButtonColor = false
 
 --=============================================================
--- 🪟 JANELA PRINCIPAL — PORTRAIT
+-- 🪟 JANELA PRINCIPAL
 --=============================================================
 local Main = Instance.new("Frame")
 Main.Size = UDim2.new(0, DIM.W, 0, DIM.H)
@@ -487,7 +559,7 @@ topFix.ZIndex = 101
 topFix:SetAttribute("KikoBg", "alt")
 
 local Logo = Instance.new("TextLabel", TopBar)
-Logo.Size = UDim2.new(1, -160, 1, 0)
+Logo.Size = UDim2.new(1, -190, 1, 0)
 Logo.Position = UDim2.new(0, 16, 0, 0)
 Logo.BackgroundTransparency = 1
 Logo.Text = "🎯  KIKO MENU"
@@ -515,9 +587,24 @@ task.spawn(function()
     end
 end)
 
+-- Search Icon
+local SearchIcon = Instance.new("TextButton", TopBar)
+SearchIcon.Size = UDim2.new(0, 26, 0, 26)
+SearchIcon.Position = UDim2.new(1, -102, 0.5, -13)
+SearchIcon.BackgroundColor3 = C.Bg
+SearchIcon.BackgroundTransparency = 0.4
+SearchIcon.Text = "🔍"
+SearchIcon.TextColor3 = C.Text
+SearchIcon.TextSize = 13
+SearchIcon.Font = C.FontB
+SearchIcon.AutoButtonColor = false
+SearchIcon.ZIndex = 105
+Corner(SearchIcon, 6)
+Stroke(SearchIcon, C.Stroke, 1, 0.6)
+
 local VersionBox = Instance.new("Frame", TopBar)
-VersionBox.Size = UDim2.new(0, 56, 0, 20)
-VersionBox.Position = UDim2.new(1, -100, 0.5, -10)
+VersionBox.Size = UDim2.new(0, 52, 0, 20)
+VersionBox.Position = UDim2.new(1, -70, 0.5, -10)
 VersionBox.BackgroundColor3 = C.Bg
 VersionBox.BackgroundTransparency = 0.4
 VersionBox.ZIndex = 102
@@ -530,22 +617,21 @@ VersionLbl.Size = UDim2.new(1, 0, 1, 0)
 VersionLbl.BackgroundTransparency = 1
 VersionLbl.Text = VERSION
 VersionLbl.TextColor3 = C.Accent
-VersionLbl.TextSize = 10
+VersionLbl.TextSize = 9
 VersionLbl.Font = C.FontB
 VersionLbl.TextXAlignment = Enum.TextXAlignment.Center
 VersionLbl.ZIndex = 103
 
 local CloseB = Instance.new("TextButton", TopBar)
-CloseB.Size = UDim2.new(0, 28, 0, 28)
-CloseB.Position = UDim2.new(1, -38, 0.5, -14)
+CloseB.Size = UDim2.new(0, 26, 0, 26)
+CloseB.Position = UDim2.new(1, -36, 0.5, -13)
 CloseB.BackgroundColor3 = C.BgHover
 CloseB.Text = "X"; CloseB.TextColor3 = C.Text
-CloseB.TextSize = 15; CloseB.Font = Enum.Font.GothamBold
+CloseB.TextSize = 14; CloseB.Font = Enum.Font.GothamBold
 CloseB.AutoButtonColor = false; CloseB.ZIndex = 105
-Corner(CloseB, 8)
+Corner(CloseB, 6)
 
 CloseB.MouseEnter:Connect(function() 
-    PS("Hover")
     TweenService:Create(CloseB, TweenInfo.new(0.15), {BackgroundColor3 = C.Accent, TextColor3 = Color3.new(1,1,1)}):Play() 
 end)
 CloseB.MouseLeave:Connect(function() 
@@ -555,7 +641,84 @@ end)
 MakeDraggable(TopBar, nil, Main)
 
 --=============================================================
--- PROFILE BAR (Avatar + Nome + Stats)
+-- SEARCH BAR (overlay)
+--=============================================================
+local SearchBar = Instance.new("Frame", Main)
+SearchBar.Size = UDim2.new(1, -DIM.Pad*2, 0, 0)
+SearchBar.Position = UDim2.new(0, DIM.Pad, 0, DIM.TopBar + 6)
+SearchBar.BackgroundColor3 = C.BgAlt
+SearchBar.BackgroundTransparency = 1
+SearchBar.ClipsDescendants = true
+SearchBar.ZIndex = 150
+SearchBar:SetAttribute("KikoBg", "alt")
+Corner(SearchBar, 8)
+Stroke(SearchBar, C.Accent, 1.5, 0.4)
+
+local SearchInput = Instance.new("TextBox", SearchBar)
+SearchInput.Size = UDim2.new(1, -70, 1, 0)
+SearchInput.Position = UDim2.new(0, 14, 0, 0)
+SearchInput.BackgroundTransparency = 1
+SearchInput.Text = ""
+SearchInput.PlaceholderText = "🔍  Buscar função..."
+SearchInput.PlaceholderColor3 = C.Dim
+SearchInput.TextColor3 = C.Text
+SearchInput.TextSize = 12
+SearchInput.Font = C.Font
+SearchInput.TextXAlignment = Enum.TextXAlignment.Left
+SearchInput.ClearTextOnFocus = false
+SearchInput.ZIndex = 152
+
+local SearchClear = Instance.new("TextButton", SearchBar)
+SearchClear.Size = UDim2.new(0, 24, 0, 24)
+SearchClear.Position = UDim2.new(1, -34, 0.5, -12)
+SearchClear.BackgroundColor3 = C.BgHover
+SearchClear.Text = "×"
+SearchClear.TextColor3 = C.Text
+SearchClear.TextSize = 14
+SearchClear.Font = C.FontB
+SearchClear.AutoButtonColor = false
+SearchClear.ZIndex = 152
+Corner(SearchClear, 6)
+
+local SearchOpen = false
+
+local function CloseSearch()
+    SearchOpen = false
+    TweenService:Create(SearchBar, TweenInfo.new(0.2), {
+        Size = UDim2.new(1, -DIM.Pad*2, 0, 0),
+        BackgroundTransparency = 1
+    }):Play()
+    SearchInput.Text = ""
+    -- restaura visibilidade de todos os elementos
+    for _, obj in pairs(Content:GetDescendants()) do
+        if obj:GetAttribute("KikoSearchable") then
+            obj.Visible = true
+        end
+    end
+end
+
+local function OpenSearch()
+    SearchOpen = true
+    TweenService:Create(SearchBar, TweenInfo.new(0.25), {
+        Size = UDim2.new(1, -DIM.Pad*2, 0, 36),
+        BackgroundTransparency = 0
+    }):Play()
+    task.wait(0.15)
+    SearchInput:CaptureFocus()
+end
+
+SearchIcon.MouseButton1Click:Connect(function()
+    PS("Click")
+    if SearchOpen then CloseSearch() else OpenSearch() end
+end)
+SearchClear.MouseButton1Click:Connect(function()
+    PS("Click")
+    SearchInput.Text = ""
+    CloseSearch()
+end)
+
+--=============================================================
+-- PROFILE BAR
 --=============================================================
 local ProfileBar = Instance.new("Frame", Main)
 ProfileBar.Size = UDim2.new(1, -DIM.Pad*2, 0, DIM.ProfileBar)
@@ -566,7 +729,6 @@ ProfileBar:SetAttribute("KikoBg", "alt")
 Corner(ProfileBar, 10)
 Stroke(ProfileBar, C.Stroke, 1, 0.7)
 
--- Avatar
 local AvatarFrame = Instance.new("Frame", ProfileBar)
 AvatarFrame.Size = UDim2.new(0, 58, 0, 58)
 AvatarFrame.Position = UDim2.new(0, 12, 0.5, -29)
@@ -584,7 +746,6 @@ AvatarImg.Image = "rbxthumb://type=AvatarHeadShot&id="..LocalPlayer.UserId.."&w=
 AvatarImg.ZIndex = 103
 Corner(AvatarImg, 26)
 
--- Nome
 local NameLabel = Instance.new("TextLabel", ProfileBar)
 NameLabel.Text = string.upper(LocalPlayer.DisplayName)
 NameLabel.Font = C.FontB
@@ -597,7 +758,6 @@ NameLabel.TextXAlignment = Enum.TextXAlignment.Left
 NameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 NameLabel.ZIndex = 103
 
--- Stats em linha única
 local StatsLbl = Instance.new("TextLabel", ProfileBar)
 StatsLbl.Size = UDim2.new(1, -90, 0, 16)
 StatsLbl.Position = UDim2.new(0, 80, 0, 34)
@@ -609,7 +769,6 @@ StatsLbl.Font = C.FontB
 StatsLbl.TextXAlignment = Enum.TextXAlignment.Left
 StatsLbl.ZIndex = 103
 
--- Subtítulo
 local SubLbl = Instance.new("TextLabel", ProfileBar)
 SubLbl.Size = UDim2.new(1, -90, 0, 14)
 SubLbl.Position = UDim2.new(0, 80, 0, 54)
@@ -622,7 +781,7 @@ SubLbl.TextXAlignment = Enum.TextXAlignment.Left
 SubLbl.ZIndex = 103
 
 --=============================================================
--- TABS BAR (HORIZONTAL SCROLL)
+-- TABS BAR
 --=============================================================
 local TabsBar = Instance.new("Frame", Main)
 TabsBar.Size = UDim2.new(1, -DIM.Pad*2, 0, DIM.TabsBar)
@@ -631,6 +790,15 @@ TabsBar.BackgroundColor3 = C.BgAlt
 TabsBar.ZIndex = 101
 TabsBar:SetAttribute("KikoBg", "alt")
 Corner(TabsBar, 10)
+
+-- Tab indicator (linha animada embaixo)
+local TabIndicator = Instance.new("Frame", TabsBar)
+TabIndicator.Size = UDim2.new(0, 70, 0, 3)
+TabIndicator.Position = UDim2.new(0, 8, 1, -5)
+TabIndicator.BackgroundColor3 = C.Accent
+TabIndicator.BorderSizePixel = 0
+TabIndicator.ZIndex = 105
+Corner(TabIndicator, 2)
 
 local TabsScroll = Instance.new("ScrollingFrame", TabsBar)
 TabsScroll.Size = UDim2.new(1, 0, 1, 0)
@@ -673,14 +841,23 @@ ContentLayout.Padding = UDim.new(0, 8)
 ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
 --=============================================================
--- 📑 PÁGINAS (adaptadas p/ tabs horizontais)
+-- 📑 PÁGINAS
 --=============================================================
 local Pages, TabButtons = {}, {}
 local ActivePage = nil
 
+local function UpdateTabIndicator(btn)
+    local btnX = btn.AbsolutePosition.X - TabsScroll.AbsolutePosition.X + TabsScroll.CanvasPosition.X
+    local btnW = btn.AbsoluteSize.X
+    TweenService:Create(TabIndicator, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, btnX, 1, -5),
+        Size = UDim2.new(0, btnW, 0, 3)
+    }):Play()
+end
+
 local function CreatePage(name, emoji)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 90, 0, 32)
+    btn.Size = UDim2.new(0, 90, 0, 30)
     btn.BackgroundColor3 = C.Bg
     btn.BackgroundTransparency = 0.4
     btn.Text = emoji .. "  " .. name
@@ -715,11 +892,11 @@ local function CreatePage(name, emoji)
         btn.BackgroundColor3 = C.Accent
         btn.BackgroundTransparency = 0
         btn.TextColor3 = Color3.new(1,1,1)
+        UpdateTabIndicator(btn)
         Content.CanvasPosition = Vector2.new(0, 0)
         task.wait()
         Content.CanvasSize = UDim2.new(0, 0, 0, page.AbsoluteSize.Y + 20)
         
-        -- Centraliza o botão clicado na scroll
         local btnX = btn.AbsolutePosition.X - TabsScroll.AbsolutePosition.X
         local scrollW = TabsScroll.AbsoluteSize.X
         local targetX = btnX - (scrollW / 2) + (btn.AbsoluteSize.X / 2)
@@ -729,7 +906,6 @@ local function CreatePage(name, emoji)
     end)
     btn.MouseEnter:Connect(function()
         if ActivePage ~= page then
-            PS("Hover")
             TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover, BackgroundTransparency = 0}):Play()
         end
     end)
@@ -744,7 +920,7 @@ local function CreatePage(name, emoji)
 end
 
 --=============================================================
--- 🏷️ TÍTULOS DE SEÇÃO
+-- 🏷️ TÍTULOS
 --=============================================================
 local function CreateTitle(parent, title, emoji)
     local frame = Instance.new("Frame")
@@ -788,6 +964,8 @@ local function CreateToggle(parent, text, default, callback)
     btn.Text = ""; btn.AutoButtonColor = false
     btn.ZIndex = 103; btn.Parent = parent
     btn:SetAttribute("KikoBg", "alt")
+    btn:SetAttribute("KikoSearchable", true)
+    btn:SetAttribute("KikoSearchText", string.lower(text))
     Corner(btn, 8)
     Stroke(btn, C.Stroke, 1, 0.7)
 
@@ -849,6 +1027,8 @@ local function CreateToggleWithConfig(parent, text, default, callback)
     btn.Text = ""; btn.AutoButtonColor = false
     btn.ZIndex = 104; btn.LayoutOrder = 1
     btn:SetAttribute("KikoBg", "alt")
+    btn:SetAttribute("KikoSearchable", true)
+    btn:SetAttribute("KikoSearchText", string.lower(text))
     Corner(btn, 8)
     Stroke(btn, C.Stroke, 1, 0.7)
 
@@ -932,6 +1112,8 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     frame.BackgroundColor3 = C.BgAlt
     frame.ZIndex = 103; frame.Parent = parent
     frame:SetAttribute("KikoBg", "alt")
+    frame:SetAttribute("KikoSearchable", true)
+    frame:SetAttribute("KikoSearchText", string.lower(text))
     Corner(frame, 8)
     Stroke(frame, C.Stroke, 1, 0.7)
 
@@ -978,10 +1160,6 @@ local function CreateStepper(parent, text, min, max, default, step, callback)
     VisSteppers[text] = update
     minus.MouseButton1Click:Connect(function() PS("Click"); update(val - step) end)
     plus.MouseButton1Click:Connect(function() PS("Click"); update(val + step) end)
-    minus.MouseEnter:Connect(function() TweenService:Create(minus, TweenInfo.new(0.15), {BackgroundColor3 = C.AccentDk}):Play() end)
-    minus.MouseLeave:Connect(function() TweenService:Create(minus, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover}):Play() end)
-    plus.MouseEnter:Connect(function() TweenService:Create(plus, TweenInfo.new(0.15), {BackgroundColor3 = C.AccentDk}):Play() end)
-    plus.MouseLeave:Connect(function() TweenService:Create(plus, TweenInfo.new(0.15), {BackgroundColor3 = C.BgHover}):Play() end)
 
     return frame, update
 end
@@ -993,13 +1171,14 @@ local function CreateButton(parent, text, color, callback)
     btn.Text = text; btn.TextColor3 = Color3.new(1,1,1); btn.TextSize = 11
     btn.Font = C.FontB; btn.AutoButtonColor = false
     btn.ZIndex = 103; btn.Parent = parent
+    btn:SetAttribute("KikoSearchable", true)
+    btn:SetAttribute("KikoSearchText", string.lower(text))
     Corner(btn, 8)
     Stroke(btn, (color or C.Accent):Lerp(Color3.new(1,1,1), 0.2), 1, 0.5)
 
     local orig = color or C.Accent
     btn.MouseButton1Click:Connect(function() PS("Click"); if callback then callback() end end)
     btn.MouseEnter:Connect(function()
-        PS("Hover")
         TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = orig:Lerp(Color3.new(1,1,1), 0.2)}):Play()
     end)
     btn.MouseLeave:Connect(function()
@@ -1021,11 +1200,31 @@ local function CreateLabel(parent, text, h)
 end
 
 --=============================================================
+-- 🔍 SEARCH HANDLER
+--=============================================================
+SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
+    local q = string.lower(SearchInput.Text)
+    if q == "" then
+        for _, obj in pairs(Content:GetDescendants()) do
+            if obj:GetAttribute("KikoSearchable") then obj.Visible = true end
+        end
+        return
+    end
+    for _, obj in pairs(Content:GetDescendants()) do
+        if obj:GetAttribute("KikoSearchable") then
+            local st = obj:GetAttribute("KikoSearchText") or ""
+            obj.Visible = string.find(st, q, 1, true) ~= nil
+        end
+    end
+end)
+
+--=============================================================
 -- 📑 CRIAÇÃO DAS ABAS
 --=============================================================
 local MiraP     = CreatePage("Mira",         "🎯")
 local VisualP   = CreatePage("Visual",       "👁️")
 local PersoP    = CreatePage("Personagem",   "🏃")
+local CombatP   = CreatePage("Combate",      "⚔️")
 local TPP       = CreatePage("Teleporte",    "🌀")
 local HitP      = CreatePage("Hitbox",       "📦")
 local DefP      = CreatePage("Defusal",      "💣")
@@ -1034,6 +1233,7 @@ local PresetP   = CreatePage("Presets",      "⚙️")
 local BindsP    = CreatePage("Atalhos",      "⌨️")
 local ServP     = CreatePage("Servidor",     "🌐")
 local MiscP     = CreatePage("Misc",         "🧰")
+local TestP     = CreatePage("Teste",        "🧪")
 local PersonalP = CreatePage("Personalizar", "🎨")
 
 MiraP.Visible = true
@@ -1042,6 +1242,11 @@ TabButtons[1]:SetAttribute("KikoBg", "")
 TabButtons[1].BackgroundColor3 = C.Accent
 TabButtons[1].BackgroundTransparency = 0
 TabButtons[1].TextColor3 = Color3.new(1,1,1)
+
+task.defer(function()
+    task.wait(0.3)
+    UpdateTabIndicator(TabButtons[1])
+end)
 
 local aimbotBtn, espBtn, hitboxBtn
 
@@ -1112,6 +1317,12 @@ CreateToggle(VisualP, "Distância", false, function(v) S.Distance = v end)
 CreateToggle(VisualP, "Linhas", false, function(v) S.Lines = v end)
 CreateToggle(VisualP, "Cor do Time", false, function(v) S.TeamColor = v end)
 CreateToggle(VisualP, "Destaque (Chams)", false, function(v) S.Highlight = v end)
+CreateToggle(VisualP, "Barra de Vida (HP)", false, function(v) S.ESPHP = v end)
+
+CreateTitle(VisualP, "Radar Circular", "📡")
+CreateToggle(VisualP, "Ativar Radar", false, function(v) S.RadarEnabled = v end)
+CreateStepper(VisualP, "Tamanho do Radar", 80, 200, 120, 10, function(v) S.RadarSize = v end)
+CreateStepper(VisualP, "Alcance (metros)", 50, 500, 150, 25, function(v) S.RadarRange = v end)
 
 CreateTitle(VisualP, "ESP - NPCs", "🤖")
 CreateToggle(VisualP, "Ativar ESP em NPCs", false, function(v) S.ESPNPC = v end)
@@ -1175,10 +1386,81 @@ task.spawn(function()
     end
 end)
 
-CreateLabel(cfgFly, "Use WASD pra voar. Segure SUBIR/DESCER pra mover verticalmente.", 30)
-
 CreateTitle(PersoP, "Câmera", "🎥")
 CreateToggle(PersoP, "Terceira Pessoa", false, function(v) S.ForceThirdPerson = v end)
+
+--=============================================================
+-- ⚔️ COMBATE (NO RECOIL, NO SPREAD, ETC)
+--=============================================================
+CreateTitle(CombatP, "Modificações de Arma", "⚔️")
+CreateToggle(CombatP, "No Recoil (Sem Recuo)", false, function(v)
+    S.NoRecoil = v
+    if v then
+        -- Hook em properties de armas
+        for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+            pcall(function()
+                for _, v2 in pairs(tool:GetDescendants()) do
+                    if v2:IsA("NumberValue") then
+                        local n = string.lower(v2.Name)
+                        if n == "recoil" or n == "recoilcamera" then
+                            v2.Value = 0
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+CreateToggle(CombatP, "No Spread (Sem Dispersão)", false, function(v) S.NoSpread = v end)
+CreateToggle(CombatP, "Munição Infinita", false, function(v) S.InfiniteAmmo = v end)
+CreateToggle(CombatP, "Recarga Rápida", false, function(v) S.FasterReload = v end)
+
+CreateTitle(CombatP, "Info", "ℹ️")
+CreateLabel(CombatP,
+    "• Esses recursos tentam modificar propriedades comuns\n" ..
+    "  de armas (recoil, spread, munição, reload time)\n" ..
+    "• Funciona melhor em jogos FPS que expõem essas\n" ..
+    "  propriedades na Tool / Weapon Scripts\n" ..
+    "• Alguns jogos bloqueiam por anti-cheat", 70)
+
+-- Loop para reaplicar modificações em armas equipadas
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if S.NoRecoil or S.NoSpread or S.InfiniteAmmo or S.FasterReload then
+            local char = LocalPlayer.Character
+            if char then
+                for _, tool in pairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        pcall(function()
+                            for _, v in pairs(tool:GetDescendants()) do
+                                if v:IsA("NumberValue") then
+                                    local n = string.lower(v.Name)
+                                    if S.NoRecoil and (n == "recoil" or n == "recoilcamera") then
+                                        v.Value = 0
+                                    end
+                                    if S.NoSpread and (n == "spread" or n == "bulletspread") then
+                                        v.Value = 0
+                                    end
+                                    if S.FasterReload and (n == "reloadtime" or n == "reload_t") then
+                                        v.Value = 0.1
+                                    end
+                                end
+                                if v:IsA("IntValue") or v:IsA("NumberValue") then
+                                    local n = string.lower(v.Name)
+                                    if S.InfiniteAmmo and (n == "ammo" or n == "currentammo") then
+                                        v.Value = 999
+                                    end
+                                end
+                            end
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
 
 --=============================================================
 -- 🌀 TELEPORTE
@@ -1611,136 +1893,235 @@ task.defer(function() task.wait(1); BuildWLUI() end)
 task.delay(4, BuildWLUI)
 
 --=============================================================
--- ⚙️ PRESETS
+-- ⚙️ PRESETS DE CONFIG
 --=============================================================
-CreateTitle(PresetP, "Predefinições", "⚙️")
+CreateTitle(PresetP, "Config Presets", "💾")
 
-CreateButton(PresetP, "🎯 Carregar: Modo Legit", Color3.fromRGB(0, 100, 50), function()
-    if VisToggles["Ativar ESP"] then VisToggles["Ativar ESP"](true) end
-    if VisToggles["Destaque (Chams)"] then VisToggles["Destaque (Chams)"](true) end
-    if VisToggles["Cor do Time"] then VisToggles["Cor do Time"](true) end
-    if VisToggles["Ativar Assistência"] then VisToggles["Ativar Assistência"](true) end
-    if VisToggles["Ignorar Atrás de Paredes"] then VisToggles["Ignorar Atrás de Paredes"](true) end
-    if VisSteppers["Campo de Visão (FOV)"] then VisSteppers["Campo de Visão (FOV)"](20) end
-    if VisSteppers["Suavidade"] then VisSteppers["Suavidade"](0.2) end
-    Notify("Preset Legit carregado!", true)
-end)
+local presetNameBox = Instance.new("Frame", PresetP)
+presetNameBox.Size = UDim2.new(1, 0, 0, 36)
+presetNameBox.BackgroundColor3 = C.BgAlt
+presetNameBox.ZIndex = 103
+presetNameBox:SetAttribute("KikoBg", "alt")
+Corner(presetNameBox, 8)
+Stroke(presetNameBox, C.Stroke, 1, 0.7)
 
-CreateButton(PresetP, "🤖 Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), function()
-    if VisToggles["Ativar ESP em NPCs"] then VisToggles["Ativar ESP em NPCs"](true) end
-    if VisToggles["Destaque (Chams)"] then VisToggles["Destaque (Chams)"](true) end
-    if VisToggles["Ativar Assistência"] then VisToggles["Ativar Assistência"](true) end
-    if VisToggles["Mira em NPCs"] then VisToggles["Mira em NPCs"](true) end
-    if VisToggles["Prioridade 360°"] then VisToggles["Prioridade 360°"](true) end
-    if VisToggles["Ignorar Atrás de Paredes"] then VisToggles["Ignorar Atrás de Paredes"](true) end
-    if VisToggles["Aumentar Hitbox (NPCs)"] then VisToggles["Aumentar Hitbox (NPCs)"](true) end
-    Notify("Preset NPC carregado!", true)
-end)
+local presetInput = Instance.new("TextBox", presetNameBox)
+presetInput.Size = UDim2.new(1, -20, 1, 0)
+presetInput.Position = UDim2.new(0, 14, 0, 0)
+presetInput.BackgroundTransparency = 1
+presetInput.Text = ""
+presetInput.PlaceholderText = "Nome do preset (ex: PvP, Farm...)"
+presetInput.PlaceholderColor3 = C.Dim
+presetInput.TextColor3 = C.Text
+presetInput.TextSize = 11
+presetInput.Font = C.Font
+presetInput.TextXAlignment = Enum.TextXAlignment.Left
+presetInput.ClearTextOnFocus = false
+presetInput.ZIndex = 104
 
-CreateButton(PresetP, "🔄 Resetar Tudo", Color3.fromRGB(150, 30, 30), function()
-    for _, f in pairs(VisToggles) do f(false, true, true) end
-    Notify("Tudo resetado", true)
-end)
-
-CreateTitle(PresetP, "Botões Flutuantes", "🔘")
-
-local function CountFloats()
-    local n = 0
-    for _, v in pairs(ScreenGui:GetChildren()) do
-        if string.find(v.Name, "^FloatBtn_") then n = n + 1 end
+-- Helper: extrai configs salvaveis do S
+local function GetSaveableFlags()
+    local keys = {
+        "ESP", "ESPNPC", "TeamColor", "Boxes", "Names", "Distance", "Lines", "Highlight", "ESPHP",
+        "AimAssist", "AimFOV", "AimSmooth", "ShowFOV", "WallCheck", "TeamCheck", "AimNPC",
+        "TargetPriority", "PriorityMode", "AimPrediction", "PredictionVelocity", "TriggerBot",
+        "UseSpeed", "Speed", "InfiniteJump",
+        "ForceThirdPerson", "StickyBehind", "StickySmoothness", "StickyDistance",
+        "HitboxEnabled", "Hitbox", "HitboxTransparency", "HitboxNPC",
+        "AutoTeamColorCheck", "ColorAimbot",
+        "BoostFPS", "RemoveShadows", "Fullbright", "NoFog", "AntiAFK",
+        "NoRecoil", "NoSpread", "InfiniteAmmo", "FasterReload",
+        "RadarEnabled", "RadarSize", "RadarRange",
+    }
+    local out = {}
+    for _, k in ipairs(keys) do
+        out[k] = S[k]
     end
-    return n
+    return out
 end
 
-local function SpawnFloat(name, cb)
-    for _, v in pairs(ScreenGui:GetChildren()) do
-        if v.Name == "FloatBtn_" .. name then return end
+local function ApplyFlags(flags)
+    for k, v in pairs(flags) do
+        S[k] = v
     end
-    local idx = CountFloats()
-    local offsetX = -140 - (idx * 60)
-
-    local ff = Instance.new("Frame", ScreenGui)
-    ff.Name = "FloatBtn_" .. name
-    ff.Size = UDim2.new(0, 50, 0, 50)
-    ff.Position = UDim2.new(1, offsetX, 0, 80)
-    ff.BackgroundColor3 = C.BgAlt
-    ff.ZIndex = 60
-    Corner(ff, 25)
-    Stroke(ff, C.Accent, 1.5, 0.3)
-
-    local icon = Instance.new("TextLabel", ff)
-    icon.Size = UDim2.new(1, 0, 1, 0)
-    icon.BackgroundTransparency = 1
-    icon.Text = name; icon.TextColor3 = C.Text
-    icon.TextSize = 10; icon.Font = C.FontB
-    icon.ZIndex = 62
-
-    local b = Instance.new("TextButton", ff)
-    b.Size = UDim2.new(1, 0, 1, 0)
-    b.BackgroundTransparency = 1
-    b.Text = ""; b.ZIndex = 61
-    b.AutoButtonColor = false
-
-    local close = Instance.new("TextButton", ff)
-    close.Size = UDim2.new(0, 20, 0, 20)
-    close.Position = UDim2.new(1, -14, 0, -6)
-    close.BackgroundColor3 = C.Accent
-    close.Text = "×"; close.TextColor3 = Color3.new(1,1,1); close.TextSize = 12
-    close.Font = C.FontB; close.AutoButtonColor = false; close.ZIndex = 63
-    Corner(close, 10)
-
-    local dragging, startMouse, startFrame, moved
-    b.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; moved = false
-            startMouse = UIS:GetMouseLocation()
-            startFrame = ff.Position
+    -- Aplica visualmente nos toggles e steppers (por label PT)
+    local map = {
+        ESP = "Ativar ESP", Boxes = "Caixas", Names = "Nomes", Distance = "Distância",
+        Lines = "Linhas", TeamColor = "Cor do Time", Highlight = "Destaque (Chams)",
+        ESPHP = "Barra de Vida (HP)", ESPNPC = "Ativar ESP em NPCs",
+        AimAssist = "Ativar Assistência", ShowFOV = "Exibir FOV na Tela",
+        TargetPriority = "Prioridade 360°", AimPrediction = "Predição de Movimento",
+        TriggerBot = "Atirar Automaticamente", TeamCheck = "Ignorar Aliados",
+        WallCheck = "Ignorar Atrás de Paredes", AimNPC = "Mira em NPCs",
+        UseSpeed = "Modificar Velocidade", InfiniteJump = "Pulo Infinito",
+        ForceThirdPerson = "Terceira Pessoa", StickyBehind = "Grudar Atrás",
+        HitboxEnabled = "Aumentar Hitbox (Jogadores)", HitboxNPC = "Aumentar Hitbox (NPCs)",
+        AutoTeamColorCheck = "Detectar Time Automaticamente", ColorAimbot = "Mira Apenas em Inimigos",
+        AntiAFK = "Anti-AFK", Fullbright = "Visão Total (Fullbright)", NoFog = "Remover Névoa",
+        RemoveShadows = "Remover Sombras",
+        NoRecoil = "No Recoil (Sem Recuo)", NoSpread = "No Spread (Sem Dispersão)",
+        InfiniteAmmo = "Munição Infinita", FasterReload = "Recarga Rápida",
+        RadarEnabled = "Ativar Radar",
+    }
+    for flagKey, label in pairs(map) do
+        if VisToggles[label] then
+            VisToggles[label](flags[flagKey] == true, true, true)
         end
-    end)
-    RunService.RenderStepped:Connect(function()
-        if not dragging then return end
-        local now = UIS:GetMouseLocation()
-        local d = now - startMouse
-        if math.abs(d.X) > 5 or math.abs(d.Y) > 5 then moved = true end
-        if moved then
-            ff.Position = UDim2.new(
-                startFrame.X.Scale, startFrame.X.Offset + d.X,
-                startFrame.Y.Scale, startFrame.Y.Offset + d.Y)
+    end
+    local stepMap = {
+        AimFOV = "Campo de Visão (FOV)", AimSmooth = "Suavidade",
+        PredictionVelocity = "Força da Predição", Speed = "Velocidade",
+        StickySmoothness = "Suavidade", StickyDistance = "Distância",
+        Hitbox = "Tamanho", HitboxTransparency = "Opacidade",
+        RadarSize = "Tamanho do Radar", RadarRange = "Alcance (metros)",
+    }
+    for flagKey, label in pairs(stepMap) do
+        if VisSteppers[label] and flags[flagKey] ~= nil then
+            VisSteppers[label](flags[flagKey], true)
         end
-    end)
-    b.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            if dragging and not moved then cb() end
-            dragging = false; moved = false
-        end
-    end)
-    close.MouseButton1Click:Connect(function() PS("Click"); ff:Destroy() end)
+    end
 end
 
-CreateButton(PresetP, "Criar Botão: Mira", Color3.fromRGB(80, 40, 120), function()
-    SpawnFloat("AIM", function()
-        local n = not S.AimAssist
-        if VisToggles["Ativar Assistência"] then VisToggles["Ativar Assistência"](n) end
-        Notify("MIRA: " .. (n and "ON" or "OFF"), n)
-    end)
+local presetActionRow = Instance.new("Frame", PresetP)
+presetActionRow.Size = UDim2.new(1, 0, 0, 36)
+presetActionRow.BackgroundTransparency = 1
+presetActionRow.ZIndex = 103
+
+local savePresetBtn = Instance.new("TextButton", presetActionRow)
+savePresetBtn.Size = UDim2.new(0.48, 0, 1, 0)
+savePresetBtn.BackgroundColor3 = C.Green
+savePresetBtn.Text = "💾 Salvar Preset"
+savePresetBtn.TextColor3 = Color3.new(0,0,0)
+savePresetBtn.TextSize = 11; savePresetBtn.Font = C.FontB
+savePresetBtn.AutoButtonColor = false; savePresetBtn.ZIndex = 104
+Corner(savePresetBtn, 8)
+
+savePresetBtn.MouseButton1Click:Connect(function()
+    PS("Click")
+    local name = presetInput.Text
+    if name == "" then
+        Notify("Digite um nome para o preset", false)
+        return
+    end
+    SavedPresets[name] = GetSaveableFlags()
+    if SavePresets() then
+        Notify("Preset '" .. name .. "' salvo!", true)
+        presetInput.Text = ""
+    else
+        Notify("Executor sem writefile", false)
+    end
 end)
-CreateButton(PresetP, "Criar Botão: Visual", Color3.fromRGB(80, 40, 120), function()
-    SpawnFloat("VIS", function()
-        local n = not S.ESP
-        if VisToggles["Ativar ESP"] then VisToggles["Ativar ESP"](n) end
-        if VisToggles["Destaque (Chams)"] then VisToggles["Destaque (Chams)"](n) end
-        Notify("VISUAL: " .. (n and "ON" or "OFF"), n)
-    end)
+
+-- Lista de presets
+local presetListFrame = Instance.new("Frame", PresetP)
+presetListFrame.Size = UDim2.new(1, 0, 0, 220)
+presetListFrame.BackgroundColor3 = C.Bg
+presetListFrame.BackgroundTransparency = 0.3
+presetListFrame.ZIndex = 103
+presetListFrame:SetAttribute("KikoBg", "main")
+Corner(presetListFrame, 10)
+Stroke(presetListFrame, C.Stroke, 1, 0.5)
+
+local presetScroll = Instance.new("ScrollingFrame", presetListFrame)
+presetScroll.Size = UDim2.new(1, 0, 1, 0)
+presetScroll.BackgroundTransparency = 1
+presetScroll.BorderSizePixel = 0
+presetScroll.ScrollBarThickness = 3
+presetScroll.ScrollBarImageColor3 = C.Accent
+presetScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+presetScroll.ZIndex = 104
+
+local presetLayout = Instance.new("UIListLayout", presetScroll)
+presetLayout.Padding = UDim.new(0, 5)
+presetLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local presetPad = Instance.new("UIPadding", presetScroll)
+presetPad.PaddingTop = UDim.new(0, 6); presetPad.PaddingBottom = UDim.new(0, 6)
+presetPad.PaddingLeft = UDim.new(0, 6); presetPad.PaddingRight = UDim.new(0, 6)
+presetLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    presetScroll.CanvasSize = UDim2.new(0, 0, 0, presetLayout.AbsoluteContentSize.Y + 14)
 end)
-CreateButton(PresetP, "Criar Botão: Hitbox", Color3.fromRGB(80, 40, 120), function()
-    SpawnFloat("HB", function()
-        local n = not S.HitboxEnabled
-        if VisToggles["Aumentar Hitbox (Jogadores)"] then VisToggles["Aumentar Hitbox (Jogadores)"](n) end
-        Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
-    end)
-end)
+
+local function RebuildPresetList()
+    for _, v in pairs(presetScroll:GetChildren()) do
+        if v:IsA("TextButton") or v:IsA("Frame") then v:Destroy() end
+    end
+    local names = {}
+    for n, _ in pairs(SavedPresets) do table.insert(names, n) end
+    table.sort(names)
+
+    if #names == 0 then
+        local empty = Instance.new("TextLabel", presetScroll)
+        empty.Size = UDim2.new(1, 0, 0, 40)
+        empty.BackgroundTransparency = 1
+        empty.Text = "Nenhum preset salvo ainda"
+        empty.TextColor3 = C.Dim
+        empty.TextSize = 10
+        empty.Font = C.Font
+        empty.ZIndex = 105
+        return
+    end
+
+    for _, name in ipairs(names) do
+        local row = Instance.new("Frame", presetScroll)
+        row.Size = UDim2.new(1, -4, 0, 36)
+        row.BackgroundColor3 = C.BgAlt
+        row.BackgroundTransparency = 0.15
+        row.ZIndex = 105
+        row:SetAttribute("KikoBg", "alt")
+        Corner(row, 6)
+
+        local lbl = Instance.new("TextLabel", row)
+        lbl.Size = UDim2.new(1, -140, 1, 0)
+        lbl.Position = UDim2.new(0, 12, 0, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = "💾 " .. name
+        lbl.TextColor3 = C.Text
+        lbl.TextSize = 11
+        lbl.Font = C.FontB
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.TextTruncate = Enum.TextTruncate.AtEnd
+        lbl.ZIndex = 106
+
+        local loadBtn = Instance.new("TextButton", row)
+        loadBtn.Size = UDim2.new(0, 56, 0, 26)
+        loadBtn.Position = UDim2.new(1, -122, 0.5, -13)
+        loadBtn.BackgroundColor3 = C.Accent
+        loadBtn.Text = "Carregar"
+        loadBtn.TextColor3 = Color3.new(1,1,1)
+        loadBtn.TextSize = 10
+        loadBtn.Font = C.FontB
+        loadBtn.AutoButtonColor = false
+        loadBtn.ZIndex = 106
+        Corner(loadBtn, 6)
+
+        local delBtn = Instance.new("TextButton", row)
+        delBtn.Size = UDim2.new(0, 56, 0, 26)
+        delBtn.Position = UDim2.new(1, -60, 0.5, -13)
+        delBtn.BackgroundColor3 = C.AccentDk
+        delBtn.Text = "Apagar"
+        delBtn.TextColor3 = Color3.new(1,1,1)
+        delBtn.TextSize = 10
+        delBtn.Font = C.FontB
+        delBtn.AutoButtonColor = false
+        delBtn.ZIndex = 106
+        Corner(delBtn, 6)
+
+        loadBtn.MouseButton1Click:Connect(function()
+            PS("Click")
+            ApplyFlags(SavedPresets[name])
+            Notify("Preset '" .. name .. "' carregado!", true)
+        end)
+        delBtn.MouseButton1Click:Connect(function()
+            PS("Click")
+            SavedPresets[name] = nil
+            SavePresets()
+            RebuildPresetList()
+            Notify("Preset '" .. name .. "' apagado", true)
+        end)
+    end
+end
+
+RebuildPresetList()
 
 --=============================================================
 -- ⌨️ ATALHOS
@@ -1795,9 +2176,11 @@ CreateTitle(BindsP, "Configurar Teclas", "⌨️")
 BindRow(BindsP, "Aimbot", "AimAssist")
 BindRow(BindsP, "ESP (Visual)", "Visuals")
 BindRow(BindsP, "Hitbox", "Hitbox")
+BindRow(BindsP, "Panic (Desligar Tudo)", "Panic")
 CreateLabel(BindsP,
     "• Ctrl Direito / Delete = abrir menu.\n" ..
-    "• Esc = cancelar captura de tecla.", 40)
+    "• Ctrl+P = Desligar tudo (Panic).\n" ..
+    "• Esc = cancelar captura de tecla.", 50)
 
 --=============================================================
 -- 🌐 SERVIDOR
@@ -1939,13 +2322,103 @@ end)
 CreateTitle(MiscP, "Áudio", "🔊")
 CreateToggle(MiscP, "Sons do Menu", true, function(v) S.SoundEnabled = v end)
 
+CreateTitle(MiscP, "Zona de Perigo", "⚠️")
+CreateButton(MiscP, "🚨 DESATIVAR TUDO E FECHAR", Color3.fromRGB(220, 20, 20), function()
+    PanicShutdown()
+end)
+
 CreateTitle(MiscP, "Sobre", "ℹ️")
 CreateLabel(MiscP,
     "🎯 Kiko Menu " .. VERSION .. "\n\n" ..
     "Atalhos:\n" ..
     "• Ctrl Direito / Delete — abrir/fechar\n" ..
+    "• Ctrl+P — Panic (desliga tudo)\n" ..
     "• Arraste o topo para mover o menu\n" ..
     "• Timer conta desde o momento da execução", 100)
+
+--=============================================================
+-- 🧪 ABA DE TESTE
+--=============================================================
+CreateTitle(TestP, "Testes de UI", "🧪")
+
+CreateButton(TestP, "🎉 Testar Partículas", Color3.fromRGB(180, 60, 180), function()
+    local mouse = UIS:GetMouseLocation()
+    EmitParticles(Vector2.new(mouse.X, mouse.Y), C.Accent, 25)
+    Notify("Burst de partículas enviado!", true)
+end)
+
+CreateButton(TestP, "🔔 Testar Notificação", Color3.fromRGB(80, 140, 240), function()
+    Notify("Notificação de teste #" .. math.random(100, 999), true)
+end)
+
+CreateButton(TestP, "🌈 Modo Rainbow (Teste)", Color3.fromRGB(120, 80, 200), function()
+    task.spawn(function()
+        local dur = 0
+        while dur < 5 do
+            local hue = (tick() * 0.5) % 1
+            local newColor = Color3.fromHSV(hue, 0.8, 1)
+            Personal.AccentColor = {
+                math.floor(newColor.R * 255),
+                math.floor(newColor.G * 255),
+                math.floor(newColor.B * 255)
+            }
+            ApplyAccent()
+            task.wait(0.05)
+            dur = dur + 0.05
+        end
+        -- volta ao vermelho
+        Personal.AccentColor = {220, 50, 50}
+        ApplyAccent()
+        SavePersonal()
+    end)
+    Notify("Rainbow por 5 segundos!", true)
+end)
+
+CreateTitle(TestP, "Info de Estado", "📊")
+
+local infoLabel = Instance.new("TextLabel", TestP)
+infoLabel.Size = UDim2.new(1, 0, 0, 120)
+infoLabel.BackgroundColor3 = C.BgAlt
+infoLabel.BackgroundTransparency = 0.3
+infoLabel.Text = ""
+infoLabel.TextColor3 = C.Text
+infoLabel.TextSize = 11
+infoLabel.Font = Enum.Font.Code
+infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+infoLabel.TextYAlignment = Enum.TextYAlignment.Top
+infoLabel.TextWrapped = true
+infoLabel.ZIndex = 104
+infoLabel:SetAttribute("KikoBg", "alt")
+Corner(infoLabel, 8)
+Stroke(infoLabel, C.Stroke, 1, 0.5)
+local infoPad = Instance.new("UIPadding", infoLabel)
+infoPad.PaddingTop = UDim.new(0, 8)
+infoPad.PaddingLeft = UDim.new(0, 10)
+infoPad.PaddingRight = UDim.new(0, 10)
+
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        local togglesOn = 0
+        for _, v in pairs(VisToggles) do
+            -- não consegue checar valor do apply direto, então estimamos pelo S
+        end
+        infoLabel.Text = string.format(
+            "  Uptime:     %s\n  FPS:        %d\n  Jogadores:  %d\n  PlaceID:    %d\n  Presets:    %d",
+            FormatTime(tick() - SCRIPT_START_TIME),
+            currentFPS or 60,
+            #Players:GetPlayers(),
+            game.PlaceId,
+            (function() local n=0 for _ in pairs(SavedPresets) do n=n+1 end return n end)()
+        )
+    end
+end)
+
+CreateTitle(TestP, "Aviso", "⚠️")
+CreateLabel(TestP,
+    "• Essa aba é só pra testar funcionalidades\n" ..
+    "• Nada aqui afeta gameplay real\n" ..
+    "• Bom pra ver o resultado visual das features", 60)
 
 --=============================================================
 -- 🎨 PERSONALIZAÇÃO
@@ -1976,7 +2449,12 @@ CreateToggle(PersonalP, "Efeito Blur no Fundo", Personal.Blur, function(v)
     SavePersonal()
 end)
 
--- ============ CORES DO FUNDO ============
+CreateToggle(PersonalP, "Partículas ao Clicar", Personal.ParticlesEnabled ~= false and true or true, function(v)
+    S.ParticlesEnabled = v
+    SavePersonal()
+end)
+
+-- CORES DO FUNDO
 CreateTitle(PersonalP, "Cores do Fundo", "🌈")
 CreateLabel(PersonalP, "Selecione uma opção abaixo:", 18)
 
@@ -2014,7 +2492,6 @@ local function MakeColorBtn(parent, data, xPos, isAccentBtn, refsTable)
     local st = Stroke(btn, C.Stroke, 1, 0.5)
     st:SetAttribute("KikoNoAccent", true)
 
-    -- Círculo de preview
     local preview = Instance.new("Frame", btn)
     preview.Size = UDim2.new(0, 22, 0, 22)
     preview.Position = UDim2.new(0, 10, 0.5, -11)
@@ -2086,9 +2563,6 @@ local function MakeColorBtn(parent, data, xPos, isAccentBtn, refsTable)
             ApplyBackground()
         end
         SavePersonal()
-        TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = demoColor:Lerp(Color3.new(1,1,1), 0.3)}):Play()
-        task.wait(0.12)
-        TweenService:Create(btn, TweenInfo.new(0.25), {BackgroundColor3 = LastBgAltApplied or C.BgAlt}):Play()
     end)
 
     local cur = isAccentBtn and Personal.AccentColor or Personal.BgColor
@@ -2101,7 +2575,6 @@ local bgRefsRow1, bgRefsRow2 = {}, {}
 for i = 1, 3 do MakeColorBtn(bgRow1, bgColors[i], (i-1) * 0.345, false, bgRefsRow1) end
 for i = 4, 6 do MakeColorBtn(bgRow2, bgColors[i], (i-4) * 0.345, false, bgRefsRow2) end
 
--- ============ CORES DE DESTAQUE ============
 CreateTitle(PersonalP, "Cor de Destaque", "🎯")
 CreateLabel(PersonalP, "Cor dos botões, textos e detalhes:", 18)
 
@@ -2127,7 +2600,6 @@ local acRefsRow1, acRefsRow2 = {}, {}
 for i = 1, 3 do MakeColorBtn(acRow1, accentColors[i], (i-1) * 0.345, true, acRefsRow1) end
 for i = 4, 6 do MakeColorBtn(acRow2, accentColors[i], (i-4) * 0.345, true, acRefsRow2) end
 
--- ============ LAYOUT ============
 CreateTitle(PersonalP, "Layout", "📐")
 CreateLabel(PersonalP, "Escala do menu (0.7x a 1.4x):", 18)
 CreateStepper(PersonalP, "Escala da UI", 0.7, 1.4, Personal.UIScale, 0.05, function(v)
@@ -2136,7 +2608,6 @@ CreateStepper(PersonalP, "Escala da UI", 0.7, 1.4, Personal.UIScale, 0.05, funct
     SavePersonal()
 end)
 
--- ============ GERENCIAR ============
 CreateTitle(PersonalP, "Gerenciar", "💾")
 
 local mgrRow = Instance.new("Frame", PersonalP)
@@ -2158,12 +2629,6 @@ saveBtn.MouseButton1Click:Connect(function()
     PS("Click")
     if SavePersonal() then Notify("💾 Personalização salva!", true)
     else Notify("Executor sem writefile", false) end
-end)
-saveBtn.MouseEnter:Connect(function()
-    TweenService:Create(saveBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.Green:Lerp(Color3.new(1,1,1), 0.2)}):Play()
-end)
-saveBtn.MouseLeave:Connect(function()
-    TweenService:Create(saveBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.Green}):Play()
 end)
 
 local resetBtn = Instance.new("TextButton", mgrRow)
@@ -2187,17 +2652,11 @@ resetBtn.MouseButton1Click:Connect(function()
     ApplyScale()
     if SavePersonal() then Notify("Personalização resetada!", true) end
 end)
-resetBtn.MouseEnter:Connect(function()
-    TweenService:Create(resetBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.AccentDk:Lerp(Color3.new(1,1,1), 0.2)}):Play()
-end)
-resetBtn.MouseLeave:Connect(function()
-    TweenService:Create(resetBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.AccentDk}):Play()
-end)
 
 CreateLabel(PersonalP,
     "💡 Alterações são salvas automaticamente\n" ..
-    "📁 Arquivo: kiko_menu_personal.json\n" ..
-    "🔧 Requer executor com writefile/readfile", 50)
+    "📁 Arquivos: kiko_menu_personal.json e kiko_menu_presets.json\n" ..
+    "🔧 Requer executor com writefile/readfile", 60)
 
 --=============================================================
 -- 🕊️ FLY
@@ -2347,6 +2806,42 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 --=============================================================
+-- 🚨 PANIC (DESLIGAR TUDO E FECHAR)
+--=============================================================
+function PanicShutdown()
+    -- Desliga todas as flags
+    for k, v in pairs(S) do
+        if type(v) == "boolean" and k ~= "SoundEnabled" then
+            S[k] = false
+        end
+    end
+    -- Aplica visualmente
+    for _, f in pairs(VisToggles) do
+        pcall(function() f(false, true, true) end)
+    end
+    -- Desliga coisas de sistema
+    pcall(function()
+        FOVCircle.Visible = false
+        if Lighting:FindFirstChild("KikoBlur") then
+            Lighting:FindFirstChild("KikoBlur"):Destroy()
+        end
+        -- Restaura lighting
+        Lighting.Brightness = originalLighting.Brightness
+        Lighting.Ambient = originalLighting.Ambient
+        Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
+        Lighting.FogEnd = originalLighting.FogEnd
+        Lighting.FogStart = originalLighting.FogStart
+        Lighting.GlobalShadows = true
+    end)
+    -- Fecha tudo
+    Notify("🚨 PANIC — Desligando tudo...", false)
+    task.wait(0.4)
+    pcall(function() FOVCircle:Remove() end)
+    pcall(function() ScreenGui:Destroy() end)
+    print("[Kiko MENU] 🚨 Panic executado — script encerrado.")
+end
+
+--=============================================================
 -- 🔄 TOGGLE MENU
 --=============================================================
 local function ToggleMenu()
@@ -2478,6 +2973,8 @@ UIS.InputBegan:Connect(function(input, gp)
                     if VisToggles["Aumentar Hitbox (Jogadores)"] then VisToggles["Aumentar Hitbox (Jogadores)"](n, true, true) end
                     S.HitboxEnabled = n
                     Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
+                elseif bk == "Panic" then
+                    PanicShutdown()
                 end
             end
         end
@@ -2508,6 +3005,8 @@ local function RemoveESP(cont, obj)
         if cont[obj].Name then cont[obj].Name:Remove() end
         if cont[obj].Dist then cont[obj].Dist:Remove() end
         if cont[obj].Line then cont[obj].Line:Remove() end
+        if cont[obj].HPBar then cont[obj].HPBar:Remove() end
+        if cont[obj].HPBack then cont[obj].HPBack:Remove() end
         if cont[obj].Highlight then cont[obj].Highlight:Destroy() end
         if cont[obj].Skeleton then for _, l in pairs(cont[obj].Skeleton) do l:Remove() end end
         cont[obj] = nil
@@ -2521,6 +3020,8 @@ local function CreateESPObj(cont, obj)
         Name = Drawing.new("Text"),
         Dist = Drawing.new("Text"),
         Line = Drawing.new("Line"),
+        HPBack = Drawing.new("Square"),
+        HPBar = Drawing.new("Square"),
         Highlight = nil,
         Skeleton = CreateSkelLines()
     }
@@ -2529,6 +3030,8 @@ local function CreateESPObj(cont, obj)
     e.Name.Size = 14; e.Name.Center = true; e.Name.Outline = true
     e.Dist.Size = 12; e.Dist.Center = true; e.Dist.Outline = true
     e.Line.Thickness = 1
+    e.HPBack.Filled = true; e.HPBack.Color = Color3.fromRGB(30, 30, 30)
+    e.HPBar.Filled = true
 end
 
 Players.PlayerAdded:Connect(function(p) CreateESPObj(ESPCont, p) end)
@@ -2570,6 +3073,51 @@ local function IsVisible(part)
     local r = workspace:Raycast(o, part.Position - o, params)
     return r == nil
 end
+
+--=============================================================
+-- 📡 RADAR CIRCULAR (Drawing)
+--=============================================================
+local RadarBg = Drawing.new("Circle")
+RadarBg.Filled = false
+RadarBg.Thickness = 2
+RadarBg.Color = Color3.fromRGB(220, 50, 50)
+RadarBg.Visible = false
+RadarBg.NumSides = 64
+
+local RadarCenterDot = Drawing.new("Circle")
+RadarCenterDot.Filled = true
+RadarCenterDot.Radius = 3
+RadarCenterDot.Color = Color3.fromRGB(255, 255, 255)
+RadarCenterDot.Visible = false
+
+local RadarRing = Drawing.new("Circle")
+RadarRing.Filled = false
+RadarRing.Thickness = 1
+RadarRing.Color = Color3.fromRGB(80, 80, 80)
+RadarRing.Visible = false
+RadarRing.NumSides = 64
+
+local RadarBlips = {}
+
+local function GetRadarBlip(player)
+    if RadarBlips[player] then return RadarBlips[player] end
+    local b = {
+        Dot = Drawing.new("Circle"),
+    }
+    b.Dot.Filled = true
+    b.Dot.Radius = 4
+    b.Dot.Color = Color3.fromRGB(255, 80, 80)
+    b.Dot.Visible = false
+    RadarBlips[player] = b
+    return b
+end
+
+Players.PlayerRemoving:Connect(function(p)
+    if RadarBlips[p] then
+        RadarBlips[p].Dot:Remove()
+        RadarBlips[p] = nil
+    end
+end)
 
 --=============================================================
 -- 📊 STATS
@@ -2744,10 +3292,12 @@ RunService.RenderStepped:Connect(function()
             if not ch or not ch:FindFirstChild("HumanoidRootPart") or (isNPC and not S.ESPNPC) then
                 e.Box.Visible = false; e.Name.Visible = false
                 e.Dist.Visible = false; e.Line.Visible = false
+                e.HPBar.Visible = false; e.HPBack.Visible = false
                 if e.Highlight then e.Highlight.Enabled = false end
                 continue
             end
             local hrp = ch.HumanoidRootPart
+            local hum = ch:FindFirstChildOfClass("Humanoid")
             local head = ch:FindFirstChild("Head")
             local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
             local col = Color3.new(1,1,1)
@@ -2756,24 +3306,30 @@ RunService.RenderStepped:Connect(function()
             elseif S.TeamColor and obj.TeamColor then col = obj.TeamColor.Color end
 
             if (isNPC and vis) or (not isNPC and S.ESP and vis) then
+                local boxSize = Vector2.new(2500/pos.Z, 3500/pos.Z)
+                local boxPos = Vector2.new(pos.X - boxSize.X/2, pos.Y - boxSize.Y/2)
+                
                 if S.Boxes then
                     e.Box.Visible = true
-                    e.Box.Size = Vector2.new(2500/pos.Z, 3500/pos.Z)
-                    e.Box.Position = Vector2.new(pos.X - e.Box.Size.X/2, pos.Y - e.Box.Size.Y/2)
+                    e.Box.Size = boxSize
+                    e.Box.Position = boxPos
                     e.Box.Color = col
                 else e.Box.Visible = false end
+                
                 if S.Names then
                     e.Name.Visible = true
                     e.Name.Text = isNPC and obj.Name or obj.DisplayName
                     e.Name.Position = Vector2.new(pos.X, pos.Y - (2000/pos.Z) - 20)
                     e.Name.Color = col
                 else e.Name.Visible = false end
+                
                 if S.Distance then
                     e.Dist.Visible = true
                     e.Dist.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude) .. "m"
                     e.Dist.Position = Vector2.new(pos.X, pos.Y + (2000/pos.Z) + 5)
                     e.Dist.Color = C.Green
                 else e.Dist.Visible = false end
+                
                 if S.Lines and head then
                     local hp = Camera:WorldToViewportPoint(head.Position)
                     e.Line.Visible = true
@@ -2781,6 +3337,42 @@ RunService.RenderStepped:Connect(function()
                     e.Line.To = Vector2.new(hp.X, hp.Y)
                     e.Line.Color = col
                 else e.Line.Visible = false end
+                
+                -- HP BAR minimalista (só mostra se HP < 100%)
+                if S.ESPHP and hum then
+                    local pct = hum.Health / hum.MaxHealth
+                    if pct < 0.999 then
+                        local hpW = math.min(80, boxSize.X)
+                        local hpH = 4
+                        local hpX = pos.X - hpW/2
+                        local hpY = boxPos.Y - 10
+                        
+                        e.HPBack.Visible = true
+                        e.HPBack.Size = Vector2.new(hpW, hpH)
+                        e.HPBack.Position = Vector2.new(hpX, hpY)
+                        e.HPBack.Color = Color3.fromRGB(30, 30, 30)
+                        
+                        e.HPBar.Visible = true
+                        e.HPBar.Size = Vector2.new(hpW * pct, hpH)
+                        e.HPBar.Position = Vector2.new(hpX, hpY)
+                        
+                        -- Cor gradual
+                        if pct > 0.6 then
+                            e.HPBar.Color = Color3.fromRGB(80, 220, 100)
+                        elseif pct > 0.3 then
+                            e.HPBar.Color = Color3.fromRGB(240, 200, 60)
+                        else
+                            e.HPBar.Color = Color3.fromRGB(220, 60, 60)
+                        end
+                    else
+                        e.HPBar.Visible = false
+                        e.HPBack.Visible = false
+                    end
+                else
+                    e.HPBar.Visible = false
+                    e.HPBack.Visible = false
+                end
+                
                 if S.Highlight then
                     if not e.Highlight or e.Highlight.Parent ~= ch then
                         if e.Highlight then e.Highlight:Destroy() end
@@ -2793,12 +3385,73 @@ RunService.RenderStepped:Connect(function()
             else
                 e.Box.Visible = false; e.Name.Visible = false
                 e.Dist.Visible = false; e.Line.Visible = false
+                e.HPBar.Visible = false; e.HPBack.Visible = false
                 if e.Highlight then e.Highlight.Enabled = false end
             end
         end
     end
     RenderCont(ESPCont, false)
     RenderCont(NPCESPCont, true)
+    
+    -- ========== RADAR CIRCULAR ==========
+    if S.RadarEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+        local myLook = Camera.CFrame.LookVector
+        local radarCenter = Vector2.new(160, Camera.ViewportSize.Y - 160)
+        local radarRadius = S.RadarSize / 2
+        local range = S.RadarRange
+        
+        RadarBg.Position = radarCenter
+        RadarBg.Radius = radarRadius
+        RadarBg.Color = C.Accent
+        RadarBg.Visible = true
+        
+        RadarRing.Position = radarCenter
+        RadarRing.Radius = radarRadius * 0.5
+        RadarRing.Color = Color3.fromRGB(80, 80, 80)
+        RadarRing.Visible = true
+        
+        RadarCenterDot.Position = radarCenter
+        RadarCenterDot.Visible = true
+        RadarCenterDot.Color = Color3.new(1, 1, 1)
+        
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local blip = GetRadarBlip(p)
+                local relPos = p.Character.HumanoidRootPart.Position - myPos
+                
+                -- rotaciona conforme a direção que a câmera aponta
+                local ang = math.atan2(myLook.X, myLook.Z)
+                local rx = relPos.X * math.cos(ang) - relPos.Z * math.sin(ang)
+                local rz = relPos.X * math.sin(ang) + relPos.Z * math.cos(ang)
+                
+                local dist2D = math.sqrt(rx*rx + rz*rz)
+                if dist2D <= range then
+                    local px = radarCenter.X + (rx / range) * radarRadius
+                    local py = radarCenter.Y + (rz / range) * radarRadius
+                    blip.Dot.Position = Vector2.new(px, py)
+                    blip.Dot.Visible = true
+                    
+                    if IsFriend(p) then
+                        blip.Dot.Color = Color3.fromRGB(0, 170, 255)
+                    elseif S.TeamColor and p.TeamColor == LocalPlayer.TeamColor then
+                        blip.Dot.Color = Color3.fromRGB(120, 220, 160)
+                    else
+                        blip.Dot.Color = Color3.fromRGB(255, 80, 80)
+                    end
+                else
+                    blip.Dot.Visible = false
+                end
+            end
+        end
+    else
+        RadarBg.Visible = false
+        RadarRing.Visible = false
+        RadarCenterDot.Visible = false
+        for _, blip in pairs(RadarBlips) do
+            blip.Dot.Visible = false
+        end
+    end
 end)
 
 --=============================================================
@@ -2894,9 +3547,10 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification", {
         Title = "🎯 Kiko Menu",
-        Text = VERSION .. " — Portrait Edition!",
+        Text = VERSION .. " — Power Edition!",
         Duration = 4,
     })
 end)
 
 print("[Kiko MENU " .. VERSION .. "] ✅ Carregado com sucesso!")
+print("  Novidades: Partículas • Tab Indicator • Presets • Search • Combate • Radar • HP ESP • Panic")
