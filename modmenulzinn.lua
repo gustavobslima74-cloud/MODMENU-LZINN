@@ -1,6 +1,8 @@
 --=============================================================
--- 🎯 KIKO MENU v7.4 — POWER EDITION
+-- 🎯 KIKO MENU v7.5 — POWER EDITION
 --=============================================================
+
+print("[Kiko] Iniciando script...")
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -49,19 +51,10 @@ getgenv().Settings = {
     StickySmoothness = 0.1, StickyDistance = 3,
     HitboxEnabled = false, Hitbox = 20, HitboxTransparency = 0.6, HitboxNPC = false,
     AutoTeamColorCheck = false, ColorAimbot = false, ColorAimbotTarget = nil,
-    BoostFPS = false, RemoveShadows = false, Fullbright = false, NoFog = false,
-    AntiAFK = false,
-    -- Performance
-    PerfTextures = false,
-    PerfShadows = false,
-    PerfDecals = false,
-    PerfParticles = false,
-    PerfTrails = false,
-    PerfPostFX = false,
-    PerfSky = false,
-    PerfAnims = false,
-    PerfGameSounds = false,
-    -- Rapid Fire
+    Fullbright = false, NoFog = false, AntiAFK = false,
+    PerfTextures = false, PerfShadows = false, PerfDecals = false,
+    PerfParticles = false, PerfTrails = false, PerfPostFX = false,
+    PerfAnims = false, PerfGameSounds = false,
     RapidFire = false,
     ParticlesEnabled = true,
     Whitelist = {},
@@ -75,7 +68,7 @@ getgenv().Settings = {
 }
 
 local S = getgenv().Settings
-local VERSION = "v7.4"
+local VERSION = "v7.5"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -97,9 +90,7 @@ local originalLighting = {
     GlobalShadows = Lighting.GlobalShadows,
 }
 
--- Guarda estado original de efeitos
 local originalEffects = {}
-local originalSky = Lighting:FindFirstChildOfClass("Sky")
 
 --=============================================================
 -- 🎨 TEMA
@@ -123,12 +114,7 @@ local C = {
     FontTitle = Enum.Font.GothamBold,
 }
 
---=============================================================
--- 📐 DIMENSÕES
---=============================================================
-local DIM = {
-    W = 440, H = 720, TopBar = 42, ProfileBar = 82, TabsBar = 46, Pad = 12,
-}
+local DIM = { W = 440, H = 720, TopBar = 42, ProfileBar = 82, TabsBar = 46, Pad = 12 }
 
 --=============================================================
 -- 💾 CONFIG
@@ -198,6 +184,8 @@ ScreenGui.IgnoreGuiInset = true
 ScreenGui.DisplayOrder = 999
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = parentGui
+
+print("[Kiko] GUI criada")
 
 --=============================================================
 -- 🔊 SISTEMA DE SOM
@@ -434,136 +422,136 @@ local function ApplyScale()
 end
 
 --=============================================================
--- ⚡ FUNÇÕES DE PERFORMANCE
+-- ⚡ PERFORMANCE (blindado com pcall)
 --=============================================================
 local function SetTextures(enabled)
-    for _, o in pairs(game:GetDescendants()) do
-        if o:IsA("Texture") or o:IsA("Decal") then
-            o.Transparency = enabled and 1 or 0
+    pcall(function()
+        for _, o in pairs(game:GetDescendants()) do
+            if o:IsA("Texture") then
+                o.Transparency = enabled and 1 or 0
+            end
         end
-    end
-end
-
-local function SetShadows(enabled)
-    Lighting.GlobalShadows = not enabled
+    end)
 end
 
 local function SetDecals(enabled)
-    for _, o in pairs(game:GetDescendants()) do
-        if o:IsA("Decal") then
-            if enabled then
-                if not o:GetAttribute("KikoOrigTrans") then
-                    o:SetAttribute("KikoOrigTrans", o.Transparency)
+    pcall(function()
+        for _, o in pairs(game:GetDescendants()) do
+            if o:IsA("Decal") then
+                if enabled then
+                    if not o:GetAttribute("KikoOrigTrans") then
+                        o:SetAttribute("KikoOrigTrans", o.Transparency)
+                    end
+                    o.Transparency = 1
+                else
+                    local orig = o:GetAttribute("KikoOrigTrans")
+                    if orig then o.Transparency = orig end
                 end
-                o.Transparency = 1
-            else
-                local orig = o:GetAttribute("KikoOrigTrans")
-                if orig then o.Transparency = orig end
             end
         end
-    end
+    end)
+end
+
+local function SetShadows(enabled)
+    pcall(function()
+        Lighting.GlobalShadows = not enabled
+    end)
 end
 
 local function SetParticles(enabled)
-    for _, o in pairs(game:GetDescendants()) do
-        if o:IsA("ParticleEmitter") or o:IsA("Smoke") or o:IsA("Fire") 
-        or o:IsA("Sparkles") or o:IsA("Explosion") then
-            o.Enabled = not enabled
+    pcall(function()
+        for _, o in pairs(game:GetDescendants()) do
+            if o:IsA("ParticleEmitter") or o:IsA("Smoke") or o:IsA("Fire")
+            or o:IsA("Sparkles") then
+                o.Enabled = not enabled
+            end
         end
-    end
+    end)
 end
 
 local function SetTrails(enabled)
-    for _, o in pairs(game:GetDescendants()) do
-        if o:IsA("Trail") or o:IsA("Beam") then
-            o.Enabled = not enabled
+    pcall(function()
+        for _, o in pairs(game:GetDescendants()) do
+            if o:IsA("Trail") or o:IsA("Beam") then
+                o.Enabled = not enabled
+            end
         end
-    end
+    end)
 end
 
 local function SetPostFX(enabled)
-    local types = {
-        "BloomEffect", "BlurEffect", "SunRaysEffect", 
-        "DepthOfFieldEffect", "ColorCorrectionEffect"
-    }
-    for _, o in pairs(Lighting:GetChildren()) do
-        for _, t in ipairs(types) do
-            if o:IsA(t) then
-                if enabled then
-                    if not originalEffects[o] then
-                        originalEffects[o] = o.Enabled
-                    end
-                    o.Enabled = false
-                else
-                    if originalEffects[o] ~= nil then
-                        o.Enabled = originalEffects[o]
+    pcall(function()
+        local types = {
+            "BloomEffect", "BlurEffect", "SunRaysEffect",
+            "DepthOfFieldEffect", "ColorCorrectionEffect"
+        }
+        for _, o in pairs(Lighting:GetChildren()) do
+            for _, t in ipairs(types) do
+                if o:IsA(t) then
+                    if enabled then
+                        if originalEffects[o] == nil then
+                            originalEffects[o] = o.Enabled
+                        end
+                        o.Enabled = false
+                    else
+                        if originalEffects[o] ~= nil then
+                            o.Enabled = originalEffects[o]
+                        end
                     end
                 end
             end
         end
-    end
-    -- Atmosphere
-    if enabled then
         for _, o in pairs(Lighting:GetChildren()) do
             if o:IsA("Atmosphere") then
-                if not originalEffects[o] then originalEffects[o] = o.Density end
-                o.Density = 0
+                if enabled then
+                    if originalEffects[o] == nil then
+                        originalEffects[o] = o.Density
+                    end
+                    o.Density = 0
+                else
+                    if originalEffects[o] ~= nil then
+                        o.Density = originalEffects[o]
+                    end
+                end
             end
         end
-    else
-        for _, o in pairs(Lighting:GetChildren()) do
-            if o:IsA("Atmosphere") and originalEffects[o] ~= nil then
-                o.Density = originalEffects[o]
-            end
-        end
-    end
-end
-
-local function SetSky(enabled)
-    if enabled then
-        for _, o in pairs(Lighting:GetChildren()) do
-            if o:IsA("Sky") then
-                o:SetAttribute("KikoSkyHidden", true)
-                o.Parent = nil
-            end
-        end
-    else
-        -- Não conseguimos restaurar o Sky depois de remover, então deixamos assim
-    end
+    end)
 end
 
 local function SetAnimations(enabled)
-    local char = LocalPlayer.Character
-    if not char then return end
-    for _, o in pairs(char:GetDescendants()) do
-        if o:IsA("Animator") then
-            o:SetAttribute("KikoAnimDisabled", enabled)
-        end
-        if o:IsA("AnimationTrack") then
-            o:Stop(0)
-        end
-    end
-    local animate = char:FindFirstChild("Animate")
-    if animate then
-        if enabled then
+    pcall(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local animate = char:FindFirstChild("Animate")
+        if animate then
             for _, o in pairs(animate:GetDescendants()) do
                 if o:IsA("LocalScript") then
-                    o.Disabled = true
+                    o.Disabled = enabled
                 end
             end
         end
-    end
+    end)
 end
 
 local function SetGameSounds(enabled)
-    if enabled then
+    pcall(function()
         for _, o in pairs(SoundService:GetDescendants()) do
             if o:IsA("Sound") and not Sounds[o.Name] then
-                o.Volume = 0
+                if enabled then
+                    if not o:GetAttribute("KikoOrigVol") then
+                        o:SetAttribute("KikoOrigVol", o.Volume)
+                    end
+                    o.Volume = 0
+                else
+                    local orig = o:GetAttribute("KikoOrigVol")
+                    if orig then o.Volume = orig end
+                end
             end
         end
-    end
+    end)
 end
+
+print("[Kiko] Funções de performance carregadas")
 
 --=============================================================
 -- 🖱️ DRAG
@@ -1387,6 +1375,8 @@ local MiscP     = CreatePage("Misc",         "🧰")
 local TestP     = CreatePage("Teste",        "🧪")
 local PersonalP = CreatePage("Personalizar", "🎨")
 
+print("[Kiko] Páginas criadas")
+
 MiraP.Visible = true
 ActivePage = MiraP
 TabButtons[1]:SetAttribute("KikoBg", "")
@@ -1969,7 +1959,7 @@ local function GetSaveableFlags()
         "StickyDistance","HitboxEnabled","Hitbox","HitboxTransparency","HitboxNPC",
         "AutoTeamColorCheck","ColorAimbot",
         "PerfTextures","PerfShadows","PerfDecals","PerfParticles","PerfTrails",
-        "PerfPostFX","PerfSky","PerfAnims","PerfGameSounds",
+        "PerfPostFX","PerfAnims","PerfGameSounds",
         "RapidFire","Fullbright","NoFog","AntiAFK",
     }
     local out = {}
@@ -1995,8 +1985,8 @@ local function ApplyFlags(flags)
         PerfTextures = "Remover Texturas", PerfShadows = "Remover Sombras",
         PerfDecals = "Remover Decals", PerfParticles = "Desligar Partículas",
         PerfTrails = "Desligar Trails e Beams", PerfPostFX = "Desligar Post-Processing",
-        PerfSky = "Remover Skybox", PerfAnims = "Desligar Animações",
-        PerfGameSounds = "Silenciar Sons do Jogo", RapidFire = "Tiros Rápidos",
+        PerfAnims = "Desligar Animações", PerfGameSounds = "Silenciar Sons do Jogo",
+        RapidFire = "Tiros Rápidos",
     }
     for flagKey, label in pairs(map) do
         if VisToggles[label] then VisToggles[label](flags[flagKey] == true, true, true) end
@@ -2274,7 +2264,7 @@ CreateButton(ServP, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), func
 end)
 
 --=============================================================
--- ⚡ ABA DESEMPENHO (NOVA)
+-- ⚡ DESEMPENHO
 --=============================================================
 CreateTitle(PerfP, "Otimização Visual", "⚡")
 
@@ -2310,12 +2300,6 @@ CreateToggle(PerfP, "Desligar Post-Processing", false, function(v)
     SetPostFX(v)
 end)
 
-CreateToggle(PerfP, "Remover Skybox", false, function(v)
-    S.PerfSky = v
-    SetSky(v)
-    if v then Notify("Skybox removida (não volta até reiniciar)", true) end
-end)
-
 CreateTitle(PerfP, "Otimização de Sistema", "🔧")
 
 CreateToggle(PerfP, "Desligar Animações", false, function(v)
@@ -2335,17 +2319,15 @@ end)
 CreateTitle(PerfP, "Modo Turbo", "🚀")
 
 CreateButton(PerfP, "🚀 ATIVAR MODO ULTRA PERFORMANCE", Color3.fromRGB(180, 60, 200), function()
-    -- Ativa tudo de uma vez
     local toEnable = {
         "Remover Texturas", "Remover Sombras", "Remover Decals",
         "Desligar Partículas", "Desligar Trails e Beams",
-        "Desligar Post-Processing", "Remover Skybox",
-        "Desligar Animações",
+        "Desligar Post-Processing", "Desligar Animações",
     }
     for _, name in ipairs(toEnable) do
         if VisToggles[name] then VisToggles[name](true) end
     end
-    setfpscap(240)
+    if setfpscap then setfpscap(240) end
     Notify("🚀 Modo Ultra Performance ativado!", true)
 end)
 
@@ -2353,8 +2335,7 @@ CreateButton(PerfP, "🔄 Desativar Modo Turbo", Color3.fromRGB(150, 30, 30), fu
     local toDisable = {
         "Remover Texturas", "Remover Sombras", "Remover Decals",
         "Desligar Partículas", "Desligar Trails e Beams",
-        "Desligar Post-Processing",
-        "Desligar Animações", "Silenciar Sons do Jogo",
+        "Desligar Post-Processing", "Desligar Animações", "Silenciar Sons do Jogo",
     }
     for _, name in ipairs(toDisable) do
         if VisToggles[name] then VisToggles[name](false) end
@@ -2364,11 +2345,10 @@ end)
 
 CreateTitle(PerfP, "Info", "ℹ️")
 CreateLabel(PerfP,
-    "• Texturas/Decals = reaplica em novos objetos automaticamente\n" ..
-    "• Partículas/Trails = afeta tudo no jogo (bom pra FPS)\n" ..
-    "• Post-Processing = remove Bloom, Blur, DOF, SunRays\n" ..
-    "• Skybox não pode ser restaurada sem reiniciar\n" ..
-    "• Use o Turbo pra ativar tudo de uma vez", 90)
+    "• Texturas/Decals/Partículas reaplicam a cada 2s\n" ..
+    "• Afeta o jogo inteiro (bom pra FPS em PCs fracos)\n" ..
+    "• Post-Processing remove Bloom, Blur, DOF, SunRays\n" ..
+    "• Use o Turbo pra ativar tudo de uma vez", 70)
 
 --=============================================================
 -- 🧰 MISC
@@ -2432,7 +2412,7 @@ CreateLabel(MiscP,
     "• Timer conta desde o momento da execução", 100)
 
 --=============================================================
--- 🧪 ABA DE TESTE (só Rapid Fire e Info)
+-- 🧪 ABA DE TESTE
 --=============================================================
 CreateTitle(TestP, "Tiros Rápidos", "⚔️")
 
@@ -2446,14 +2426,11 @@ CreateToggle(TestP, "Tiros Rápidos (Rapid Fire)", false, function(v)
 end)
 
 CreateLabel(TestP,
-    "• Aumenta a cadência de tiro reduzindo valores\n" ..
-    "  de FireRate / Cooldown / FireDelay das armas\n" ..
-    "• Funciona em jogos que expõem essas propriedades\n" ..
-    "• Reaplica automaticamente a cada 0.3s\n" ..
-    "• NÃO funciona em jogos que usam RemoteEvents\n" ..
-    "  com rate limit no servidor", 90)
+    "• Reduz FireRate / Cooldown / FireDelay das armas\n" ..
+    "• Reaplica automaticamente a cada 0.3 segundos\n" ..
+    "• Não funciona em jogos com rate limit no servidor", 50)
 
--- Loop do Rapid Fire
+-- Loop do Rapid Fire (CORRIGIDO)
 task.spawn(function()
     while true do
         task.wait(0.3)
@@ -2465,12 +2442,13 @@ task.spawn(function()
                         pcall(function()
                             for _, v in pairs(tool:GetDescendants()) do
                                 if v:IsA("NumberValue") then
-                                    local n = string.lower(v.Name):gsub("[_%s%-]", "")
-                                    if n == "firerate" or n == "cooldown" 
-                                    or n == "firedelay" or n == "rate" 
-                                    or n == "delay" or n == "firecooldown" then
+                                    local lowered = string.lower(v.Name)
+                                    local clean = string.gsub(lowered, "[_%s%-]", "")
+                                    if clean == "firerate" or clean == "cooldown"
+                                    or clean == "firedelay" or clean == "rate"
+                                    or clean == "delay" or clean == "firecooldown" then
                                         if v.Value > 0.005 then
-                                            if not v:GetAttribute("KikoOrigVal") then
+                                            if v:GetAttribute("KikoOrigVal") == nil then
                                                 v:SetAttribute("KikoOrigVal", v.Value)
                                             end
                                             v.Value = 0.005
@@ -2520,12 +2498,6 @@ task.spawn(function()
         )
     end
 end)
-
-CreateTitle(TestP, "Aviso", "⚠️")
-CreateLabel(TestP,
-    "• Aba de testes rápidos e info do estado\n" ..
-    "• Rapid Fire pode não funcionar em todos os jogos\n" ..
-    "• Verifique a aba Desempenho pra otimizações", 60)
 
 --=============================================================
 -- 🎨 PERSONALIZAÇÃO
@@ -2747,6 +2719,8 @@ CreateLabel(PersonalP,
     "💡 Alterações são salvas automaticamente\n" ..
     "📁 Arquivos: kiko_menu_personal.json e kiko_menu_presets.json\n" ..
     "🔧 Requer executor com writefile/readfile", 60)
+
+print("[Kiko] Abas construídas")
 
 --=============================================================
 -- 🕊️ FLY
@@ -3192,7 +3166,6 @@ task.spawn(function()
     end
 end)
 
--- Reaplica performance em novos objetos
 task.spawn(function()
     while true do
         task.wait(2)
