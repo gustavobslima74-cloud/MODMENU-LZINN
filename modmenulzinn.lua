@@ -193,7 +193,7 @@ task.spawn(function()
         local LoadingGui = Instance.new("ScreenGui")
         LoadingGui.Name = "KikoLoading"
         LoadingGui.ResetOnSpawn = false
-        LoadingGui.IgnoreUserInput = true
+        LoadingGui.Enabled = true
         LoadingGui.IgnoreGuiInset = true
         LoadingGui.DisplayOrder = 2000
         LoadingGui.Parent = parentGui
