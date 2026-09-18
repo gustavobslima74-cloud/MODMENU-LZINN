@@ -1,5 +1,5 @@
 --=============================================================
--- 🎯 KIKO MENU v7.0 — POWER EDITION
+-- 🎯 KIKO MENU v7.1 — POWER EDITION
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -51,14 +51,10 @@ getgenv().Settings = {
     AutoTeamColorCheck = false, ColorAimbot = false, ColorAimbotTarget = nil,
     BoostFPS = false, RemoveShadows = false, Fullbright = false, NoFog = false,
     AntiAFK = false,
-    -- Novos
     NoRecoil = false,
     NoSpread = false,
     InfiniteAmmo = false,
     FasterReload = false,
-    RadarEnabled = false,
-    RadarSize = 120,
-    RadarRange = 150,
     ParticlesEnabled = true,
     Whitelist = {},
     SoundEnabled = true,
@@ -71,7 +67,7 @@ getgenv().Settings = {
 }
 
 local S = getgenv().Settings
-local VERSION = "v7.0"
+local VERSION = "v7.1"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -115,7 +111,7 @@ local C = {
 }
 
 --=============================================================
--- 📐 DIMENSÕES (PORTRAIT)
+-- 📐 DIMENSÕES
 --=============================================================
 local DIM = {
     W          = 440,
@@ -206,6 +202,315 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = parentGui
 
 --=============================================================
+-- 🎬 TELA DE CARREGAMENTO — ESTILO CHAVES
+--=============================================================
+local LoadingGui = Instance.new("ScreenGui")
+LoadingGui.Name = "KikoLoading"
+LoadingGui.ResetOnSpawn = false
+LoadingGui.IgnoreGuiInset = true
+LoadingGui.DisplayOrder = 2000
+LoadingGui.Parent = parentGui
+
+local LoadBg = Instance.new("Frame")
+LoadBg.Size = UDim2.new(1, 0, 1, 0)
+LoadBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+LoadBg.BorderSizePixel = 0
+LoadBg.ZIndex = 1
+LoadBg.Parent = LoadingGui
+
+local Keyhole = Instance.new("Frame")
+Keyhole.AnchorPoint = Vector2.new(0.5, 0.5)
+Keyhole.Position = UDim2.new(0.5, 0, 0.5, -40)
+Keyhole.Size = UDim2.new(0, 0, 0, 0)
+Keyhole.BackgroundColor3 = Color3.fromRGB(255, 220, 60)
+Keyhole.BorderSizePixel = 0
+Keyhole.ClipsDescendants = true
+Keyhole.ZIndex = 5
+Keyhole.Parent = LoadingGui
+local keyholeCorner = Instance.new("UICorner", Keyhole)
+keyholeCorner.CornerRadius = UDim.new(1, 0)
+
+local LoadAvatar = Instance.new("ImageLabel")
+LoadAvatar.Size = UDim2.new(1, 0, 1, 0)
+LoadAvatar.BackgroundTransparency = 1
+LoadAvatar.Image = "rbxthumb://type=AvatarHeadShot&id="..LocalPlayer.UserId.."&w=420&h=420"
+LoadAvatar.ScaleType = Enum.ScaleType.Crop
+LoadAvatar.ZIndex = 6
+LoadAvatar.Parent = Keyhole
+local loadAvCorner = Instance.new("UICorner", LoadAvatar)
+loadAvCorner.CornerRadius = UDim.new(1, 0)
+
+local Ring1 = Instance.new("Frame")
+Ring1.AnchorPoint = Vector2.new(0.5, 0.5)
+Ring1.Position = UDim2.new(0.5, 0, 0.5, -40)
+Ring1.Size = UDim2.new(0, 0, 0, 0)
+Ring1.BackgroundTransparency = 1
+Ring1.ZIndex = 4
+Ring1.Parent = LoadingGui
+local ring1Corner = Instance.new("UICorner", Ring1)
+ring1Corner.CornerRadius = UDim.new(1, 0)
+local ring1Stroke = Instance.new("UIStroke", Ring1)
+ring1Stroke.Color = Color3.fromRGB(229, 57, 53)
+ring1Stroke.Thickness = 10
+
+local Ring2 = Instance.new("Frame")
+Ring2.AnchorPoint = Vector2.new(0.5, 0.5)
+Ring2.Position = UDim2.new(0.5, 0, 0.5, -40)
+Ring2.Size = UDim2.new(0, 0, 0, 0)
+Ring2.BackgroundTransparency = 1
+Ring2.ZIndex = 3
+Ring2.Parent = LoadingGui
+local ring2Corner = Instance.new("UICorner", Ring2)
+ring2Corner.CornerRadius = UDim.new(1, 0)
+local ring2Stroke = Instance.new("UIStroke", Ring2)
+ring2Stroke.Color = Color3.fromRGB(66, 165, 245)
+ring2Stroke.Thickness = 6
+
+local SparkleHolder = Instance.new("Frame")
+SparkleHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+SparkleHolder.Position = UDim2.new(0.5, 0, 0.5, -40)
+SparkleHolder.Size = UDim2.new(0, 500, 0, 500)
+SparkleHolder.BackgroundTransparency = 1
+SparkleHolder.ZIndex = 3
+SparkleHolder.Parent = LoadingGui
+
+for i = 1, 8 do
+    local ang = (i / 8) * math.pi * 2
+    local dist = 230
+    local sparkle = Instance.new("TextLabel", SparkleHolder)
+    sparkle.Size = UDim2.new(0, 30, 0, 30)
+    sparkle.AnchorPoint = Vector2.new(0.5, 0.5)
+    sparkle.Position = UDim2.new(0.5, math.cos(ang) * dist, 0.5, math.sin(ang) * dist)
+    sparkle.BackgroundTransparency = 1
+    sparkle.Text = "✨"
+    sparkle.TextSize = 22
+    sparkle.TextTransparency = 1
+    sparkle.ZIndex = 4
+    
+    task.delay(0.6 + i * 0.08, function()
+        TweenService:Create(sparkle, TweenInfo.new(0.4), {TextTransparency = 0}):Play()
+        task.spawn(function()
+            while sparkle.Parent do
+                sparkle.Rotation = sparkle.Rotation + 1
+                RunService.RenderStepped:Wait()
+            end
+        end)
+    end)
+end
+
+local TitleFrame = Instance.new("Frame")
+TitleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+TitleFrame.Position = UDim2.new(0.5, 0, 0.5, 240)
+TitleFrame.Size = UDim2.new(0, 500, 0, 70)
+TitleFrame.BackgroundTransparency = 1
+TitleFrame.ZIndex = 10
+TitleFrame.Parent = LoadingGui
+
+local titleText = "KIKO MENU"
+local letterColors = {
+    Color3.fromRGB(229, 57, 53),
+    Color3.fromRGB(255, 220, 60),
+    Color3.fromRGB(66, 165, 245),
+    Color3.fromRGB(76, 175, 80),
+    Color3.fromRGB(255, 255, 255),
+    Color3.fromRGB(255, 220, 60),
+    Color3.fromRGB(229, 57, 53),
+    Color3.fromRGB(66, 165, 245),
+    Color3.fromRGB(76, 175, 80),
+}
+
+local letters = {}
+local startX = -230
+for i = 1, #titleText do
+    local ch = string.sub(titleText, i, i)
+    local lbl = Instance.new("TextLabel", TitleFrame)
+    lbl.Size = UDim2.new(0, 55, 1, 0)
+    lbl.Position = UDim2.new(0, startX + (i-1) * 55, 0, -60)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = ch
+    lbl.TextColor3 = letterColors[i] or Color3.new(1,1,1)
+    lbl.TextSize = 52
+    lbl.Font = Enum.Font.Bangers
+    lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    lbl.TextStrokeTransparency = 1
+    lbl.TextTransparency = 1
+    lbl.ZIndex = 11
+    table.insert(letters, lbl)
+end
+
+local LoadSubtitle = Instance.new("TextLabel")
+LoadSubtitle.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadSubtitle.Position = UDim2.new(0.5, 0, 0.5, 310)
+LoadSubtitle.Size = UDim2.new(0, 500, 0, 30)
+LoadSubtitle.BackgroundTransparency = 1
+LoadSubtitle.Text = "⭐ BEM-VINDO, " .. string.upper(LocalPlayer.DisplayName) .. " ⭐"
+LoadSubtitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadSubtitle.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+LoadSubtitle.TextStrokeTransparency = 1
+LoadSubtitle.TextSize = 18
+LoadSubtitle.Font = Enum.Font.GothamBold
+LoadSubtitle.TextTransparency = 1
+LoadSubtitle.ZIndex = 10
+LoadSubtitle.Parent = LoadingGui
+
+local LoadBarBg = Instance.new("Frame")
+LoadBarBg.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadBarBg.Position = UDim2.new(0.5, 0, 0.5, 360)
+LoadBarBg.Size = UDim2.new(0, 320, 0, 10)
+LoadBarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+LoadBarBg.BackgroundTransparency = 1
+LoadBarBg.BorderSizePixel = 0
+LoadBarBg.ZIndex = 10
+LoadBarBg.Parent = LoadingGui
+local lbCorner = Instance.new("UICorner", LoadBarBg)
+lbCorner.CornerRadius = UDim.new(1, 0)
+
+local LoadBarFill = Instance.new("Frame")
+LoadBarFill.Size = UDim2.new(0, 0, 1, 0)
+LoadBarFill.BackgroundColor3 = Color3.fromRGB(255, 220, 60)
+LoadBarFill.BorderSizePixel = 0
+LoadBarFill.ZIndex = 11
+LoadBarFill.Parent = LoadBarBg
+local lbfCorner = Instance.new("UICorner", LoadBarFill)
+lbfCorner.CornerRadius = UDim.new(1, 0)
+
+local LoadPercent = Instance.new("TextLabel")
+LoadPercent.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadPercent.Position = UDim2.new(0.5, 0, 0.5, 390)
+LoadPercent.Size = UDim2.new(0, 200, 0, 20)
+LoadPercent.BackgroundTransparency = 1
+LoadPercent.Text = "0%"
+LoadPercent.TextColor3 = Color3.fromRGB(255, 220, 60)
+LoadPercent.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+LoadPercent.TextStrokeTransparency = 0.5
+LoadPercent.TextSize = 14
+LoadPercent.Font = Enum.Font.GothamBold
+LoadPercent.TextTransparency = 1
+LoadPercent.ZIndex = 10
+LoadPercent.Parent = LoadingGui
+
+local ChavesSound = Instance.new("Sound", SoundService)
+ChavesSound.SoundId = "rbxassetid://129414726297541"
+ChavesSound.Volume = 0.6
+pcall(function() ChavesSound:Play() end)
+
+TweenService:Create(Keyhole, TweenInfo.new(0.9, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0, 340, 0, 340)
+}):Play()
+TweenService:Create(Ring1, TweenInfo.new(1.0, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0, 390, 0, 390)
+}):Play()
+TweenService:Create(Ring2, TweenInfo.new(1.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0, 440, 0, 440)
+}):Play()
+
+task.spawn(function()
+    local t = 0
+    while Ring1.Parent do
+        t = t + 1
+        Ring1.Rotation = t
+        Ring2.Rotation = -t * 0.7
+        RunService.RenderStepped:Wait()
+    end
+end)
+
+task.spawn(function()
+    task.wait(1)
+    while Keyhole.Parent do
+        TweenService:Create(LoadAvatar, TweenInfo.new(0.7, Enum.EasingStyle.Sine), {
+            Size = UDim2.new(1, 8, 1, 8),
+            Position = UDim2.new(0, -4, 0, -4)
+        }):Play()
+        task.wait(0.7)
+        TweenService:Create(LoadAvatar, TweenInfo.new(0.7, Enum.EasingStyle.Sine), {
+            Size = UDim2.new(1, -8, 1, -8),
+            Position = UDim2.new(0, 4, 0, 4)
+        }):Play()
+        task.wait(0.7)
+    end
+end)
+
+task.spawn(function()
+    task.wait(0.7)
+    for i, letter in ipairs(letters) do
+        TweenService:Create(letter, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            TextTransparency = 0,
+            TextStrokeTransparency = 0,
+            Position = UDim2.new(0, letter.Position.X.Offset, 0, 0)
+        }):Play()
+        task.wait(0.09)
+    end
+end)
+
+task.delay(1.6, function()
+    TweenService:Create(LoadSubtitle, TweenInfo.new(0.5), {
+        TextTransparency = 0,
+        TextStrokeTransparency = 0.6
+    }):Play()
+end)
+
+task.spawn(function()
+    task.wait(1.3)
+    TweenService:Create(LoadBarBg, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+    TweenService:Create(LoadPercent, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+
+    local steps = {15, 30, 55, 75, 92, 100}
+    for _, pct in ipairs(steps) do
+        TweenService:Create(LoadBarFill, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(pct / 100, 0, 1, 0)
+        }):Play()
+        LoadPercent.Text = pct .. "%"
+        task.wait(0.38)
+    end
+end)
+
+task.delay(3.4, function()
+    local fade = TweenService:Create(LoadBg, TweenInfo.new(0.6), {BackgroundTransparency = 1})
+    fade:Play()
+
+    TweenService:Create(LoadBarFill, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(76, 175, 80)}):Play()
+    task.wait(0.15)
+
+    TweenService:Create(Keyhole, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, -240)
+    }):Play()
+    TweenService:Create(Ring1, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, -240)
+    }):Play()
+    TweenService:Create(Ring2, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, -240)
+    }):Play()
+
+    for _, l in ipairs(letters) do
+        TweenService:Create(l, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            TextTransparency = 1,
+            TextStrokeTransparency = 1,
+            Position = UDim2.new(0, l.Position.X.Offset, 0, -100)
+        }):Play()
+    end
+    TweenService:Create(LoadSubtitle, TweenInfo.new(0.4), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
+    TweenService:Create(LoadBarBg, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(LoadBarFill, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(LoadPercent, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+
+    task.spawn(function()
+        for _ = 1, 20 do
+            if ChavesSound.Volume > 0.02 then
+                ChavesSound.Volume = ChavesSound.Volume * 0.88
+            end
+            task.wait(0.04)
+        end
+        pcall(function() ChavesSound:Stop() end)
+    end)
+
+    task.wait(0.7)
+    LoadingGui:Destroy()
+end)
+
+--=============================================================
 -- 🔊 SISTEMA DE SOM
 --=============================================================
 local Sounds = {}
@@ -221,7 +526,6 @@ mkSound("Toggle", "12221975", 0.22)
 mkSound("Open", "12221973", 0.28)
 mkSound("Close", "12221971", 0.22)
 mkSound("Section", "12221974", 0.22)
-mkSound("Load", "6042053626", 0.35)
 
 --=============================================================
 -- ✨ PARTÍCULAS AO CLICAR
@@ -379,7 +683,7 @@ local function Notify(txt, ok)
 end
 
 --=============================================================
--- 🎨 APLICADORES DE PERSONALIZAÇÃO
+-- 🎨 APLICADORES
 --=============================================================
 local LastBgApplied, LastBgAltApplied
 local LastAccent, LastAccentDk
@@ -587,7 +891,6 @@ task.spawn(function()
     end
 end)
 
--- Search Icon
 local SearchIcon = Instance.new("TextButton", TopBar)
 SearchIcon.Size = UDim2.new(0, 26, 0, 26)
 SearchIcon.Position = UDim2.new(1, -102, 0.5, -13)
@@ -641,7 +944,7 @@ end)
 MakeDraggable(TopBar, nil, Main)
 
 --=============================================================
--- SEARCH BAR (overlay)
+-- SEARCH BAR
 --=============================================================
 local SearchBar = Instance.new("Frame", Main)
 SearchBar.Size = UDim2.new(1, -DIM.Pad*2, 0, 0)
@@ -689,7 +992,6 @@ local function CloseSearch()
         BackgroundTransparency = 1
     }):Play()
     SearchInput.Text = ""
-    -- restaura visibilidade de todos os elementos
     for _, obj in pairs(Content:GetDescendants()) do
         if obj:GetAttribute("KikoSearchable") then
             obj.Visible = true
@@ -791,7 +1093,6 @@ TabsBar.ZIndex = 101
 TabsBar:SetAttribute("KikoBg", "alt")
 Corner(TabsBar, 10)
 
--- Tab indicator (linha animada embaixo)
 local TabIndicator = Instance.new("Frame", TabsBar)
 TabIndicator.Size = UDim2.new(0, 70, 0, 3)
 TabIndicator.Position = UDim2.new(0, 8, 1, -5)
@@ -874,12 +1175,19 @@ local function CreatePage(name, emoji)
     page.BackgroundTransparency = 1
     page.Visible = false; page.ZIndex = 102
     page.Parent = Content
+    page:SetAttribute("LastScroll", 0)
     local pl = Instance.new("UIListLayout", page)
     pl.Padding = UDim.new(0, 8)
     pl.SortOrder = Enum.SortOrder.LayoutOrder
 
     btn.MouseButton1Click:Connect(function()
         PS("Click")
+        
+        -- Salva scroll da aba atual antes de trocar
+        if ActivePage and ActivePage ~= page then
+            ActivePage:SetAttribute("LastScroll", Content.CanvasPosition.Y)
+        end
+
         for _, p in pairs(Pages) do p.Visible = false end
         for _, b in pairs(TabButtons) do
             b:SetAttribute("KikoBg", "main")
@@ -893,16 +1201,12 @@ local function CreatePage(name, emoji)
         btn.BackgroundTransparency = 0
         btn.TextColor3 = Color3.new(1,1,1)
         UpdateTabIndicator(btn)
-        Content.CanvasPosition = Vector2.new(0, 0)
         task.wait()
         Content.CanvasSize = UDim2.new(0, 0, 0, page.AbsoluteSize.Y + 20)
-        
-        local btnX = btn.AbsolutePosition.X - TabsScroll.AbsolutePosition.X
-        local scrollW = TabsScroll.AbsoluteSize.X
-        local targetX = btnX - (scrollW / 2) + (btn.AbsoluteSize.X / 2)
-        TweenService:Create(TabsScroll, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
-            CanvasPosition = Vector2.new(math.max(0, targetX), 0)
-        }):Play()
+
+        -- Restaura scroll salvo da página
+        local saved = page:GetAttribute("LastScroll") or 0
+        Content.CanvasPosition = Vector2.new(0, saved)
     end)
     btn.MouseEnter:Connect(function()
         if ActivePage ~= page then
@@ -1224,7 +1528,6 @@ end)
 local MiraP     = CreatePage("Mira",         "🎯")
 local VisualP   = CreatePage("Visual",       "👁️")
 local PersoP    = CreatePage("Personagem",   "🏃")
-local CombatP   = CreatePage("Combate",      "⚔️")
 local TPP       = CreatePage("Teleporte",    "🌀")
 local HitP      = CreatePage("Hitbox",       "📦")
 local DefP      = CreatePage("Defusal",      "💣")
@@ -1319,11 +1622,6 @@ CreateToggle(VisualP, "Cor do Time", false, function(v) S.TeamColor = v end)
 CreateToggle(VisualP, "Destaque (Chams)", false, function(v) S.Highlight = v end)
 CreateToggle(VisualP, "Barra de Vida (HP)", false, function(v) S.ESPHP = v end)
 
-CreateTitle(VisualP, "Radar Circular", "📡")
-CreateToggle(VisualP, "Ativar Radar", false, function(v) S.RadarEnabled = v end)
-CreateStepper(VisualP, "Tamanho do Radar", 80, 200, 120, 10, function(v) S.RadarSize = v end)
-CreateStepper(VisualP, "Alcance (metros)", 50, 500, 150, 25, function(v) S.RadarRange = v end)
-
 CreateTitle(VisualP, "ESP - NPCs", "🤖")
 CreateToggle(VisualP, "Ativar ESP em NPCs", false, function(v) S.ESPNPC = v end)
 
@@ -1388,79 +1686,6 @@ end)
 
 CreateTitle(PersoP, "Câmera", "🎥")
 CreateToggle(PersoP, "Terceira Pessoa", false, function(v) S.ForceThirdPerson = v end)
-
---=============================================================
--- ⚔️ COMBATE (NO RECOIL, NO SPREAD, ETC)
---=============================================================
-CreateTitle(CombatP, "Modificações de Arma", "⚔️")
-CreateToggle(CombatP, "No Recoil (Sem Recuo)", false, function(v)
-    S.NoRecoil = v
-    if v then
-        -- Hook em properties de armas
-        for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-            pcall(function()
-                for _, v2 in pairs(tool:GetDescendants()) do
-                    if v2:IsA("NumberValue") then
-                        local n = string.lower(v2.Name)
-                        if n == "recoil" or n == "recoilcamera" then
-                            v2.Value = 0
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
-CreateToggle(CombatP, "No Spread (Sem Dispersão)", false, function(v) S.NoSpread = v end)
-CreateToggle(CombatP, "Munição Infinita", false, function(v) S.InfiniteAmmo = v end)
-CreateToggle(CombatP, "Recarga Rápida", false, function(v) S.FasterReload = v end)
-
-CreateTitle(CombatP, "Info", "ℹ️")
-CreateLabel(CombatP,
-    "• Esses recursos tentam modificar propriedades comuns\n" ..
-    "  de armas (recoil, spread, munição, reload time)\n" ..
-    "• Funciona melhor em jogos FPS que expõem essas\n" ..
-    "  propriedades na Tool / Weapon Scripts\n" ..
-    "• Alguns jogos bloqueiam por anti-cheat", 70)
-
--- Loop para reaplicar modificações em armas equipadas
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if S.NoRecoil or S.NoSpread or S.InfiniteAmmo or S.FasterReload then
-            local char = LocalPlayer.Character
-            if char then
-                for _, tool in pairs(char:GetChildren()) do
-                    if tool:IsA("Tool") then
-                        pcall(function()
-                            for _, v in pairs(tool:GetDescendants()) do
-                                if v:IsA("NumberValue") then
-                                    local n = string.lower(v.Name)
-                                    if S.NoRecoil and (n == "recoil" or n == "recoilcamera") then
-                                        v.Value = 0
-                                    end
-                                    if S.NoSpread and (n == "spread" or n == "bulletspread") then
-                                        v.Value = 0
-                                    end
-                                    if S.FasterReload and (n == "reloadtime" or n == "reload_t") then
-                                        v.Value = 0.1
-                                    end
-                                end
-                                if v:IsA("IntValue") or v:IsA("NumberValue") then
-                                    local n = string.lower(v.Name)
-                                    if S.InfiniteAmmo and (n == "ammo" or n == "currentammo") then
-                                        v.Value = 999
-                                    end
-                                end
-                            end
-                        end)
-                    end
-                end
-            end
-        end
-    end
-end)
 
 --=============================================================
 -- 🌀 TELEPORTE
@@ -1919,7 +2144,6 @@ presetInput.TextXAlignment = Enum.TextXAlignment.Left
 presetInput.ClearTextOnFocus = false
 presetInput.ZIndex = 104
 
--- Helper: extrai configs salvaveis do S
 local function GetSaveableFlags()
     local keys = {
         "ESP", "ESPNPC", "TeamColor", "Boxes", "Names", "Distance", "Lines", "Highlight", "ESPHP",
@@ -1931,7 +2155,6 @@ local function GetSaveableFlags()
         "AutoTeamColorCheck", "ColorAimbot",
         "BoostFPS", "RemoveShadows", "Fullbright", "NoFog", "AntiAFK",
         "NoRecoil", "NoSpread", "InfiniteAmmo", "FasterReload",
-        "RadarEnabled", "RadarSize", "RadarRange",
     }
     local out = {}
     for _, k in ipairs(keys) do
@@ -1944,7 +2167,6 @@ local function ApplyFlags(flags)
     for k, v in pairs(flags) do
         S[k] = v
     end
-    -- Aplica visualmente nos toggles e steppers (por label PT)
     local map = {
         ESP = "Ativar ESP", Boxes = "Caixas", Names = "Nomes", Distance = "Distância",
         Lines = "Linhas", TeamColor = "Cor do Time", Highlight = "Destaque (Chams)",
@@ -1961,7 +2183,6 @@ local function ApplyFlags(flags)
         RemoveShadows = "Remover Sombras",
         NoRecoil = "No Recoil (Sem Recuo)", NoSpread = "No Spread (Sem Dispersão)",
         InfiniteAmmo = "Munição Infinita", FasterReload = "Recarga Rápida",
-        RadarEnabled = "Ativar Radar",
     }
     for flagKey, label in pairs(map) do
         if VisToggles[label] then
@@ -1973,7 +2194,6 @@ local function ApplyFlags(flags)
         PredictionVelocity = "Força da Predição", Speed = "Velocidade",
         StickySmoothness = "Suavidade", StickyDistance = "Distância",
         Hitbox = "Tamanho", HitboxTransparency = "Opacidade",
-        RadarSize = "Tamanho do Radar", RadarRange = "Alcance (metros)",
     }
     for flagKey, label in pairs(stepMap) do
         if VisSteppers[label] and flags[flagKey] ~= nil then
@@ -2007,12 +2227,12 @@ savePresetBtn.MouseButton1Click:Connect(function()
     if SavePresets() then
         Notify("Preset '" .. name .. "' salvo!", true)
         presetInput.Text = ""
+        if RebuildPresetList then RebuildPresetList() end
     else
         Notify("Executor sem writefile", false)
     end
 end)
 
--- Lista de presets
 local presetListFrame = Instance.new("Frame", PresetP)
 presetListFrame.Size = UDim2.new(1, 0, 0, 220)
 presetListFrame.BackgroundColor3 = C.Bg
@@ -2041,7 +2261,7 @@ presetLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     presetScroll.CanvasSize = UDim2.new(0, 0, 0, presetLayout.AbsoluteContentSize.Y + 14)
 end)
 
-local function RebuildPresetList()
+function RebuildPresetList()
     for _, v in pairs(presetScroll:GetChildren()) do
         if v:IsA("TextButton") or v:IsA("Frame") then v:Destroy() end
     end
@@ -2339,6 +2559,58 @@ CreateLabel(MiscP,
 --=============================================================
 -- 🧪 ABA DE TESTE
 --=============================================================
+CreateTitle(TestP, "Modificações de Arma", "⚔️")
+
+CreateToggle(TestP, "No Recoil (Sem Recuo)", false, function(v)
+    S.NoRecoil = v
+    if v then
+        for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+            pcall(function()
+                for _, v2 in pairs(tool:GetDescendants()) do
+                    if v2:IsA("NumberValue") then
+                        local n = string.lower(v2.Name)
+                        if n == "recoil" or n == "recoilcamera" then v2.Value = 0 end
+                    end
+                end
+            end)
+        end
+    end
+end)
+CreateToggle(TestP, "No Spread (Sem Dispersão)", false, function(v) S.NoSpread = v end)
+CreateToggle(TestP, "Munição Infinita", false, function(v) S.InfiniteAmmo = v end)
+CreateToggle(TestP, "Recarga Rápida", false, function(v) S.FasterReload = v end)
+
+CreateLabel(TestP,
+    "• Modificações tentam alterar propriedades de armas\n" ..
+    "• Funciona em FPS que expõem recoil/spread/ammo\n" ..
+    "• Alguns jogos bloqueiam por anti-cheat", 50)
+
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if S.NoRecoil or S.NoSpread or S.InfiniteAmmo or S.FasterReload then
+            local char = LocalPlayer.Character
+            if char then
+                for _, tool in pairs(char:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        pcall(function()
+                            for _, v in pairs(tool:GetDescendants()) do
+                                if v:IsA("NumberValue") then
+                                    local n = string.lower(v.Name)
+                                    if S.NoRecoil and (n == "recoil" or n == "recoilcamera") then v.Value = 0 end
+                                    if S.NoSpread and (n == "spread" or n == "bulletspread") then v.Value = 0 end
+                                    if S.FasterReload and (n == "reloadtime" or n == "reload_t") then v.Value = 0.1 end
+                                    if S.InfiniteAmmo and (n == "ammo" or n == "currentammo") then v.Value = 999 end
+                                end
+                            end
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
 CreateTitle(TestP, "Testes de UI", "🧪")
 
 CreateButton(TestP, "🎉 Testar Partículas", Color3.fromRGB(180, 60, 180), function()
@@ -2366,7 +2638,6 @@ CreateButton(TestP, "🌈 Modo Rainbow (Teste)", Color3.fromRGB(120, 80, 200), f
             task.wait(0.05)
             dur = dur + 0.05
         end
-        -- volta ao vermelho
         Personal.AccentColor = {220, 50, 50}
         ApplyAccent()
         SavePersonal()
@@ -2399,10 +2670,6 @@ infoPad.PaddingRight = UDim.new(0, 10)
 task.spawn(function()
     while true do
         task.wait(0.5)
-        local togglesOn = 0
-        for _, v in pairs(VisToggles) do
-            -- não consegue checar valor do apply direto, então estimamos pelo S
-        end
         infoLabel.Text = string.format(
             "  Uptime:     %s\n  FPS:        %d\n  Jogadores:  %d\n  PlaceID:    %d\n  Presets:    %d",
             FormatTime(tick() - SCRIPT_START_TIME),
@@ -2449,12 +2716,11 @@ CreateToggle(PersonalP, "Efeito Blur no Fundo", Personal.Blur, function(v)
     SavePersonal()
 end)
 
-CreateToggle(PersonalP, "Partículas ao Clicar", Personal.ParticlesEnabled ~= false and true or true, function(v)
+CreateToggle(PersonalP, "Partículas ao Clicar", true, function(v)
     S.ParticlesEnabled = v
     SavePersonal()
 end)
 
--- CORES DO FUNDO
 CreateTitle(PersonalP, "Cores do Fundo", "🌈")
 CreateLabel(PersonalP, "Selecione uma opção abaixo:", 18)
 
@@ -2806,26 +3072,22 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 --=============================================================
--- 🚨 PANIC (DESLIGAR TUDO E FECHAR)
+-- 🚨 PANIC
 --=============================================================
 function PanicShutdown()
-    -- Desliga todas as flags
     for k, v in pairs(S) do
         if type(v) == "boolean" and k ~= "SoundEnabled" then
             S[k] = false
         end
     end
-    -- Aplica visualmente
     for _, f in pairs(VisToggles) do
         pcall(function() f(false, true, true) end)
     end
-    -- Desliga coisas de sistema
     pcall(function()
         FOVCircle.Visible = false
         if Lighting:FindFirstChild("KikoBlur") then
             Lighting:FindFirstChild("KikoBlur"):Destroy()
         end
-        -- Restaura lighting
         Lighting.Brightness = originalLighting.Brightness
         Lighting.Ambient = originalLighting.Ambient
         Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
@@ -2833,7 +3095,6 @@ function PanicShutdown()
         Lighting.FogStart = originalLighting.FogStart
         Lighting.GlobalShadows = true
     end)
-    -- Fecha tudo
     Notify("🚨 PANIC — Desligando tudo...", false)
     task.wait(0.4)
     pcall(function() FOVCircle:Remove() end)
@@ -2873,7 +3134,7 @@ end
 
 CloseB.MouseButton1Click:Connect(function() PS("Click"); ToggleMenu() end)
 
--- Botão flutuante
+-- Botão flutuante drag
 do
     local fbDragging = false
     local fbStartMouse = nil
@@ -3073,51 +3334,6 @@ local function IsVisible(part)
     local r = workspace:Raycast(o, part.Position - o, params)
     return r == nil
 end
-
---=============================================================
--- 📡 RADAR CIRCULAR (Drawing)
---=============================================================
-local RadarBg = Drawing.new("Circle")
-RadarBg.Filled = false
-RadarBg.Thickness = 2
-RadarBg.Color = Color3.fromRGB(220, 50, 50)
-RadarBg.Visible = false
-RadarBg.NumSides = 64
-
-local RadarCenterDot = Drawing.new("Circle")
-RadarCenterDot.Filled = true
-RadarCenterDot.Radius = 3
-RadarCenterDot.Color = Color3.fromRGB(255, 255, 255)
-RadarCenterDot.Visible = false
-
-local RadarRing = Drawing.new("Circle")
-RadarRing.Filled = false
-RadarRing.Thickness = 1
-RadarRing.Color = Color3.fromRGB(80, 80, 80)
-RadarRing.Visible = false
-RadarRing.NumSides = 64
-
-local RadarBlips = {}
-
-local function GetRadarBlip(player)
-    if RadarBlips[player] then return RadarBlips[player] end
-    local b = {
-        Dot = Drawing.new("Circle"),
-    }
-    b.Dot.Filled = true
-    b.Dot.Radius = 4
-    b.Dot.Color = Color3.fromRGB(255, 80, 80)
-    b.Dot.Visible = false
-    RadarBlips[player] = b
-    return b
-end
-
-Players.PlayerRemoving:Connect(function(p)
-    if RadarBlips[p] then
-        RadarBlips[p].Dot:Remove()
-        RadarBlips[p] = nil
-    end
-end)
 
 --=============================================================
 -- 📊 STATS
@@ -3338,7 +3554,6 @@ RunService.RenderStepped:Connect(function()
                     e.Line.Color = col
                 else e.Line.Visible = false end
                 
-                -- HP BAR minimalista (só mostra se HP < 100%)
                 if S.ESPHP and hum then
                     local pct = hum.Health / hum.MaxHealth
                     if pct < 0.999 then
@@ -3356,7 +3571,6 @@ RunService.RenderStepped:Connect(function()
                         e.HPBar.Size = Vector2.new(hpW * pct, hpH)
                         e.HPBar.Position = Vector2.new(hpX, hpY)
                         
-                        -- Cor gradual
                         if pct > 0.6 then
                             e.HPBar.Color = Color3.fromRGB(80, 220, 100)
                         elseif pct > 0.3 then
@@ -3392,66 +3606,6 @@ RunService.RenderStepped:Connect(function()
     end
     RenderCont(ESPCont, false)
     RenderCont(NPCESPCont, true)
-    
-    -- ========== RADAR CIRCULAR ==========
-    if S.RadarEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local myPos = LocalPlayer.Character.HumanoidRootPart.Position
-        local myLook = Camera.CFrame.LookVector
-        local radarCenter = Vector2.new(160, Camera.ViewportSize.Y - 160)
-        local radarRadius = S.RadarSize / 2
-        local range = S.RadarRange
-        
-        RadarBg.Position = radarCenter
-        RadarBg.Radius = radarRadius
-        RadarBg.Color = C.Accent
-        RadarBg.Visible = true
-        
-        RadarRing.Position = radarCenter
-        RadarRing.Radius = radarRadius * 0.5
-        RadarRing.Color = Color3.fromRGB(80, 80, 80)
-        RadarRing.Visible = true
-        
-        RadarCenterDot.Position = radarCenter
-        RadarCenterDot.Visible = true
-        RadarCenterDot.Color = Color3.new(1, 1, 1)
-        
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local blip = GetRadarBlip(p)
-                local relPos = p.Character.HumanoidRootPart.Position - myPos
-                
-                -- rotaciona conforme a direção que a câmera aponta
-                local ang = math.atan2(myLook.X, myLook.Z)
-                local rx = relPos.X * math.cos(ang) - relPos.Z * math.sin(ang)
-                local rz = relPos.X * math.sin(ang) + relPos.Z * math.cos(ang)
-                
-                local dist2D = math.sqrt(rx*rx + rz*rz)
-                if dist2D <= range then
-                    local px = radarCenter.X + (rx / range) * radarRadius
-                    local py = radarCenter.Y + (rz / range) * radarRadius
-                    blip.Dot.Position = Vector2.new(px, py)
-                    blip.Dot.Visible = true
-                    
-                    if IsFriend(p) then
-                        blip.Dot.Color = Color3.fromRGB(0, 170, 255)
-                    elseif S.TeamColor and p.TeamColor == LocalPlayer.TeamColor then
-                        blip.Dot.Color = Color3.fromRGB(120, 220, 160)
-                    else
-                        blip.Dot.Color = Color3.fromRGB(255, 80, 80)
-                    end
-                else
-                    blip.Dot.Visible = false
-                end
-            end
-        end
-    else
-        RadarBg.Visible = false
-        RadarRing.Visible = false
-        RadarCenterDot.Visible = false
-        for _, blip in pairs(RadarBlips) do
-            blip.Dot.Visible = false
-        end
-    end
 end)
 
 --=============================================================
@@ -3553,4 +3707,4 @@ pcall(function()
 end)
 
 print("[Kiko MENU " .. VERSION .. "] ✅ Carregado com sucesso!")
-print("  Novidades: Partículas • Tab Indicator • Presets • Search • Combate • Radar • HP ESP • Panic")
+print("  🎬 Loading: Estilo Chaves • ⚔️ Combate em Teste • 📌 Scroll Persistente")
