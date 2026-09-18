@@ -1,5 +1,5 @@
 --=============================================================
--- 🎯 KIKO MENU v7.2 — POWER EDITION
+-- 🎯 KIKO MENU v7.4 — POWER EDITION
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -51,7 +51,18 @@ getgenv().Settings = {
     AutoTeamColorCheck = false, ColorAimbot = false, ColorAimbotTarget = nil,
     BoostFPS = false, RemoveShadows = false, Fullbright = false, NoFog = false,
     AntiAFK = false,
-    NoRecoil = false, NoSpread = false, InfiniteAmmo = false, FasterReload = false,
+    -- Performance
+    PerfTextures = false,
+    PerfShadows = false,
+    PerfDecals = false,
+    PerfParticles = false,
+    PerfTrails = false,
+    PerfPostFX = false,
+    PerfSky = false,
+    PerfAnims = false,
+    PerfGameSounds = false,
+    -- Rapid Fire
+    RapidFire = false,
     ParticlesEnabled = true,
     Whitelist = {},
     SoundEnabled = true,
@@ -64,7 +75,7 @@ getgenv().Settings = {
 }
 
 local S = getgenv().Settings
-local VERSION = "v7.2"
+local VERSION = "v7.4"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -83,7 +94,12 @@ local originalLighting = {
     FogEnd = Lighting.FogEnd,
     FogStart = Lighting.FogStart,
     FogColor = Lighting.FogColor,
+    GlobalShadows = Lighting.GlobalShadows,
 }
+
+-- Guarda estado original de efeitos
+local originalEffects = {}
+local originalSky = Lighting:FindFirstChildOfClass("Sky")
 
 --=============================================================
 -- 🎨 TEMA
@@ -184,349 +200,24 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = parentGui
 
 --=============================================================
--- 🎬 TELA DE CARREGAMENTO — ESTILO CHAVES (REFINADA)
---=============================================================
-print("[Kiko] Iniciando loading...")
-
-task.spawn(function()
-    local ok, err = pcall(function()
-        local LoadingGui = Instance.new("ScreenGui")
-        LoadingGui.Name = "KikoLoading"
-        LoadingGui.ResetOnSpawn = false
-        LoadingGui.Enabled = true
-        LoadingGui.IgnoreGuiInset = true
-        LoadingGui.DisplayOrder = 2000
-        LoadingGui.Parent = parentGui
-
-        local function PlaySound(id, vol)
-            pcall(function()
-                local s = Instance.new("Sound")
-                s.SoundId = "rbxassetid://" .. id
-                s.Volume = vol or 0.3
-                s.Parent = SoundService
-                s:Play()
-                s.Ended:Connect(function() s:Destroy() end)
-                task.delay(6, function() if s.Parent then s:Destroy() end end)
-            end)
-        end
-
-        local LoadBg = Instance.new("Frame")
-        LoadBg.Size = UDim2.new(1, 0, 1, 0)
-        LoadBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-        LoadBg.BorderSizePixel = 0
-        LoadBg.ZIndex = 1
-        LoadBg.Parent = LoadingGui
-
-        local Keyhole = Instance.new("Frame")
-        Keyhole.AnchorPoint = Vector2.new(0.5, 0.5)
-        Keyhole.Position = UDim2.new(0.5, 0, 0.5, -50)
-        Keyhole.Size = UDim2.new(0, 0, 0, 0)
-        Keyhole.BackgroundColor3 = Color3.fromRGB(255, 220, 60)
-        Keyhole.BorderSizePixel = 0
-        Keyhole.ClipsDescendants = true
-        Keyhole.ZIndex = 5
-        Keyhole.Parent = LoadingGui
-        Instance.new("UICorner", Keyhole).CornerRadius = UDim.new(1, 0)
-
-        local LoadAvatar = Instance.new("ImageLabel")
-        LoadAvatar.Size = UDim2.new(1, 0, 1, 0)
-        LoadAvatar.BackgroundTransparency = 1
-        LoadAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=420&h=420"
-        LoadAvatar.ScaleType = Enum.ScaleType.Crop
-        LoadAvatar.ZIndex = 6
-        LoadAvatar.Parent = Keyhole
-        Instance.new("UICorner", LoadAvatar).CornerRadius = UDim.new(1, 0)
-
-        local Ring1 = Instance.new("Frame")
-        Ring1.AnchorPoint = Vector2.new(0.5, 0.5)
-        Ring1.Position = UDim2.new(0.5, 0, 0.5, -50)
-        Ring1.Size = UDim2.new(0, 0, 0, 0)
-        Ring1.BackgroundTransparency = 1
-        Ring1.ZIndex = 4
-        Ring1.Parent = LoadingGui
-        Instance.new("UICorner", Ring1).CornerRadius = UDim.new(1, 0)
-        local r1s = Instance.new("UIStroke", Ring1)
-        r1s.Color = Color3.fromRGB(229, 57, 53); r1s.Thickness = 10
-
-        local Ring2 = Instance.new("Frame")
-        Ring2.AnchorPoint = Vector2.new(0.5, 0.5)
-        Ring2.Position = UDim2.new(0.5, 0, 0.5, -50)
-        Ring2.Size = UDim2.new(0, 0, 0, 0)
-        Ring2.BackgroundTransparency = 1
-        Ring2.ZIndex = 3
-        Ring2.Parent = LoadingGui
-        Instance.new("UICorner", Ring2).CornerRadius = UDim.new(1, 0)
-        local r2s = Instance.new("UIStroke", Ring2)
-        r2s.Color = Color3.fromRGB(66, 165, 245); r2s.Thickness = 6
-
-        local SparkleHolder = Instance.new("Frame")
-        SparkleHolder.AnchorPoint = Vector2.new(0.5, 0.5)
-        SparkleHolder.Position = UDim2.new(0.5, 0, 0.5, -50)
-        SparkleHolder.Size = UDim2.new(0, 500, 0, 500)
-        SparkleHolder.BackgroundTransparency = 1
-        SparkleHolder.ZIndex = 3
-        SparkleHolder.Parent = LoadingGui
-
-        local sparkles = {}
-        for i = 1, 8 do
-            local ang = (i / 8) * math.pi * 2
-            local dist = 230
-            local sp = Instance.new("TextLabel", SparkleHolder)
-            sp.Size = UDim2.new(0, 30, 0, 30)
-            sp.AnchorPoint = Vector2.new(0.5, 0.5)
-            sp.Position = UDim2.new(0.5, math.cos(ang) * dist, 0.5, math.sin(ang) * dist)
-            sp.BackgroundTransparency = 1
-            sp.Text = "✨"; sp.TextSize = 22; sp.TextTransparency = 1
-            sp.ZIndex = 4
-            table.insert(sparkles, sp)
-        end
-
-        -- Título centralizado
-        local TitleFrame = Instance.new("Frame")
-        TitleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-        TitleFrame.Position = UDim2.new(0.5, 0, 0.5, 240)
-        TitleFrame.Size = UDim2.new(0, 600, 0, 70)
-        TitleFrame.BackgroundTransparency = 1
-        TitleFrame.ZIndex = 10
-        TitleFrame.Parent = LoadingGui
-
-        local titleText = "KIKO MENU"
-        local letterColors = {
-            Color3.fromRGB(229, 57, 53), Color3.fromRGB(255, 220, 60),
-            Color3.fromRGB(66, 165, 245), Color3.fromRGB(76, 175, 80),
-            Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 220, 60),
-            Color3.fromRGB(229, 57, 53), Color3.fromRGB(66, 165, 245),
-            Color3.fromRGB(76, 175, 80),
-        }
-        local spacing = 55
-        local totalWidth = #titleText * spacing
-        local startX = -totalWidth / 2
-
-        local letters = {}
-        for i = 1, #titleText do
-            local ch = string.sub(titleText, i, i)
-            local lbl = Instance.new("TextLabel", TitleFrame)
-            lbl.AnchorPoint = Vector2.new(0, 0.5)
-            lbl.Size = UDim2.new(0, spacing, 1, 0)
-            lbl.Position = UDim2.new(0.5, startX + (i-1) * spacing, 0.5, -60)
-            lbl.BackgroundTransparency = 1
-            lbl.Text = ch
-            lbl.TextColor3 = letterColors[i] or Color3.new(1,1,1)
-            lbl.TextSize = 52
-            lbl.Font = Enum.Font.Bangers
-            lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-            lbl.TextStrokeTransparency = 1
-            lbl.TextTransparency = 1
-            lbl.ZIndex = 11
-            table.insert(letters, lbl)
-        end
-
-        local LoadSubtitle = Instance.new("TextLabel")
-        LoadSubtitle.AnchorPoint = Vector2.new(0.5, 0.5)
-        LoadSubtitle.Position = UDim2.new(0.5, 0, 0.5, 310)
-        LoadSubtitle.Size = UDim2.new(0, 500, 0, 30)
-        LoadSubtitle.BackgroundTransparency = 1
-        LoadSubtitle.Text = "⭐ BEM-VINDO, " .. string.upper(LocalPlayer.DisplayName) .. " ⭐"
-        LoadSubtitle.TextColor3 = Color3.new(1,1,1)
-        LoadSubtitle.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-        LoadSubtitle.TextStrokeTransparency = 1
-        LoadSubtitle.TextSize = 18
-        LoadSubtitle.Font = Enum.Font.GothamBold
-        LoadSubtitle.TextTransparency = 1
-        LoadSubtitle.ZIndex = 10
-        LoadSubtitle.Parent = LoadingGui
-
-        local LoadBarBg = Instance.new("Frame")
-        LoadBarBg.AnchorPoint = Vector2.new(0.5, 0.5)
-        LoadBarBg.Position = UDim2.new(0.5, 0, 0.5, 360)
-        LoadBarBg.Size = UDim2.new(0, 320, 0, 10)
-        LoadBarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        LoadBarBg.BackgroundTransparency = 1
-        LoadBarBg.BorderSizePixel = 0
-        LoadBarBg.ZIndex = 10
-        LoadBarBg.Parent = LoadingGui
-        Instance.new("UICorner", LoadBarBg).CornerRadius = UDim.new(1, 0)
-
-        local LoadBarFill = Instance.new("Frame")
-        LoadBarFill.Size = UDim2.new(0, 0, 1, 0)
-        LoadBarFill.BackgroundColor3 = Color3.fromRGB(255, 220, 60)
-        LoadBarFill.BorderSizePixel = 0
-        LoadBarFill.ZIndex = 11
-        LoadBarFill.Parent = LoadBarBg
-        Instance.new("UICorner", LoadBarFill).CornerRadius = UDim.new(1, 0)
-
-        local LoadPercent = Instance.new("TextLabel")
-        LoadPercent.AnchorPoint = Vector2.new(0.5, 0.5)
-        LoadPercent.Position = UDim2.new(0.5, 0, 0.5, 390)
-        LoadPercent.Size = UDim2.new(0, 200, 0, 20)
-        LoadPercent.BackgroundTransparency = 1
-        LoadPercent.Text = "0%"
-        LoadPercent.TextColor3 = Color3.fromRGB(255, 220, 60)
-        LoadPercent.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        LoadPercent.TextStrokeTransparency = 0.5
-        LoadPercent.TextSize = 14
-        LoadPercent.Font = Enum.Font.GothamBold
-        LoadPercent.TextTransparency = 1
-        LoadPercent.ZIndex = 10
-        LoadPercent.Parent = LoadingGui
-
-        local ChavesSound
-        pcall(function()
-            ChavesSound = Instance.new("Sound")
-            ChavesSound.SoundId = "rbxassetid://129414726297541"
-            ChavesSound.Volume = 0.5
-            ChavesSound.Parent = SoundService
-            ChavesSound:Play()
-        end)
-
-        PlaySound("6042053626", 0.25)
-
-        print("[Kiko] Loading UI criado, animações iniciando...")
-
-        TweenService:Create(Keyhole, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 340, 0, 340)
-        }):Play()
-        TweenService:Create(Ring1, TweenInfo.new(0.9, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 390, 0, 390)
-        }):Play()
-        TweenService:Create(Ring2, TweenInfo.new(1.0, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 440, 0, 440)
-        }):Play()
-
-        task.spawn(function()
-            local t = 0
-            while Ring1 and Ring1.Parent do
-                t = t + 1
-                Ring1.Rotation = t
-                Ring2.Rotation = -t * 0.7
-                RunService.RenderStepped:Wait()
-            end
-        end)
-
-        for i, sp in ipairs(sparkles) do
-            task.delay(0.4 + i * 0.06, function()
-                pcall(function()
-                    TweenService:Create(sp, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-                    PlaySound("12221967", 0.06)
-                    task.spawn(function()
-                        while sp and sp.Parent do
-                            sp.Rotation = sp.Rotation + 1
-                            RunService.RenderStepped:Wait()
-                        end
-                    end)
-                end)
-            end)
-        end
-
-        task.spawn(function()
-            task.wait(0.5)
-            for idx, letter in ipairs(letters) do
-                pcall(function()
-                    TweenService:Create(letter, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-                        TextTransparency = 0, TextStrokeTransparency = 0,
-                        Position = UDim2.new(0.5, letter.Position.X.Offset, 0.5, 0)
-                    }):Play()
-                end)
-                PlaySound("12221972", 0.13)
-                task.wait(0.07)
-            end
-        end)
-
-        task.delay(1.2, function()
-            pcall(function()
-                TweenService:Create(LoadSubtitle, TweenInfo.new(0.4), {
-                    TextTransparency = 0, TextStrokeTransparency = 0.6
-                }):Play()
-                PlaySound("12221967", 0.08)
-            end)
-        end)
-
-        task.spawn(function()
-            task.wait(1.0)
-            TweenService:Create(LoadBarBg, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
-            TweenService:Create(LoadPercent, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-            local steps = {15, 30, 55, 75, 92, 100}
-            for _, pct in ipairs(steps) do
-                TweenService:Create(LoadBarFill, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    Size = UDim2.new(pct / 100, 0, 1, 0)
-                }):Play()
-                LoadPercent.Text = pct .. "%"
-                PlaySound("12221975", 0.08)
-                task.wait(0.26)
-            end
-        end)
-
-        task.delay(2.5, function()
-            print("[Kiko] Fechando loading...")
-            pcall(function()
-                PlaySound("6042053626", 0.35)
-                TweenService:Create(LoadBg, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-                TweenService:Create(LoadBarFill, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(76, 175, 80)}):Play()
-
-                TweenService:Create(Keyhole, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-                    Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, -240)
-                }):Play()
-                TweenService:Create(Ring1, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-                    Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, -240)
-                }):Play()
-                TweenService:Create(Ring2, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-                    Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, -240)
-                }):Play()
-
-                for _, l in ipairs(letters) do
-                    TweenService:Create(l, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                        TextTransparency = 1, TextStrokeTransparency = 1,
-                        Position = UDim2.new(0.5, l.Position.X.Offset, 0.5, -160)
-                    }):Play()
-                end
-                TweenService:Create(LoadSubtitle, TweenInfo.new(0.3), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
-                TweenService:Create(LoadBarBg, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-                TweenService:Create(LoadBarFill, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-                TweenService:Create(LoadPercent, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-
-                task.spawn(function()
-                    if ChavesSound then
-                        for _ = 1, 15 do
-                            if ChavesSound.Volume > 0.03 then
-                                ChavesSound.Volume = ChavesSound.Volume * 0.88
-                            end
-                            task.wait(0.04)
-                        end
-                        pcall(function() ChavesSound:Stop() end)
-                    end
-                end)
-
-                task.wait(0.6)
-                LoadingGui:Destroy()
-                print("[Kiko] Loading destruído com sucesso!")
-            end)
-        end)
-    end)
-
-    if not ok then
-        warn("[Kiko Loading] ERRO:", err)
-        pcall(function()
-            local lg = parentGui:FindFirstChild("KikoLoading")
-            if lg then lg:Destroy() end
-        end)
-    end
-end)
-
---=============================================================
 -- 🔊 SISTEMA DE SOM
 --=============================================================
 local Sounds = {}
 local function mkSound(n, id, v)
     local s = Instance.new("Sound")
-    s.Name = n; s.SoundId = "rbxassetid://" .. id; s.Volume = v or 0.3
+    s.Name = n
+    s.SoundId = "rbxassetid://" .. id
+    s.Volume = v or 0.3
     s.Parent = SoundService
     Sounds[n] = s
 end
-mkSound("Hover", "12221967", 0.08)
-mkSound("Click", "12221972", 0.18)
-mkSound("Toggle", "12221975", 0.22)
-mkSound("Open", "12221973", 0.28)
-mkSound("Close", "12221971", 0.22)
+
+mkSound("Hover",  "6042053626", 0.10)
+mkSound("Click",  "6042053626", 0.22)
+mkSound("Toggle", "6042053626", 0.25)
+mkSound("Open",   "6042053626", 0.28)
+mkSound("Close",  "6042053626", 0.22)
+mkSound("Notify", "6042053626", 0.22)
 
 --=============================================================
 -- ✨ PARTÍCULAS
@@ -664,6 +355,7 @@ local function Notify(txt, ok)
     TweenService:Create(n, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 0, 0)
     }):Play()
+    PS("Notify")
     task.delay(2, function()
         local t1 = TweenService:Create(n, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1, Position = UDim2.new(0, 0, 0, -30)})
         local t2 = TweenService:Create(st, TweenInfo.new(0.3), {Transparency = 1})
@@ -739,6 +431,138 @@ end
 
 local function ApplyScale()
     if MainScaleRef then MainScaleRef.Scale = Personal.UIScale end
+end
+
+--=============================================================
+-- ⚡ FUNÇÕES DE PERFORMANCE
+--=============================================================
+local function SetTextures(enabled)
+    for _, o in pairs(game:GetDescendants()) do
+        if o:IsA("Texture") or o:IsA("Decal") then
+            o.Transparency = enabled and 1 or 0
+        end
+    end
+end
+
+local function SetShadows(enabled)
+    Lighting.GlobalShadows = not enabled
+end
+
+local function SetDecals(enabled)
+    for _, o in pairs(game:GetDescendants()) do
+        if o:IsA("Decal") then
+            if enabled then
+                if not o:GetAttribute("KikoOrigTrans") then
+                    o:SetAttribute("KikoOrigTrans", o.Transparency)
+                end
+                o.Transparency = 1
+            else
+                local orig = o:GetAttribute("KikoOrigTrans")
+                if orig then o.Transparency = orig end
+            end
+        end
+    end
+end
+
+local function SetParticles(enabled)
+    for _, o in pairs(game:GetDescendants()) do
+        if o:IsA("ParticleEmitter") or o:IsA("Smoke") or o:IsA("Fire") 
+        or o:IsA("Sparkles") or o:IsA("Explosion") then
+            o.Enabled = not enabled
+        end
+    end
+end
+
+local function SetTrails(enabled)
+    for _, o in pairs(game:GetDescendants()) do
+        if o:IsA("Trail") or o:IsA("Beam") then
+            o.Enabled = not enabled
+        end
+    end
+end
+
+local function SetPostFX(enabled)
+    local types = {
+        "BloomEffect", "BlurEffect", "SunRaysEffect", 
+        "DepthOfFieldEffect", "ColorCorrectionEffect"
+    }
+    for _, o in pairs(Lighting:GetChildren()) do
+        for _, t in ipairs(types) do
+            if o:IsA(t) then
+                if enabled then
+                    if not originalEffects[o] then
+                        originalEffects[o] = o.Enabled
+                    end
+                    o.Enabled = false
+                else
+                    if originalEffects[o] ~= nil then
+                        o.Enabled = originalEffects[o]
+                    end
+                end
+            end
+        end
+    end
+    -- Atmosphere
+    if enabled then
+        for _, o in pairs(Lighting:GetChildren()) do
+            if o:IsA("Atmosphere") then
+                if not originalEffects[o] then originalEffects[o] = o.Density end
+                o.Density = 0
+            end
+        end
+    else
+        for _, o in pairs(Lighting:GetChildren()) do
+            if o:IsA("Atmosphere") and originalEffects[o] ~= nil then
+                o.Density = originalEffects[o]
+            end
+        end
+    end
+end
+
+local function SetSky(enabled)
+    if enabled then
+        for _, o in pairs(Lighting:GetChildren()) do
+            if o:IsA("Sky") then
+                o:SetAttribute("KikoSkyHidden", true)
+                o.Parent = nil
+            end
+        end
+    else
+        -- Não conseguimos restaurar o Sky depois de remover, então deixamos assim
+    end
+end
+
+local function SetAnimations(enabled)
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, o in pairs(char:GetDescendants()) do
+        if o:IsA("Animator") then
+            o:SetAttribute("KikoAnimDisabled", enabled)
+        end
+        if o:IsA("AnimationTrack") then
+            o:Stop(0)
+        end
+    end
+    local animate = char:FindFirstChild("Animate")
+    if animate then
+        if enabled then
+            for _, o in pairs(animate:GetDescendants()) do
+                if o:IsA("LocalScript") then
+                    o.Disabled = true
+                end
+            end
+        end
+    end
+end
+
+local function SetGameSounds(enabled)
+    if enabled then
+        for _, o in pairs(SoundService:GetDescendants()) do
+            if o:IsA("Sound") and not Sounds[o.Name] then
+                o.Volume = 0
+            end
+        end
+    end
 end
 
 --=============================================================
@@ -820,7 +644,7 @@ MainScaleRef = Instance.new("UIScale", Main)
 MainScaleRef.Scale = Personal.UIScale
 
 --=============================================================
--- TOP BAR (CORRIGIDO — SEM SOBREPOSIÇÃO)
+-- TOP BAR
 --=============================================================
 local TopBar = Instance.new("Frame", Main)
 TopBar.Size = UDim2.new(1, 0, 0, DIM.TopBar)
@@ -1472,7 +1296,7 @@ local function CreateLabel(parent, text, h)
 end
 
 --=============================================================
--- 🔍 SEARCH HANDLER (pula pra aba + destaca)
+-- 🔍 SEARCH HANDLER
 --=============================================================
 local function FindParentPage(obj)
     local p = obj
@@ -1558,6 +1382,7 @@ local WLP       = CreatePage("Whitelist",    "📝")
 local PresetP   = CreatePage("Presets",      "⚙️")
 local BindsP    = CreatePage("Atalhos",      "⌨️")
 local ServP     = CreatePage("Servidor",     "🌐")
+local PerfP     = CreatePage("Desempenho",   "⚡")
 local MiscP     = CreatePage("Misc",         "🧰")
 local TestP     = CreatePage("Teste",        "🧪")
 local PersonalP = CreatePage("Personalizar", "🎨")
@@ -2142,8 +1967,10 @@ local function GetSaveableFlags()
         "TargetPriority","PriorityMode","AimPrediction","PredictionVelocity","TriggerBot",
         "UseSpeed","Speed","InfiniteJump","ForceThirdPerson","StickyBehind","StickySmoothness",
         "StickyDistance","HitboxEnabled","Hitbox","HitboxTransparency","HitboxNPC",
-        "AutoTeamColorCheck","ColorAimbot","BoostFPS","RemoveShadows","Fullbright","NoFog","AntiAFK",
-        "NoRecoil","NoSpread","InfiniteAmmo","FasterReload",
+        "AutoTeamColorCheck","ColorAimbot",
+        "PerfTextures","PerfShadows","PerfDecals","PerfParticles","PerfTrails",
+        "PerfPostFX","PerfSky","PerfAnims","PerfGameSounds",
+        "RapidFire","Fullbright","NoFog","AntiAFK",
     }
     local out = {}
     for _, k in ipairs(keys) do out[k] = S[k] end
@@ -2165,9 +1992,11 @@ local function ApplyFlags(flags)
         HitboxEnabled = "Aumentar Hitbox (Jogadores)", HitboxNPC = "Aumentar Hitbox (NPCs)",
         AutoTeamColorCheck = "Detectar Time Automaticamente", ColorAimbot = "Mira Apenas em Inimigos",
         AntiAFK = "Anti-AFK", Fullbright = "Visão Total (Fullbright)", NoFog = "Remover Névoa",
-        RemoveShadows = "Remover Sombras",
-        NoRecoil = "No Recoil (Sem Recuo)", NoSpread = "No Spread (Sem Dispersão)",
-        InfiniteAmmo = "Munição Infinita", FasterReload = "Recarga Rápida",
+        PerfTextures = "Remover Texturas", PerfShadows = "Remover Sombras",
+        PerfDecals = "Remover Decals", PerfParticles = "Desligar Partículas",
+        PerfTrails = "Desligar Trails e Beams", PerfPostFX = "Desligar Post-Processing",
+        PerfSky = "Remover Skybox", PerfAnims = "Desligar Animações",
+        PerfGameSounds = "Silenciar Sons do Jogo", RapidFire = "Tiros Rápidos",
     }
     for flagKey, label in pairs(map) do
         if VisToggles[label] then VisToggles[label](flags[flagKey] == true, true, true) end
@@ -2445,23 +2274,105 @@ CreateButton(ServP, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), func
 end)
 
 --=============================================================
--- 🧰 MISC
+-- ⚡ ABA DESEMPENHO (NOVA)
 --=============================================================
-CreateTitle(MiscP, "Desempenho", "⚡")
-CreateToggle(MiscP, "Remover Texturas", false, function(v)
-    S.BoostFPS = v
-    for _, o in pairs(game:GetDescendants()) do
-        if o:IsA("Texture") or o:IsA("Decal") then o.Transparency = v and 1 or 0 end
-    end
+CreateTitle(PerfP, "Otimização Visual", "⚡")
+
+CreateToggle(PerfP, "Remover Texturas", false, function(v)
+    S.PerfTextures = v
+    SetTextures(v)
 end)
-CreateToggle(MiscP, "Remover Sombras", false, function(v)
-    S.RemoveShadows = v
-    Lighting.GlobalShadows = not v
+
+CreateToggle(PerfP, "Remover Sombras", false, function(v)
+    S.PerfShadows = v
+    SetShadows(v)
 end)
-CreateStepper(MiscP, "Limite de FPS", 30, 360, 240, 30, function(v)
+
+CreateToggle(PerfP, "Remover Decals", false, function(v)
+    S.PerfDecals = v
+    SetDecals(v)
+end)
+
+CreateToggle(PerfP, "Desligar Partículas", false, function(v)
+    S.PerfParticles = v
+    SetParticles(v)
+end)
+
+CreateToggle(PerfP, "Desligar Trails e Beams", false, function(v)
+    S.PerfTrails = v
+    SetTrails(v)
+end)
+
+CreateTitle(PerfP, "Otimização de Ambiente", "🌍")
+
+CreateToggle(PerfP, "Desligar Post-Processing", false, function(v)
+    S.PerfPostFX = v
+    SetPostFX(v)
+end)
+
+CreateToggle(PerfP, "Remover Skybox", false, function(v)
+    S.PerfSky = v
+    SetSky(v)
+    if v then Notify("Skybox removida (não volta até reiniciar)", true) end
+end)
+
+CreateTitle(PerfP, "Otimização de Sistema", "🔧")
+
+CreateToggle(PerfP, "Desligar Animações", false, function(v)
+    S.PerfAnims = v
+    SetAnimations(v)
+end)
+
+CreateToggle(PerfP, "Silenciar Sons do Jogo", false, function(v)
+    S.PerfGameSounds = v
+    SetGameSounds(v)
+end)
+
+CreateStepper(PerfP, "Limite de FPS", 30, 360, 240, 30, function(v)
     if setfpscap then setfpscap(v) end
 end)
 
+CreateTitle(PerfP, "Modo Turbo", "🚀")
+
+CreateButton(PerfP, "🚀 ATIVAR MODO ULTRA PERFORMANCE", Color3.fromRGB(180, 60, 200), function()
+    -- Ativa tudo de uma vez
+    local toEnable = {
+        "Remover Texturas", "Remover Sombras", "Remover Decals",
+        "Desligar Partículas", "Desligar Trails e Beams",
+        "Desligar Post-Processing", "Remover Skybox",
+        "Desligar Animações",
+    }
+    for _, name in ipairs(toEnable) do
+        if VisToggles[name] then VisToggles[name](true) end
+    end
+    setfpscap(240)
+    Notify("🚀 Modo Ultra Performance ativado!", true)
+end)
+
+CreateButton(PerfP, "🔄 Desativar Modo Turbo", Color3.fromRGB(150, 30, 30), function()
+    local toDisable = {
+        "Remover Texturas", "Remover Sombras", "Remover Decals",
+        "Desligar Partículas", "Desligar Trails e Beams",
+        "Desligar Post-Processing",
+        "Desligar Animações", "Silenciar Sons do Jogo",
+    }
+    for _, name in ipairs(toDisable) do
+        if VisToggles[name] then VisToggles[name](false) end
+    end
+    Notify("Modo Turbo desativado", true)
+end)
+
+CreateTitle(PerfP, "Info", "ℹ️")
+CreateLabel(PerfP,
+    "• Texturas/Decals = reaplica em novos objetos automaticamente\n" ..
+    "• Partículas/Trails = afeta tudo no jogo (bom pra FPS)\n" ..
+    "• Post-Processing = remove Bloom, Blur, DOF, SunRays\n" ..
+    "• Skybox não pode ser restaurada sem reiniciar\n" ..
+    "• Use o Turbo pra ativar tudo de uma vez", 90)
+
+--=============================================================
+-- 🧰 MISC
+--=============================================================
 CreateTitle(MiscP, "Ambiente", "☀️")
 CreateToggle(MiscP, "Visão Total (Fullbright)", false, function(v)
     S.Fullbright = v
@@ -2521,38 +2432,32 @@ CreateLabel(MiscP,
     "• Timer conta desde o momento da execução", 100)
 
 --=============================================================
--- 🧪 ABA DE TESTE
+-- 🧪 ABA DE TESTE (só Rapid Fire e Info)
 --=============================================================
-CreateTitle(TestP, "Modificações de Arma", "⚔️")
+CreateTitle(TestP, "Tiros Rápidos", "⚔️")
 
-CreateToggle(TestP, "No Recoil (Sem Recuo)", false, function(v)
-    S.NoRecoil = v
+CreateToggle(TestP, "Tiros Rápidos (Rapid Fire)", false, function(v)
+    S.RapidFire = v
     if v then
-        for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-            pcall(function()
-                for _, v2 in pairs(tool:GetDescendants()) do
-                    if v2:IsA("NumberValue") then
-                        local n = string.lower(v2.Name)
-                        if n == "recoil" or n == "recoilcamera" then v2.Value = 0 end
-                    end
-                end
-            end)
-        end
+        Notify("⚔️ Tiros Rápidos ativado", true)
+    else
+        Notify("Tiros Rápidos desativado", false)
     end
 end)
-CreateToggle(TestP, "No Spread (Sem Dispersão)", false, function(v) S.NoSpread = v end)
-CreateToggle(TestP, "Munição Infinita", false, function(v) S.InfiniteAmmo = v end)
-CreateToggle(TestP, "Recarga Rápida", false, function(v) S.FasterReload = v end)
 
 CreateLabel(TestP,
-    "• Modificações tentam alterar propriedades de armas\n" ..
-    "• Funciona em FPS que expõem recoil/spread/ammo\n" ..
-    "• Alguns jogos bloqueiam por anti-cheat", 50)
+    "• Aumenta a cadência de tiro reduzindo valores\n" ..
+    "  de FireRate / Cooldown / FireDelay das armas\n" ..
+    "• Funciona em jogos que expõem essas propriedades\n" ..
+    "• Reaplica automaticamente a cada 0.3s\n" ..
+    "• NÃO funciona em jogos que usam RemoteEvents\n" ..
+    "  com rate limit no servidor", 90)
 
+-- Loop do Rapid Fire
 task.spawn(function()
     while true do
-        task.wait(0.5)
-        if S.NoRecoil or S.NoSpread or S.InfiniteAmmo or S.FasterReload then
+        task.wait(0.3)
+        if S.RapidFire then
             local char = LocalPlayer.Character
             if char then
                 for _, tool in pairs(char:GetChildren()) do
@@ -2560,11 +2465,17 @@ task.spawn(function()
                         pcall(function()
                             for _, v in pairs(tool:GetDescendants()) do
                                 if v:IsA("NumberValue") then
-                                    local n = string.lower(v.Name)
-                                    if S.NoRecoil and (n == "recoil" or n == "recoilcamera") then v.Value = 0 end
-                                    if S.NoSpread and (n == "spread" or n == "bulletspread") then v.Value = 0 end
-                                    if S.FasterReload and (n == "reloadtime" or n == "reload_t") then v.Value = 0.1 end
-                                    if S.InfiniteAmmo and (n == "ammo" or n == "currentammo") then v.Value = 999 end
+                                    local n = string.lower(v.Name):gsub("[_%s%-]", "")
+                                    if n == "firerate" or n == "cooldown" 
+                                    or n == "firedelay" or n == "rate" 
+                                    or n == "delay" or n == "firecooldown" then
+                                        if v.Value > 0.005 then
+                                            if not v:GetAttribute("KikoOrigVal") then
+                                                v:SetAttribute("KikoOrigVal", v.Value)
+                                            end
+                                            v.Value = 0.005
+                                        end
+                                    end
                                 end
                             end
                         end)
@@ -2573,40 +2484,6 @@ task.spawn(function()
             end
         end
     end
-end)
-
-CreateTitle(TestP, "Testes de UI", "🧪")
-
-CreateButton(TestP, "🎉 Testar Partículas", Color3.fromRGB(180, 60, 180), function()
-    local mouse = UIS:GetMouseLocation()
-    EmitParticles(Vector2.new(mouse.X, mouse.Y), C.Accent, 25)
-    Notify("Burst de partículas enviado!", true)
-end)
-
-CreateButton(TestP, "🔔 Testar Notificação", Color3.fromRGB(80, 140, 240), function()
-    Notify("Notificação de teste #" .. math.random(100, 999), true)
-end)
-
-CreateButton(TestP, "🌈 Modo Rainbow (Teste)", Color3.fromRGB(120, 80, 200), function()
-    task.spawn(function()
-        local dur = 0
-        while dur < 5 do
-            local hue = (tick() * 0.5) % 1
-            local newColor = Color3.fromHSV(hue, 0.8, 1)
-            Personal.AccentColor = {
-                math.floor(newColor.R * 255),
-                math.floor(newColor.G * 255),
-                math.floor(newColor.B * 255)
-            }
-            ApplyAccent()
-            task.wait(0.05)
-            dur = dur + 0.05
-        end
-        Personal.AccentColor = {220, 50, 50}
-        ApplyAccent()
-        SavePersonal()
-    end)
-    Notify("Rainbow por 5 segundos!", true)
 end)
 
 CreateTitle(TestP, "Info de Estado", "📊")
@@ -2646,9 +2523,9 @@ end)
 
 CreateTitle(TestP, "Aviso", "⚠️")
 CreateLabel(TestP,
-    "• Essa aba é só pra testar funcionalidades\n" ..
-    "• Nada aqui afeta gameplay real\n" ..
-    "• Bom pra ver o resultado visual das features", 60)
+    "• Aba de testes rápidos e info do estado\n" ..
+    "• Rapid Fire pode não funcionar em todos os jogos\n" ..
+    "• Verifique a aba Desempenho pra otimizações", 60)
 
 --=============================================================
 -- 🎨 PERSONALIZAÇÃO
@@ -3034,7 +2911,7 @@ function PanicShutdown()
         Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
         Lighting.FogEnd = originalLighting.FogEnd
         Lighting.FogStart = originalLighting.FogStart
-        Lighting.GlobalShadows = true
+        Lighting.GlobalShadows = originalLighting.GlobalShadows
     end)
     Notify("🚨 PANIC — Desligando tudo...", false)
     task.wait(0.4)
@@ -3312,6 +3189,17 @@ task.spawn(function()
                 Content.CanvasSize = UDim2.new(0, 0, 0, desired)
             end
         end
+    end
+end)
+
+-- Reaplica performance em novos objetos
+task.spawn(function()
+    while true do
+        task.wait(2)
+        if S.PerfTextures then SetTextures(true) end
+        if S.PerfDecals then SetDecals(true) end
+        if S.PerfParticles then SetParticles(true) end
+        if S.PerfTrails then SetTrails(true) end
     end
 end)
 
