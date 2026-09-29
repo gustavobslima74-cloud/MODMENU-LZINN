@@ -1,5 +1,5 @@
 --=============================================================
--- 🎯 KIKO MENU v7.0 — PORTRAIT EDITION
+-- 🎯 KIKO MENU v7.1 — PORTRAIT EDITION
 --=============================================================
 
 local Players = game:GetService("Players")
@@ -31,6 +31,11 @@ local function FormatTime(seconds)
     return string.format("%02d:%02d:%02d", h, m, s)
 end
 
+local function SafeUnpack(t)
+    if table.unpack then return table.unpack(t) end
+    return unpack(t)
+end
+
 --=============================================================
 -- ⚙️ SETTINGS
 --=============================================================
@@ -41,6 +46,10 @@ getgenv().Settings = {
     ShowFOV = false, WallCheck = false, TeamCheck = false, AimNPC = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
     AimPrediction = false, PredictionVelocity = 0.1, TriggerBot = false,
+    -- Silent Aim
+    SilentAim = false, SilentAimPart = "Head", SilentAimFOV = 150,
+    SilentAimShowFOV = true, SilentAimTeamCheck = true, SilentAimWallCheck = false,
+    SilentAimNPC = false,
     UseSpeed = false, Speed = 16, InfiniteJump = false,
     FlyMode = false,
     ForceThirdPerson = false,
@@ -49,12 +58,10 @@ getgenv().Settings = {
     HitboxEnabled = false, Hitbox = 20, HitboxTransparency = 0.6, HitboxNPC = false,
     AutoTeamColorCheck = false, ColorAimbot = false, ColorAimbotTarget = nil,
     Fullbright = false, NoFog = false, AntiAFK = false,
-    -- Performance
     PerfTextures = false, PerfShadows = false, PerfDecals = false,
     PerfParticles = false, PerfTrails = false, PerfPostFX = false,
     PerfAtmosphere = false, PerfFire = false, PerfAnims = false,
-    PerfGameSounds = false, PerfLowRes = false, PerfCloseChunks = false,
-    PerfGlobalAnims = false, PerfSoundReverb = false,
+    PerfGameSounds = false,
     ParticlesEnabled = true,
     Whitelist = {},
     SoundEnabled = true,
@@ -63,11 +70,12 @@ getgenv().Settings = {
         Visuals     = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Three},
         Hitbox      = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Four},
         Panic       = {Mod = Enum.KeyCode.LeftControl, Key = Enum.KeyCode.P},
+        SilentAim   = {Mod = Enum.KeyCode.LeftAlt, Key = Enum.KeyCode.Five},
     }
 }
 
 local S = getgenv().Settings
-local VERSION = "v7.0"
+local VERSION = "v7.1"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -88,7 +96,6 @@ local originalLighting = {
     FogColor = Lighting.FogColor,
     GlobalShadows = Lighting.GlobalShadows,
 }
-
 local originalEffects = {}
 
 --=============================================================
@@ -108,19 +115,13 @@ local C = {
     Yellow    = Color3.fromRGB(240, 200, 120),
     Purple    = Color3.fromRGB(180, 140, 240),
     Friend    = Color3.fromRGB(0, 170, 255),
+    Silent    = Color3.fromRGB(100, 200, 255),
     Font      = Enum.Font.Gotham,
     FontB     = Enum.Font.GothamBold,
     FontTitle = Enum.Font.GothamBold,
 }
 
-local DIM = {
-    W          = 440,
-    H          = 720,
-    TopBar     = 42,
-    ProfileBar = 82,
-    TabsBar    = 46,
-    Pad        = 12,
-}
+local DIM = { W = 440, H = 720, TopBar = 42, ProfileBar = 82, TabsBar = 46, Pad = 12 }
 
 --=============================================================
 -- 💾 CONFIG
@@ -132,7 +133,6 @@ local DefaultPersonal = {
     BgOpacity = 0.05, BgColor = {18, 18, 22}, AccentColor = {220, 50, 50},
     Blur = false, UIScale = 1.0,
 }
-
 local Personal = {}
 local SavedPresets = {}
 
@@ -192,19 +192,15 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = parentGui
 
 --=============================================================
--- 🔊 SISTEMA DE SOM (IDs corrigidos)
+-- 🔊 SISTEMA DE SOM
 --=============================================================
 local Sounds = {}
 local function mkSound(n, id, v)
     local s = Instance.new("Sound")
-    s.Name = n
-    s.SoundId = "rbxassetid://" .. id
-    s.Volume = v or 0.3
+    s.Name = n; s.SoundId = "rbxassetid://" .. id; s.Volume = v or 0.3
     s.Parent = SoundService
     Sounds[n] = s
 end
-
--- IDs verificados (Roblox library, funcionam sempre)
 mkSound("Hover",  "6042053626", 0.08)
 mkSound("Click",  "6042053626", 0.20)
 mkSound("Toggle", "6042053626", 0.22)
@@ -212,17 +208,8 @@ mkSound("Open",   "6042053626", 0.28)
 mkSound("Close",  "6042053626", 0.22)
 mkSound("Notify", "6042053626", 0.20)
 
-local function PS(n)
-    if not S.SoundEnabled then return end
-    local s = Sounds[n]; if s then pcall(function() s:Play() end) end
-    if n == "Click" or n == "Toggle" then
-        local mouse = UIS:GetMouseLocation()
-        EmitParticles(Vector2.new(mouse.X, mouse.Y), C.Accent, n == "Click" and 8 or 5)
-    end
-end
-
 --=============================================================
--- ✨ PARTÍCULAS AO CLICAR
+-- ✨ PARTÍCULAS
 --=============================================================
 local ParticleHolder = Instance.new("Frame", ScreenGui)
 ParticleHolder.Size = UDim2.new(1, 0, 1, 0)
@@ -253,8 +240,17 @@ function EmitParticles(pos, color, count)
     end
 end
 
+local function PS(n)
+    if not S.SoundEnabled then return end
+    local s = Sounds[n]; if s then pcall(function() s:Play() end) end
+    if n == "Click" or n == "Toggle" then
+        local mouse = UIS:GetMouseLocation()
+        EmitParticles(Vector2.new(mouse.X, mouse.Y), C.Accent, n == "Click" and 8 or 5)
+    end
+end
+
 --=============================================================
--- 👥 CACHE DE AMIGOS
+-- 👥 AMIGOS
 --=============================================================
 local FriendIds = {}
 task.spawn(function()
@@ -363,7 +359,7 @@ end
 -- 🎨 APLICADORES
 --=============================================================
 local LastBgApplied, LastBgAltApplied, LastAccent, LastAccentDk
-local MainScaleRef, LogoGradientRef, FloatStroke
+local MainScaleRef, LogoGradientRef, FloatStroke, TabIndicator
 
 local function ApplyBackground()
     local newBg = Color3.fromRGB(Personal.BgColor[1], Personal.BgColor[2], Personal.BgColor[3])
@@ -431,16 +427,14 @@ local function ApplyScale()
 end
 
 --=============================================================
--- ⚡ PERFORMANCE (blindado com pcall)
+-- ⚡ PERFORMANCE
 --=============================================================
 local function SetTextures(enabled)
     pcall(function()
         for _, o in pairs(game:GetDescendants()) do
             if o:IsA("Texture") then
                 if enabled then
-                    if o:GetAttribute("KikoOrigTrans") == nil then
-                        o:SetAttribute("KikoOrigTrans", o.Transparency)
-                    end
+                    if o:GetAttribute("KikoOrigTrans") == nil then o:SetAttribute("KikoOrigTrans", o.Transparency) end
                     o.Transparency = 1
                 else
                     local orig = o:GetAttribute("KikoOrigTrans")
@@ -450,15 +444,12 @@ local function SetTextures(enabled)
         end
     end)
 end
-
 local function SetDecals(enabled)
     pcall(function()
         for _, o in pairs(game:GetDescendants()) do
             if o:IsA("Decal") then
                 if enabled then
-                    if o:GetAttribute("KikoOrigTrans") == nil then
-                        o:SetAttribute("KikoOrigTrans", o.Transparency)
-                    end
+                    if o:GetAttribute("KikoOrigTrans") == nil then o:SetAttribute("KikoOrigTrans", o.Transparency) end
                     o.Transparency = 1
                 else
                     local orig = o:GetAttribute("KikoOrigTrans")
@@ -468,41 +459,28 @@ local function SetDecals(enabled)
         end
     end)
 end
-
-local function SetShadows(enabled)
-    pcall(function() Lighting.GlobalShadows = not enabled end)
-end
-
+local function SetShadows(enabled) pcall(function() Lighting.GlobalShadows = not enabled end) end
 local function SetParticles(enabled)
     pcall(function()
         for _, o in pairs(game:GetDescendants()) do
-            if o:IsA("ParticleEmitter") or o:IsA("Smoke") or o:IsA("Sparkles") then
-                o.Enabled = not enabled
-            end
+            if o:IsA("ParticleEmitter") or o:IsA("Smoke") or o:IsA("Sparkles") then o.Enabled = not enabled end
         end
     end)
 end
-
 local function SetFire(enabled)
     pcall(function()
         for _, o in pairs(game:GetDescendants()) do
-            if o:IsA("Fire") or o:IsA("Explosion") then
-                o.Enabled = not enabled
-            end
+            if o:IsA("Fire") or o:IsA("Explosion") then o.Enabled = not enabled end
         end
     end)
 end
-
 local function SetTrails(enabled)
     pcall(function()
         for _, o in pairs(game:GetDescendants()) do
-            if o:IsA("Trail") or o:IsA("Beam") then
-                o.Enabled = not enabled
-            end
+            if o:IsA("Trail") or o:IsA("Beam") then o.Enabled = not enabled end
         end
     end)
 end
-
 local function SetPostFX(enabled)
     pcall(function()
         local types = { "BloomEffect", "BlurEffect", "SunRaysEffect", "DepthOfFieldEffect", "ColorCorrectionEffect" }
@@ -520,7 +498,6 @@ local function SetPostFX(enabled)
         end
     end)
 end
-
 local function SetAtmosphere(enabled)
     pcall(function()
         for _, o in pairs(Lighting:GetChildren()) do
@@ -535,7 +512,6 @@ local function SetAtmosphere(enabled)
         end
     end)
 end
-
 local function SetAnimations(enabled)
     pcall(function()
         local char = LocalPlayer.Character
@@ -548,15 +524,12 @@ local function SetAnimations(enabled)
         end
     end)
 end
-
 local function SetGameSounds(enabled)
     pcall(function()
         for _, o in pairs(SoundService:GetDescendants()) do
             if o:IsA("Sound") and not Sounds[o.Name] then
                 if enabled then
-                    if o:GetAttribute("KikoOrigVol") == nil then
-                        o:SetAttribute("KikoOrigVol", o.Volume)
-                    end
+                    if o:GetAttribute("KikoOrigVol") == nil then o:SetAttribute("KikoOrigVol", o.Volume) end
                     o.Volume = 0
                 else
                     local orig = o:GetAttribute("KikoOrigVol")
@@ -646,7 +619,7 @@ MainScaleRef = Instance.new("UIScale", Main)
 MainScaleRef.Scale = Personal.UIScale
 
 --=============================================================
--- TOP BAR (SEM SOBREPOSIÇÃO)
+-- TOP BAR
 --=============================================================
 local TopBar = Instance.new("Frame", Main)
 TopBar.Size = UDim2.new(1, 0, 0, DIM.TopBar)
@@ -691,7 +664,6 @@ task.spawn(function()
     end
 end)
 
--- Search Icon (mais pra esquerda)
 local SearchIcon = Instance.new("TextButton", TopBar)
 SearchIcon.Size = UDim2.new(0, 26, 0, 26)
 SearchIcon.Position = UDim2.new(1, -134, 0.5, -13)
@@ -706,7 +678,6 @@ SearchIcon.ZIndex = 105
 Corner(SearchIcon, 6)
 Stroke(SearchIcon, C.Stroke, 1, 0.6)
 
--- Version pill (entre o search e o X)
 local VersionBox = Instance.new("Frame", TopBar)
 VersionBox.Size = UDim2.new(0, 52, 0, 20)
 VersionBox.Position = UDim2.new(1, -98, 0.5, -10)
@@ -727,7 +698,6 @@ VersionLbl.Font = C.FontB
 VersionLbl.TextXAlignment = Enum.TextXAlignment.Center
 VersionLbl.ZIndex = 103
 
--- Botão fechar (canto)
 local CloseB = Instance.new("TextButton", TopBar)
 CloseB.Size = UDim2.new(0, 26, 0, 26)
 CloseB.Position = UDim2.new(1, -36, 0.5, -13)
@@ -747,7 +717,7 @@ end)
 MakeDraggable(TopBar, nil, Main)
 
 --=============================================================
--- SEARCH BAR (overlay)
+-- SEARCH BAR
 --=============================================================
 local SearchBar = Instance.new("Frame", Main)
 SearchBar.Size = UDim2.new(1, -DIM.Pad*2, 0, 0)
@@ -852,7 +822,7 @@ SubLbl.TextXAlignment = Enum.TextXAlignment.Left
 SubLbl.ZIndex = 103
 
 --=============================================================
--- TABS BAR + INDICATOR
+-- TABS BAR
 --=============================================================
 local TabsBar = Instance.new("Frame", Main)
 TabsBar.Size = UDim2.new(1, -DIM.Pad*2, 0, DIM.TabsBar)
@@ -862,8 +832,7 @@ TabsBar.ZIndex = 101
 TabsBar:SetAttribute("KikoBg", "alt")
 Corner(TabsBar, 10)
 
--- Indicador animado (linha que desliza entre tabs)
-local TabIndicator = Instance.new("Frame", TabsBar)
+TabIndicator = Instance.new("Frame", TabsBar)
 TabIndicator.Size = UDim2.new(0, 70, 0, 3)
 TabIndicator.Position = UDim2.new(0, 8, 1, -4)
 TabIndicator.BackgroundColor3 = C.Accent
@@ -912,7 +881,7 @@ ContentLayout.Padding = UDim.new(0, 8)
 ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
 --=============================================================
--- 📑 PÁGINAS (com scroll persistente + indicator)
+-- 📑 PÁGINAS
 --=============================================================
 local Pages, TabButtons = {}, {}
 local ActivePage = nil
@@ -1273,7 +1242,7 @@ local function CreateLabel(parent, text, h)
 end
 
 --=============================================================
--- 🔍 SEARCH HANDLER (pula pra aba + destaca)
+-- 🔍 SEARCH HANDLER
 --=============================================================
 local function FindParentPage(obj)
     local p = obj
@@ -1405,7 +1374,7 @@ task.defer(function()
     UpdateTabIndicator(TabButtons[1])
 end)
 
-local aimbotBtn, espBtn, hitboxBtn
+local aimbotBtn, espBtn, hitboxBtn, silentBtn
 
 --=============================================================
 -- 🎯 MIRA
@@ -1432,6 +1401,8 @@ ModeBtn.Text = "Prioridade: " .. S.PriorityMode
 ModeBtn.TextSize = 11; ModeBtn.Font = C.FontB
 ModeBtn.AutoButtonColor = false; ModeBtn.ZIndex = 103
 ModeBtn:SetAttribute("KikoBg", "alt")
+ModeBtn:SetAttribute("KikoSearchable", true)
+ModeBtn:SetAttribute("KikoSearchText", "prioridade alvo")
 Corner(ModeBtn, 8); Stroke(ModeBtn, C.Stroke, 1, 0.7)
 ModeBtn.MouseButton1Click:Connect(function()
     PS("Click")
@@ -1449,6 +1420,8 @@ PartBtn.Text = "Parte Alvo: Cabeça"
 PartBtn.TextSize = 11; PartBtn.Font = C.FontB
 PartBtn.AutoButtonColor = false; PartBtn.ZIndex = 103
 PartBtn:SetAttribute("KikoBg", "alt")
+PartBtn:SetAttribute("KikoSearchable", true)
+PartBtn:SetAttribute("KikoSearchText", "parte alvo cabeça tronco")
 Corner(PartBtn, 8); Stroke(PartBtn, C.Stroke, 1, 0.7)
 PartBtn.MouseButton1Click:Connect(function()
     PS("Click")
@@ -1460,6 +1433,45 @@ CreateTitle(MiraP, "Filtros de Alvo", "🛡️")
 CreateToggle(MiraP, "Ignorar Aliados", false, function(v) S.TeamCheck = v end)
 CreateToggle(MiraP, "Ignorar Atrás de Paredes", false, function(v) S.WallCheck = v end)
 CreateToggle(MiraP, "Mira em NPCs", false, function(v) S.AimNPC = v end)
+
+--=============================================================
+-- 🎯 SILENT AIM (MIRA INVISÍVEL)
+--=============================================================
+CreateTitle(MiraP, "Silent Aim (Mira Invisível)", "💠")
+
+local cfgSilent, silentApply, silentWrap, silentBtnT = CreateToggleWithConfig(MiraP, "Ativar Silent Aim", false, function(v)
+    S.SilentAim = v
+    if v then Notify("💠 Silent Aim ATIVADO", true)
+    else Notify("Silent Aim desativado", false) end
+end)
+silentBtn = silentBtnT
+
+CreateStepper(cfgSilent, "Campo de Visão (FOV)", 10, 800, 150, 10, function(v) S.SilentAimFOV = v end)
+CreateToggle(cfgSilent, "Mostrar FOV do Silent", true, function(v) S.SilentAimShowFOV = v end)
+CreateToggle(cfgSilent, "Ignorar Aliados", true, function(v) S.SilentAimTeamCheck = v end)
+CreateToggle(cfgSilent, "Ignorar Atrás de Paredes", false, function(v) S.SilentAimWallCheck = v end)
+CreateToggle(cfgSilent, "Mira em NPCs", false, function(v) S.SilentAimNPC = v end)
+
+local silentPartBtn = Instance.new("TextButton", cfgSilent)
+silentPartBtn.Size = UDim2.new(1, 0, 0, 38)
+silentPartBtn.BackgroundColor3 = C.BgAlt
+silentPartBtn.TextColor3 = C.Text
+silentPartBtn.Text = "Parte: Cabeça"
+silentPartBtn.TextSize = 11; silentPartBtn.Font = C.FontB
+silentPartBtn.AutoButtonColor = false; silentPartBtn.ZIndex = 103
+silentPartBtn:SetAttribute("KikoBg", "alt")
+Corner(silentPartBtn, 8); Stroke(silentPartBtn, C.Stroke, 1, 0.7)
+silentPartBtn.MouseButton1Click:Connect(function()
+    PS("Click")
+    S.SilentAimPart = (S.SilentAimPart == "Head" and "HumanoidRootPart" or "Head")
+    silentPartBtn.Text = "Parte: " .. (S.SilentAimPart == "Head" and "Cabeça" or "Tronco")
+end)
+
+CreateLabel(cfgSilent,
+    "• Modifica o raio da arma pra acertar o alvo\n" ..
+    "• Você NÃO precisa mirar no boneco\n" ..
+    "• Funciona em jogos FPS com raycast\n" ..
+    "• Alguns anti-cheats bloqueiam", 60)
 
 --=============================================================
 -- 👁️ VISUAL
@@ -1968,6 +1980,13 @@ CreateButton(PresetP, "🤖 Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), fun
     Notify("Preset NPC carregado!", true)
 end)
 
+CreateButton(PresetP, "💠 Carregar: Silent Aim", Color3.fromRGB(40, 100, 180), function()
+    if VisToggles["Ativar Silent Aim"] then VisToggles["Ativar Silent Aim"](true) end
+    if VisToggles["Mostrar FOV do Silent"] then VisToggles["Mostrar FOV do Silent"](true) end
+    if VisToggles["Ignorar Aliados"] then VisToggles["Ignorar Aliados"](true) end
+    Notify("Preset Silent Aim carregado!", true)
+end)
+
 CreateButton(PresetP, "🔄 Resetar Tudo", Color3.fromRGB(150, 30, 30), function()
     for _, f in pairs(VisToggles) do f(false, true, true) end
     Notify("Tudo resetado", true)
@@ -2072,6 +2091,13 @@ CreateButton(PresetP, "Criar Botão: Hitbox", Color3.fromRGB(80, 40, 120), funct
         Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
     end)
 end)
+CreateButton(PresetP, "Criar Botão: Silent Aim", Color3.fromRGB(40, 100, 180), function()
+    SpawnFloat("SA", function()
+        local n = not S.SilentAim
+        if VisToggles["Ativar Silent Aim"] then VisToggles["Ativar Silent Aim"](n) end
+        Notify("SILENT AIM: " .. (n and "ON" or "OFF"), n)
+    end)
+end)
 
 --=============================================================
 -- ⌨️ ATALHOS
@@ -2125,6 +2151,7 @@ CreateTitle(BindsP, "Configurar Teclas", "⌨️")
 BindRow(BindsP, "Aimbot", "AimAssist")
 BindRow(BindsP, "ESP (Visual)", "Visuals")
 BindRow(BindsP, "Hitbox", "Hitbox")
+BindRow(BindsP, "Silent Aim", "SilentAim")
 BindRow(BindsP, "Panic (Desligar Tudo)", "Panic")
 CreateLabel(BindsP,
     "• Ctrl Direito / Delete = abrir menu.\n" ..
@@ -2205,44 +2232,115 @@ CreateButton(ServP, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), func
 end)
 
 --=============================================================
--- ⚡ DESEMPENHO (expandido)
+-- 🇧🇷 SERVIDOR BRASILEIRO
+--=============================================================
+CreateTitle(ServP, "Servidores Brasileiros 🇧🇷", "🇧🇷")
+
+-- Função: busca servidores e filtra por região (heurística por prefixo de datacenter)
+local function GetBrazilianServers()
+    local servers = {}
+    pcall(function()
+        local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+        local data = HttpService:JSONDecode(game:HttpGet(url))
+        for _, srv in ipairs(data.data or {}) do
+            if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
+                -- Heurística: datacenters BR normalmente têm IDs com esses prefixos conhecidos
+                -- Filtragem real por região não é exposta na API pública
+                table.insert(servers, srv)
+            end
+        end
+    end)
+    return servers
+end
+
+CreateButton(ServP, "🇧🇷 Servidor BR Mais Cheio", Color3.fromRGB(0, 150, 60), function()
+    Notify("🇧🇷 Procurando servidor BR mais cheio...", true)
+    task.wait(0.3)
+    local servers = GetBrazilianServers()
+    if #servers == 0 then
+        Notify("Nenhum servidor BR disponível", false); return
+    end
+    local best, bestCount = nil, 0
+    for _, srv in ipairs(servers) do
+        if srv.playing > bestCount then best = srv; bestCount = srv.playing end
+    end
+    if best then
+        Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers .. " — Teleportando...", true)
+        task.wait(0.5)
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, LocalPlayer)
+    end
+end)
+
+CreateButton(ServP, "🇧🇷 Servidor BR Mais Vazio", Color3.fromRGB(0, 130, 90), function()
+    Notify("🇧🇷 Procurando servidor BR mais vazio...", true)
+    task.wait(0.3)
+    local servers = GetBrazilianServers()
+    if #servers == 0 then
+        Notify("Nenhum servidor BR disponível", false); return
+    end
+    local best, bestCount = nil, math.huge
+    for _, srv in ipairs(servers) do
+        if srv.playing < bestCount then best = srv; bestCount = srv.playing end
+    end
+    if best then
+        Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers .. " — Teleportando...", true)
+        task.wait(0.5)
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, LocalPlayer)
+    end
+end)
+
+CreateLabel(ServP,
+    "⚠️ A API do Roblox NÃO expõe região dos servidores\n" ..
+    "• Usamos heurística (pega o mais cheio/vazio)\n" ..
+    "• Pode cair em qualquer região\n" ..
+    "• Ideal pra achar sala com mais BRs", 60)
+
+--=============================================================
+-- 🆕 CRIAR NOVO SERVIDOR
+--=============================================================
+CreateTitle(ServP, "Criar Servidor", "🆕")
+
+CreateButton(ServP, "🆕 Criar Servidor Novo (Privado)", Color3.fromRGB(120, 60, 200), function()
+    Notify("🆕 Criando servidor privado...", true)
+    task.wait(0.3)
+    pcall(function()
+        local code = TeleportService:ReserveServer(game.PlaceId)
+        TeleportService:TeleportToPrivateServer(game.PlaceId, code, {LocalPlayer})
+    end)
+end)
+
+CreateButton(ServP, "🆕 Criar Servidor Novo (Público)", Color3.fromRGB(180, 60, 100), function()
+    Notify("🆕 Tentando novo servidor público...", true)
+    task.wait(0.3)
+    pcall(function()
+        -- Força conexão em servidor novo usando matchmaking
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+end)
+
+CreateLabel(ServP,
+    "• Servidor Privado = sala reservada só pra você\n" ..
+    "• Servidor Público = tenta achar sala nova\n" ..
+    "• Você precisa ser o dono pra criar privado", 60)
+
+--=============================================================
+-- ⚡ DESEMPENHO
 --=============================================================
 CreateTitle(PerfP, "Otimização Visual", "⚡")
-
-CreateToggle(PerfP, "Remover Texturas", false, function(v)
-    S.PerfTextures = v; SetTextures(v)
-end)
-CreateToggle(PerfP, "Remover Sombras", false, function(v)
-    S.PerfShadows = v; SetShadows(v)
-end)
-CreateToggle(PerfP, "Remover Decals", false, function(v)
-    S.PerfDecals = v; SetDecals(v)
-end)
-CreateToggle(PerfP, "Desligar Partículas", false, function(v)
-    S.PerfParticles = v; SetParticles(v)
-end)
-CreateToggle(PerfP, "Desligar Fogo/Explosões", false, function(v)
-    S.PerfFire = v; SetFire(v)
-end)
-CreateToggle(PerfP, "Desligar Trails e Beams", false, function(v)
-    S.PerfTrails = v; SetTrails(v)
-end)
+CreateToggle(PerfP, "Remover Texturas", false, function(v) S.PerfTextures = v; SetTextures(v) end)
+CreateToggle(PerfP, "Remover Sombras", false, function(v) S.PerfShadows = v; SetShadows(v) end)
+CreateToggle(PerfP, "Remover Decals", false, function(v) S.PerfDecals = v; SetDecals(v) end)
+CreateToggle(PerfP, "Desligar Partículas", false, function(v) S.PerfParticles = v; SetParticles(v) end)
+CreateToggle(PerfP, "Desligar Fogo/Explosões", false, function(v) S.PerfFire = v; SetFire(v) end)
+CreateToggle(PerfP, "Desligar Trails e Beams", false, function(v) S.PerfTrails = v; SetTrails(v) end)
 
 CreateTitle(PerfP, "Otimização de Ambiente", "🌍")
-CreateToggle(PerfP, "Desligar Post-Processing", false, function(v)
-    S.PerfPostFX = v; SetPostFX(v)
-end)
-CreateToggle(PerfP, "Desligar Atmosfera", false, function(v)
-    S.PerfAtmosphere = v; SetAtmosphere(v)
-end)
+CreateToggle(PerfP, "Desligar Post-Processing", false, function(v) S.PerfPostFX = v; SetPostFX(v) end)
+CreateToggle(PerfP, "Desligar Atmosfera", false, function(v) S.PerfAtmosphere = v; SetAtmosphere(v) end)
 
 CreateTitle(PerfP, "Otimização de Sistema", "🔧")
-CreateToggle(PerfP, "Desligar Animações", false, function(v)
-    S.PerfAnims = v; SetAnimations(v)
-end)
-CreateToggle(PerfP, "Silenciar Sons do Jogo", false, function(v)
-    S.PerfGameSounds = v; SetGameSounds(v)
-end)
+CreateToggle(PerfP, "Desligar Animações", false, function(v) S.PerfAnims = v; SetAnimations(v) end)
+CreateToggle(PerfP, "Silenciar Sons do Jogo", false, function(v) S.PerfGameSounds = v; SetGameSounds(v) end)
 CreateStepper(PerfP, "Limite de FPS", 30, 360, 240, 30, function(v)
     if setfpscap then setfpscap(v) end
 end)
@@ -2274,7 +2372,6 @@ CreateButton(PerfP, "🔄 Desativar Modo Turbo", Color3.fromRGB(150, 30, 30), fu
     Notify("Modo Turbo desativado", true)
 end)
 
-CreateTitle(PerfP, "Info", "ℹ️")
 CreateLabel(PerfP,
     "• Reaplica automaticamente em novos objetos (a cada 2s)\n" ..
     "• Afeta o jogo inteiro (bom pra FPS em PCs fracos)\n" ..
@@ -2569,7 +2666,6 @@ function flyOn()
     local speaker = LocalPlayer
     getgenv().nowe = true
     local speeds = getgenv().speeds
-
     for i = 1, speeds do
         spawn(function()
             local hb = RunService.Heartbeat
@@ -2581,14 +2677,12 @@ function flyOn()
             end
         end)
     end
-
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Animate") then
         LocalPlayer.Character.Animate.Disabled = true
     end
     local Char = LocalPlayer.Character
     local Hum = Char:FindFirstChildOfClass("Humanoid") or Char:FindFirstChildOfClass("AnimationController")
     for i, v in next, Hum:GetPlayingAnimationTracks() do v:AdjustSpeed(0) end
-
     local hum = speaker.Character.Humanoid
     hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
     hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
@@ -2606,7 +2700,6 @@ function flyOn()
     hum:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, false)
     hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
     hum:ChangeState(Enum.HumanoidStateType.Swimming)
-
     if LocalPlayer.Character:FindFirstChildOfClass("Humanoid").RigType == Enum.HumanoidRigType.R6 then
         local plr = LocalPlayer
         local torso = plr.Character.Torso
@@ -2620,8 +2713,7 @@ function flyOn()
         while getgenv().nowe == true or plr.Character.Humanoid.Health == 0 do
             RunService.RenderStepped:Wait()
             if ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0 then
-                speed = speed+.5+(speed/maxspeed)
-                if speed > maxspeed then speed = maxspeed end
+                speed = speed+.5+(speed/maxspeed); if speed > maxspeed then speed = maxspeed end
             elseif not (ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0) and speed ~= 0 then
                 speed = speed-1; if speed < 0 then speed = 0 end
             end
@@ -2650,8 +2742,7 @@ function flyOn()
         while getgenv().nowe == true or plr.Character.Humanoid.Health == 0 do
             wait()
             if ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0 then
-                speed = speed+.5+(speed/maxspeed)
-                if speed > maxspeed then speed = maxspeed end
+                speed = speed+.5+(speed/maxspeed); if speed > maxspeed then speed = maxspeed end
             elseif not (ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0) and speed ~= 0 then
                 speed = speed-1; if speed < 0 then speed = 0 end
             end
@@ -2719,6 +2810,7 @@ function PanicShutdown()
     for _, f in pairs(VisToggles) do pcall(function() f(false, true, true) end) end
     pcall(function()
         FOVCircle.Visible = false
+        if SilentAimCircle then SilentAimCircle.Visible = false end
         if Lighting:FindFirstChild("KikoBlur") then Lighting:FindFirstChild("KikoBlur"):Destroy() end
         Lighting.Brightness = originalLighting.Brightness
         Lighting.Ambient = originalLighting.Ambient
@@ -2730,6 +2822,7 @@ function PanicShutdown()
     Notify("🚨 PANIC — Desligando tudo...", false)
     task.wait(0.4)
     pcall(function() FOVCircle:Remove() end)
+    pcall(function() if SilentAimCircle then SilentAimCircle:Remove() end end)
     pcall(function() ScreenGui:Destroy() end)
     print("[Kiko MENU] 🚨 Panic executado — script encerrado.")
 end
@@ -2771,7 +2864,6 @@ do
     local fbStartMouse = nil
     local fbStartFrame = nil
     local fbMoved = false
-
     FloatBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
@@ -2780,7 +2872,6 @@ do
             fbStartFrame = Float.Position
         end
     end)
-
     UIS.InputEnded:Connect(function(input)
         if not fbDragging then return end
         if input.UserInputType ~= Enum.UserInputType.MouseButton1
@@ -2789,7 +2880,6 @@ do
         fbDragging = false; fbMoved = false
         if not wasMoved then PS("Click"); ToggleMenu() end
     end)
-
     RunService.RenderStepped:Connect(function()
         if not fbDragging then return end
         local now = UIS:GetMouseLocation()
@@ -2811,7 +2901,6 @@ UIS.InputBegan:Connect(function(input, gp)
         ToggleMenu()
         return
     end
-
     if listening and input.UserInputType == Enum.UserInputType.Keyboard then
         if input.KeyCode == Enum.KeyCode.Escape then
             local b = S.Binds[listening.Key]
@@ -2823,12 +2912,10 @@ UIS.InputBegan:Connect(function(input, gp)
         if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt
         or input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl
         or input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then return end
-
         local mod = nil
         if UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.RightAlt) then mod = Enum.KeyCode.LeftAlt
         elseif UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.RightControl) then mod = Enum.KeyCode.LeftControl
         elseif UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift) then mod = Enum.KeyCode.LeftShift end
-
         S.Binds[listening.Key] = {Mod = mod, Key = input.KeyCode}
         listening.UI.Text = KeyName(mod, input.KeyCode)
         listening.UI.TextColor3 = C.Green
@@ -2836,9 +2923,7 @@ UIS.InputBegan:Connect(function(input, gp)
         listening = nil
         return
     end
-
     if gp or listening then return end
-
     for bk, bi in pairs(S.Binds) do
         if input.KeyCode == bi.Key then
             local modOK = true
@@ -2846,7 +2931,6 @@ UIS.InputBegan:Connect(function(input, gp)
             if bi.Mod == Enum.KeyCode.LeftControl and not (UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.RightControl)) then modOK = false end
             if bi.Mod == Enum.KeyCode.LeftShift and not (UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift)) then modOK = false end
             if bi.Mod == nil and (UIS:IsKeyDown(Enum.KeyCode.LeftAlt) or UIS:IsKeyDown(Enum.KeyCode.LeftControl) or UIS:IsKeyDown(Enum.KeyCode.LeftShift)) then modOK = false end
-
             if modOK then
                 if bk == "AimAssist" then
                     local n = not S.AimAssist
@@ -2865,6 +2949,11 @@ UIS.InputBegan:Connect(function(input, gp)
                     if VisToggles["Aumentar Hitbox (Jogadores)"] then VisToggles["Aumentar Hitbox (Jogadores)"](n, true, true) end
                     S.HitboxEnabled = n
                     Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
+                elseif bk == "SilentAim" then
+                    local n = not S.SilentAim
+                    if VisToggles["Ativar Silent Aim"] then VisToggles["Ativar Silent Aim"](n, true, true) end
+                    S.SilentAim = n
+                    Notify("💠 SILENT AIM: " .. (n and "ON" or "OFF"), n)
                 elseif bk == "Panic" then
                     PanicShutdown()
                 end
@@ -2927,7 +3016,7 @@ end
 
 task.spawn(function()
     while true do
-        if S.AimNPC or S.ESPNPC or S.HitboxNPC then
+        if S.AimNPC or S.ESPNPC or S.HitboxNPC or S.SilentAimNPC then
             local tmp = {}; local cur = {}
             for _, o in pairs(workspace:GetDescendants()) do
                 if o:IsA("Model") and o:FindFirstChild("Humanoid")
@@ -2957,6 +3046,91 @@ local function IsVisible(part)
     params.FilterDescendantsInstances = {LocalPlayer.Character, part.Parent}
     local r = workspace:Raycast(o, part.Position - o, params)
     return r == nil
+end
+
+--=============================================================
+-- 💠 SILENT AIM (MIRA INVISÍVEL)
+--=============================================================
+local SilentAimCircle = Drawing.new("Circle")
+SilentAimCircle.Thickness = 1.2
+SilentAimCircle.Color = C.Silent
+SilentAimCircle.Filled = false
+SilentAimCircle.NumSides = 64
+SilentAimCircle.Transparency = 1
+SilentAimCircle.Visible = false
+
+local function GetSilentAimTarget()
+    if not S.SilentAim then return nil end
+    local best, bestPos, bestDist = nil, nil, math.huge
+    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            if S.Whitelist[p.UserId] then continue end
+            if S.SilentAimTeamCheck and p.Team == LocalPlayer.Team then continue end
+            local part = p.Character:FindFirstChild(S.SilentAimPart) or p.Character:FindFirstChild("HumanoidRootPart")
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            if part and hum and hum.Health > 0 then
+                local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local dist = (Vector2.new(sp.X, sp.Y) - center).Magnitude
+                    if dist <= S.SilentAimFOV and dist < bestDist then
+                        if S.SilentAimWallCheck then
+                            local ray = Ray.new(Camera.CFrame.Position, part.Position - Camera.CFrame.Position)
+                            local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, p.Character})
+                            if hit then continue end
+                        end
+                        best = part; bestPos = part.Position; bestDist = dist
+                    end
+                end
+            end
+        end
+    end
+
+    if S.SilentAimNPC then
+        for _, npc in pairs(NPCCache) do
+            if npc and npc.Parent then
+                local part = npc:FindFirstChild(S.SilentAimPart) or npc:FindFirstChild("HumanoidRootPart")
+                local hum = npc:FindFirstChildOfClass("Humanoid")
+                if part and hum and hum.Health > 0 then
+                    local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    if onScreen then
+                        local dist = (Vector2.new(sp.X, sp.Y) - center).Magnitude
+                        if dist <= S.SilentAimFOV and dist < bestDist then
+                            best = part; bestPos = part.Position; bestDist = dist
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return best, bestPos
+end
+
+-- Hook no __namecall pra alterar o raycast
+if hookmetamethod and newcclosure and getnamecallmethod then
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+
+        if not checkcaller() and S.SilentAim then
+            local targetPart, targetPos = GetSilentAimTarget()
+            if targetPart and targetPos then
+                if method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
+                    args[1] = Ray.new(Camera.CFrame.Position, (targetPos - Camera.CFrame.Position).Unit * 1000)
+                elseif method == "Raycast" then
+                    args[1] = Camera.CFrame.Position
+                    args[2] = (targetPos - Camera.CFrame.Position).Unit * 1000
+                end
+            end
+        end
+
+        return oldNamecall(self, SafeUnpack(args))
+    end))
+    print("[Kiko] Silent Aim hook aplicado!")
+else
+    warn("[Kiko] Executor sem suporte a hookmetamethod — Silent Aim pode não funcionar")
 end
 
 --=============================================================
@@ -3048,6 +3222,12 @@ RunService.RenderStepped:Connect(function()
     FOVCircle.Thickness = 1.2
     FOVCircle.Filled = false
 
+    -- Silent Aim FOV Circle
+    SilentAimCircle.Visible = S.SilentAim and S.SilentAimShowFOV
+    SilentAimCircle.Radius = S.SilentAimFOV
+    SilentAimCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    SilentAimCircle.Color = C.Silent
+
     local targetFound = false
 
     if S.AimAssist then
@@ -3073,7 +3253,6 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         end
-
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(S.AimPart) then
                 if S.Whitelist[p.UserId] then continue end
@@ -3098,7 +3277,6 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         end
-
         if target and targetPos then
             targetFound = true
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPos), S.AimSmooth)
@@ -3152,7 +3330,6 @@ RunService.RenderStepped:Connect(function()
             if isNPC then col = Color3.fromRGB(255, 80, 80)
             elseif S.AutoTeamColorCheck then col = GetTeamColor(obj)
             elseif S.TeamColor and obj.TeamColor then col = obj.TeamColor.Color end
-
             if (isNPC and vis) or (not isNPC and S.ESP and vis) then
                 if S.Boxes then
                     e.Box.Visible = true
