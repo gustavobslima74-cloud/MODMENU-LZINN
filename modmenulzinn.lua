@@ -1,8 +1,8 @@
 --=============================================================
--- 🎯 KIKO MENU v7.2 — PORTRAIT EDITION
+-- 🎯 KIKO MENU v7.3 — PORTRAIT EDITION
 --=============================================================
 
-print("[Kiko] Iniciando script v7.2...")
+print("[Kiko-01] Iniciando script...")
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -19,11 +19,10 @@ local SoundService = game:GetService("SoundService")
 local VirtualUser = game:GetService("VirtualUser")
 local Workspace = game:GetService("Workspace")
 
+print("[Kiko-02] Serviços carregados")
+
 if setfpscap then setfpscap(240) end
 
---=============================================================
--- ⏱️ TIMER
---=============================================================
 local SCRIPT_START_TIME = tick()
 
 local function FormatTime(seconds)
@@ -33,14 +32,6 @@ local function FormatTime(seconds)
     return string.format("%02d:%02d:%02d", h, m, s)
 end
 
-local function SafeUnpack(t)
-    if table.unpack then return table.unpack(t) end
-    return unpack(t)
-end
-
---=============================================================
--- ⚙️ SETTINGS
---=============================================================
 getgenv().Settings = {
     ESP = false, ESPNPC = false, TeamColor = false,
     Boxes = false, Names = false, Distance = false, Lines = false, Highlight = false,
@@ -48,13 +39,11 @@ getgenv().Settings = {
     ShowFOV = false, WallCheck = false, TeamCheck = false, AimNPC = false,
     TargetPriority = false, PriorityMode = "Mais Próximo",
     AimPrediction = false, PredictionVelocity = 0.1, TriggerBot = false,
-    -- Silent Aim
     SilentAim = false, SilentAimPart = "Head", SilentAimFOV = 150,
     SilentAimShowFOV = true, SilentAimTeamCheck = true, SilentAimWallCheck = false,
     SilentAimNPC = false,
     UseSpeed = false, Speed = 16, InfiniteJump = false,
-    FlyMode = false,
-    ForceThirdPerson = false,
+    FlyMode = false, ForceThirdPerson = false,
     SelectedPlayer = nil, AutoNearest = false, StickyBehind = false,
     StickySmoothness = 0.1, StickyDistance = 3,
     HitboxEnabled = false, Hitbox = 20, HitboxTransparency = 0.6, HitboxNPC = false,
@@ -77,9 +66,10 @@ getgenv().Settings = {
 }
 
 local S = getgenv().Settings
-local VERSION = "v7.2"
+local VERSION = "v7.3"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
+local SilentAimCircle = Drawing.new("Circle")
 local isHoldingTarget = false
 
 if getgenv().nowe == nil then getgenv().nowe = false end
@@ -100,9 +90,8 @@ local originalLighting = {
 }
 local originalEffects = {}
 
---=============================================================
--- 🎨 TEMA
---=============================================================
+print("[Kiko-03] Settings prontos")
+
 local C = {
     Bg        = Color3.fromRGB(18, 18, 22),
     BgAlt     = Color3.fromRGB(26, 26, 32),
@@ -125,9 +114,6 @@ local C = {
 
 local DIM = { W = 440, H = 720, TopBar = 42, ProfileBar = 82, TabsBar = 46, Pad = 12 }
 
---=============================================================
--- 💾 CONFIG
---=============================================================
 local CONFIG_FILE  = "kiko_menu_personal.json"
 local PRESETS_FILE = "kiko_menu_presets.json"
 
@@ -178,9 +164,8 @@ end
 LoadPersonal()
 LoadPresets()
 
---=============================================================
--- 🖥️ SCREEN GUI
---=============================================================
+print("[Kiko-04] Config carregado")
+
 local parentGui
 pcall(function() parentGui = game:GetService("CoreGui") end)
 if not parentGui then parentGui = LocalPlayer:WaitForChild("PlayerGui") end
@@ -193,11 +178,8 @@ ScreenGui.DisplayOrder = 999
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = parentGui
 
-print("[Kiko] GUI criada")
+print("[Kiko-05] ScreenGui criada")
 
---=============================================================
--- 🔊 SISTEMA DE SOM
---=============================================================
 local Sounds = {}
 local function mkSound(n, id, v)
     local s = Instance.new("Sound")
@@ -212,16 +194,15 @@ mkSound("Open",   "6042053626", 0.28)
 mkSound("Close",  "6042053626", 0.22)
 mkSound("Notify", "6042053626", 0.20)
 
---=============================================================
--- ✨ PARTÍCULAS
---=============================================================
+print("[Kiko-06] Sons criados")
+
 local ParticleHolder = Instance.new("Frame", ScreenGui)
 ParticleHolder.Size = UDim2.new(1, 0, 1, 0)
 ParticleHolder.BackgroundTransparency = 1
 ParticleHolder.ZIndex = 9999
 ParticleHolder.Active = false
 
-function EmitParticles(pos, color, count)
+local function EmitParticles(pos, color, count)
     if not S.ParticlesEnabled then return end
     count = count or 8
     for i = 1, count do
@@ -253,9 +234,8 @@ local function PS(n)
     end
 end
 
---=============================================================
--- 👥 AMIGOS
---=============================================================
+print("[Kiko-07] Partículas e som prontos")
+
 local FriendIds = {}
 task.spawn(function()
     pcall(function()
@@ -283,9 +263,6 @@ local function SortPlayers(list)
     return list
 end
 
---=============================================================
--- 🛠️ HELPERS
---=============================================================
 local function Corner(i, r)
     local c = Instance.new("UICorner", i)
     c.CornerRadius = UDim.new(0, r or 8)
@@ -324,9 +301,8 @@ local function ColorEq(a, b, tol)
     return math.abs(a.R-b.R) < tol and math.abs(a.G-b.G) < tol and math.abs(a.B-b.B) < tol
 end
 
---=============================================================
--- 🔔 NOTIFICAÇÕES
---=============================================================
+print("[Kiko-08] Helpers prontos")
+
 local NF = Instance.new("Frame", ScreenGui)
 NF.Size = UDim2.new(0, 280, 0, 100)
 NF.Position = UDim2.new(0.5, -140, 0.03, 0)
@@ -359,9 +335,8 @@ local function Notify(txt, ok)
     end)
 end
 
---=============================================================
--- 🎨 APLICADORES
---=============================================================
+print("[Kiko-09] Notificações prontas")
+
 local LastBgApplied, LastBgAltApplied, LastAccent, LastAccentDk
 local MainScaleRef, LogoGradientRef, FloatStroke, TabIndicator
 
@@ -430,9 +405,6 @@ local function ApplyScale()
     if MainScaleRef then MainScaleRef.Scale = Personal.UIScale end
 end
 
---=============================================================
--- ⚡ PERFORMANCE
---=============================================================
 local function SetTextures(enabled)
     pcall(function()
         for _, o in pairs(game:GetDescendants()) do
@@ -544,11 +516,8 @@ local function SetGameSounds(enabled)
     end)
 end
 
-print("[Kiko] Performance carregada")
+print("[Kiko-10] Aplicadores e performance prontos")
 
---=============================================================
--- 🖱️ DRAG
---=============================================================
 local function MakeDraggable(g, onClickNoDrag, moveTarget)
     moveTarget = moveTarget or g
     local drag, dIn, dS, sP, moved
@@ -578,9 +547,6 @@ local function MakeDraggable(g, onClickNoDrag, moveTarget)
     end)
 end
 
---=============================================================
--- 🎈 BOTÃO FLUTUANTE
---=============================================================
 local Float = Instance.new("Frame")
 Float.Name = "KikoFloat"
 Float.Size = UDim2.new(0, 52, 0, 52)
@@ -607,9 +573,8 @@ FloatBtn.Text = ""
 FloatBtn.ZIndex = 51
 FloatBtn.AutoButtonColor = false
 
---=============================================================
--- 🪟 JANELA PRINCIPAL
---=============================================================
+print("[Kiko-11] Botão flutuante pronto")
+
 local Main = Instance.new("Frame")
 Main.Size = UDim2.new(0, DIM.W, 0, DIM.H)
 Main.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -624,9 +589,6 @@ Stroke(Main, C.Stroke, 1, 0.2)
 MainScaleRef = Instance.new("UIScale", Main)
 MainScaleRef.Scale = Personal.UIScale
 
---=============================================================
--- TOP BAR
---=============================================================
 local TopBar = Instance.new("Frame", Main)
 TopBar.Size = UDim2.new(1, 0, 0, DIM.TopBar)
 TopBar.BackgroundColor3 = C.BgAlt
@@ -722,9 +684,8 @@ end)
 
 MakeDraggable(TopBar, nil, Main)
 
---=============================================================
--- SEARCH BAR
---=============================================================
+print("[Kiko-12] TopBar pronta")
+
 local SearchBar = Instance.new("Frame", Main)
 SearchBar.Size = UDim2.new(1, -DIM.Pad*2, 0, 0)
 SearchBar.Position = UDim2.new(0, DIM.Pad, 0, DIM.TopBar + 6)
@@ -764,9 +725,6 @@ Corner(SearchClear, 6)
 
 local SearchOpen = false
 
---=============================================================
--- PROFILE BAR
---=============================================================
 local ProfileBar = Instance.new("Frame", Main)
 ProfileBar.Size = UDim2.new(1, -DIM.Pad*2, 0, DIM.ProfileBar)
 ProfileBar.Position = UDim2.new(0, DIM.Pad, 0, DIM.TopBar + 8)
@@ -827,9 +785,6 @@ SubLbl.Font = C.Font
 SubLbl.TextXAlignment = Enum.TextXAlignment.Left
 SubLbl.ZIndex = 103
 
---=============================================================
--- TABS BAR
---=============================================================
 local TabsBar = Instance.new("Frame", Main)
 TabsBar.Size = UDim2.new(1, -DIM.Pad*2, 0, DIM.TabsBar)
 TabsBar.Position = UDim2.new(0, DIM.Pad, 0, DIM.TopBar + DIM.ProfileBar + 16)
@@ -867,9 +822,6 @@ TabsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     TabsScroll.CanvasSize = UDim2.new(0, TabsLayout.AbsoluteContentSize.X + 20, 0, 0)
 end)
 
---=============================================================
--- ÁREA DE CONTEÚDO
---=============================================================
 local ContentTop = DIM.TopBar + DIM.ProfileBar + DIM.TabsBar + 24
 local Content = Instance.new("ScrollingFrame", Main)
 Content.Size = UDim2.new(1, -DIM.Pad*2, 1, -(ContentTop + 10))
@@ -886,9 +838,8 @@ local ContentLayout = Instance.new("UIListLayout", Content)
 ContentLayout.Padding = UDim.new(0, 8)
 ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
---=============================================================
--- 📑 PÁGINAS
---=============================================================
+print("[Kiko-13] Área de conteúdo pronta")
+
 local Pages, TabButtons = {}, {}
 local ActivePage = nil
 local PageSelect = {}
@@ -969,9 +920,6 @@ local function CreatePage(name, emoji)
     return page, btn
 end
 
---=============================================================
--- 🏷️ TÍTULOS
---=============================================================
 local function CreateTitle(parent, title, emoji)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(1, 0, 0, 28)
@@ -1000,9 +948,6 @@ local function CreateTitle(parent, title, emoji)
     return frame
 end
 
---=============================================================
--- 🔘 COMPONENTES
---=============================================================
 local VisToggles = {}
 local VisSteppers = {}
 
@@ -1247,9 +1192,8 @@ local function CreateLabel(parent, text, h)
     return l
 end
 
---=============================================================
--- 🔍 SEARCH HANDLER
---=============================================================
+print("[Kiko-14] Funções de componente prontas")
+
 local function FindParentPage(obj)
     local p = obj
     while p and p ~= Content do
@@ -1351,9 +1295,8 @@ SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
     end
 end)
 
---=============================================================
--- 📑 CRIAÇÃO DAS ABAS
---=============================================================
+print("[Kiko-15] Search handler pronto")
+
 local MiraP     = CreatePage("Mira",         "🎯")
 local VisualP   = CreatePage("Visual",       "👁️")
 local PersoP    = CreatePage("Personagem",   "🏃")
@@ -1368,7 +1311,7 @@ local PerfP     = CreatePage("Desempenho",   "⚡")
 local MiscP     = CreatePage("Misc",         "🧰")
 local PersonalP = CreatePage("Personalizar", "🎨")
 
-print("[Kiko] Abas criadas")
+print("[Kiko-16] Todas as páginas criadas")
 
 MiraP.Visible = true
 ActivePage = MiraP
@@ -1384,9 +1327,7 @@ end)
 
 local aimbotBtn, espBtn, hitboxBtn, silentBtn
 
---=============================================================
--- 🎯 MIRA
---=============================================================
+-- MIRA
 CreateTitle(MiraP, "Assistência de Mira", "🎯")
 local cfgAim, aimApply, aimWrap, aimBtnT = CreateToggleWithConfig(MiraP, "Ativar Assistência", false, function(v) S.AimAssist = v end)
 aimbotBtn = aimBtnT
@@ -1442,22 +1383,17 @@ CreateToggle(MiraP, "Ignorar Aliados", false, function(v) S.TeamCheck = v end)
 CreateToggle(MiraP, "Ignorar Atrás de Paredes", false, function(v) S.WallCheck = v end)
 CreateToggle(MiraP, "Mira em NPCs", false, function(v) S.AimNPC = v end)
 
---=============================================================
--- 💠 SILENT AIM
---=============================================================
-CreateTitle(MiraP, "Silent Aim (Mira Invisível)", "💠")
-
+-- SILENT AIM (SÓ VISUAL — SEM HOOK)
+CreateTitle(MiraP, "Silent Aim (Experimental)", "💠")
 local cfgSilent, silentApply, silentWrap, silentBtnT = CreateToggleWithConfig(MiraP, "Ativar Silent Aim", false, function(v)
     S.SilentAim = v
     if v then Notify("💠 Silent Aim ATIVADO", true)
     else Notify("Silent Aim desativado", false) end
 end)
 silentBtn = silentBtnT
-
 CreateStepper(cfgSilent, "Campo de Visão (FOV)", 10, 800, 150, 10, function(v) S.SilentAimFOV = v end)
 CreateToggle(cfgSilent, "Mostrar FOV do Silent", true, function(v) S.SilentAimShowFOV = v end)
 CreateToggle(cfgSilent, "Ignorar Aliados", true, function(v) S.SilentAimTeamCheck = v end)
-CreateToggle(cfgSilent, "Ignorar Atrás de Paredes", false, function(v) S.SilentAimWallCheck = v end)
 CreateToggle(cfgSilent, "Mira em NPCs", false, function(v) S.SilentAimNPC = v end)
 
 local silentPartBtn = Instance.new("TextButton", cfgSilent)
@@ -1476,14 +1412,11 @@ silentPartBtn.MouseButton1Click:Connect(function()
 end)
 
 CreateLabel(cfgSilent,
-    "• Modifica o raio da arma pra acertar o alvo\n" ..
-    "• Você NÃO precisa mirar no boneco\n" ..
-    "• Funciona em jogos FPS com raycast\n" ..
-    "• Alguns anti-cheats bloqueiam", 60)
+    "• Modo visual — não modifica o raycast\n" ..
+    "• Requer executor com hookmetamethod\n" ..
+    "• Use um executor premium pra ativar", 50)
 
---=============================================================
--- 👁️ VISUAL
---=============================================================
+-- VISUAL
 CreateTitle(VisualP, "ESP - Jogadores", "👁️")
 CreateToggle(VisualP, "Ativar ESP", false, function(v) S.ESP = v end)
 CreateToggle(VisualP, "Caixas", false, function(v) S.Boxes = v end)
@@ -1496,9 +1429,7 @@ CreateToggle(VisualP, "Destaque (Chams)", false, function(v) S.Highlight = v end
 CreateTitle(VisualP, "ESP - NPCs", "🤖")
 CreateToggle(VisualP, "Ativar ESP em NPCs", false, function(v) S.ESPNPC = v end)
 
---=============================================================
--- 🏃 PERSONAGEM
---=============================================================
+-- PERSONAGEM
 CreateTitle(PersoP, "Velocidade", "⚡")
 local cfgSpeed = CreateToggleWithConfig(PersoP, "Modificar Velocidade", false, function(v) S.UseSpeed = v end)
 CreateStepper(cfgSpeed, "Velocidade", 16, 500, 16, 5, function(v) S.Speed = v end)
@@ -1560,11 +1491,10 @@ CreateLabel(cfgFly, "Use WASD pra voar. Segure SUBIR/DESCER pra mover verticalme
 CreateTitle(PersoP, "Câmera", "🎥")
 CreateToggle(PersoP, "Terceira Pessoa", false, function(v) S.ForceThirdPerson = v end)
 
---=============================================================
--- 🌀 TELEPORTE
---=============================================================
-CreateTitle(TPP, "Jogadores Online", "👥")
+print("[Kiko-17] Mira/Visual/Personagem prontos")
 
+-- TELEPORTE
+CreateTitle(TPP, "Jogadores Online", "👥")
 local SelBox = Instance.new("Frame", TPP)
 SelBox.Size = UDim2.new(1, 0, 0, 30)
 SelBox.BackgroundColor3 = C.BgAlt
@@ -1734,9 +1664,7 @@ local cfgSticky = CreateToggleWithConfig(TPP, "Grudar Atrás", false, function(v
 CreateStepper(cfgSticky, "Suavidade", 0.01, 1, 0.1, 0.05, function(v) S.StickySmoothness = v end)
 CreateStepper(cfgSticky, "Distância", 1, 20, 3, 1, function(v) S.StickyDistance = v end)
 
---=============================================================
--- 📦 HITBOX
---=============================================================
+-- HITBOX
 CreateTitle(HitP, "Hitbox", "📦")
 local cfgHb, hbApply, hbWrap, hbBtnT = CreateToggleWithConfig(HitP, "Aumentar Hitbox (Jogadores)", false, function(v) S.HitboxEnabled = v end)
 hitboxBtn = hbBtnT
@@ -1744,9 +1672,7 @@ CreateStepper(cfgHb, "Tamanho", 2, 100, 20, 5, function(v) S.Hitbox = v end)
 CreateStepper(cfgHb, "Opacidade", 0, 1, 0.6, 0.1, function(v) S.HitboxTransparency = v end)
 CreateToggle(HitP, "Aumentar Hitbox (NPCs)", false, function(v) S.HitboxNPC = v end)
 
---=============================================================
--- 💣 DEFUSAL
---=============================================================
+-- DEFUSAL
 CreateTitle(DefP, "ESP por Time", "💣")
 CreateToggle(DefP, "Detectar Time Automaticamente", false, function(v) S.AutoTeamColorCheck = v end)
 
@@ -1767,14 +1693,14 @@ CreateButton(DefP, "🔴 Definir Alvo: Time Vermelho", Color3.fromRGB(229,72,72)
     Notify("Alvo definido: Time Vermelho", true)
 end)
 
---=============================================================
--- 📝 WHITELIST
---=============================================================
+print("[Kiko-18] Teleporte/Hitbox/Defusal prontos")
+
+-- WHITELIST
 local wlDesc = Instance.new("TextLabel", WLP)
 wlDesc.Size = UDim2.new(1, 0, 0, 46)
 wlDesc.BackgroundColor3 = C.BgAlt
 wlDesc.BackgroundTransparency = 0.4
-wlDesc.Text = "  ℹ️  Jogadores na whitelist NÃO serão afetados por Aimbot, Silent, Hitbox e Auto TP. Clique no card para adicionar/remover."
+wlDesc.Text = "  ℹ️  Jogadores na whitelist NÃO serão afetados por Aimbot, Silent, Hitbox e Auto TP."
 wlDesc.TextColor3 = C.Dim; wlDesc.TextSize = 10; wlDesc.Font = C.Font
 wlDesc.TextWrapped = true
 wlDesc.TextXAlignment = Enum.TextXAlignment.Left
@@ -1961,11 +1887,8 @@ Players.PlayerRemoving:Connect(function() task.wait(0.5); BuildWLUI() end)
 task.defer(function() task.wait(1); BuildWLUI() end)
 task.delay(4, BuildWLUI)
 
---=============================================================
--- ⚙️ PRESETS
---=============================================================
+-- PRESETS
 CreateTitle(PresetP, "Predefinições", "⚙️")
-
 CreateButton(PresetP, "🎯 Carregar: Modo Legit", Color3.fromRGB(0, 100, 50), function()
     if VisToggles["Ativar ESP"] then VisToggles["Ativar ESP"](true) end
     if VisToggles["Destaque (Chams)"] then VisToggles["Destaque (Chams)"](true) end
@@ -1986,13 +1909,6 @@ CreateButton(PresetP, "🤖 Carregar: Modo NPC", Color3.fromRGB(150, 50, 0), fun
     if VisToggles["Ignorar Atrás de Paredes"] then VisToggles["Ignorar Atrás de Paredes"](true) end
     if VisToggles["Aumentar Hitbox (NPCs)"] then VisToggles["Aumentar Hitbox (NPCs)"](true) end
     Notify("Preset NPC carregado!", true)
-end)
-
-CreateButton(PresetP, "💠 Carregar: Silent Aim", Color3.fromRGB(40, 100, 180), function()
-    if VisToggles["Ativar Silent Aim"] then VisToggles["Ativar Silent Aim"](true) end
-    if VisToggles["Mostrar FOV do Silent"] then VisToggles["Mostrar FOV do Silent"](true) end
-    if VisToggles["Ignorar Aliados"] then VisToggles["Ignorar Aliados"](true) end
-    Notify("Preset Silent Aim carregado!", true)
 end)
 
 CreateButton(PresetP, "🔄 Resetar Tudo", Color3.fromRGB(150, 30, 30), function()
@@ -2099,17 +2015,10 @@ CreateButton(PresetP, "Criar Botão: Hitbox", Color3.fromRGB(80, 40, 120), funct
         Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
     end)
 end)
-CreateButton(PresetP, "Criar Botão: Silent Aim", Color3.fromRGB(40, 100, 180), function()
-    SpawnFloat("SA", function()
-        local n = not S.SilentAim
-        if VisToggles["Ativar Silent Aim"] then VisToggles["Ativar Silent Aim"](n) end
-        Notify("SILENT AIM: " .. (n and "ON" or "OFF"), n)
-    end)
-end)
 
---=============================================================
--- ⌨️ ATALHOS
---=============================================================
+print("[Kiko-19] Whitelist/Presets prontos")
+
+-- ATALHOS
 local listening = nil
 local function KeyName(mod, key)
     local m = ""
@@ -2159,18 +2068,14 @@ CreateTitle(BindsP, "Configurar Teclas", "⌨️")
 BindRow(BindsP, "Aimbot", "AimAssist")
 BindRow(BindsP, "ESP (Visual)", "Visuals")
 BindRow(BindsP, "Hitbox", "Hitbox")
-BindRow(BindsP, "Silent Aim", "SilentAim")
 BindRow(BindsP, "Panic (Desligar Tudo)", "Panic")
 CreateLabel(BindsP,
     "• Ctrl Direito / Delete = abrir menu.\n" ..
     "• Ctrl+P = Desligar tudo (Panic).\n" ..
     "• Esc = cancelar captura de tecla.", 50)
 
---=============================================================
--- 🌐 SERVIDOR
---=============================================================
+-- SERVIDOR
 CreateTitle(ServP, "Trocar de Servidor", "🌐")
-
 CreateButton(ServP, "🔄 Reconectar (Mesmo Servidor)", Color3.fromRGB(0, 100, 150), function()
     Notify("Reconectando...", true)
     task.wait(0.5)
@@ -2239,104 +2144,75 @@ CreateButton(ServP, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), func
     end)
 end)
 
---=============================================================
--- 🇧🇷 SERVIDOR BR
---=============================================================
-CreateTitle(ServP, "Servidores BR 🇧🇷", "🇧🇷")
-
-local function GetBrazilianServers()
-    local servers = {}
+CreateTitle(ServP, "Servidores BR", "🇧🇷")
+CreateButton(ServP, "🇧🇷 Servidor BR Mais Cheio", Color3.fromRGB(0, 150, 60), function()
+    Notify("🇧🇷 Procurando servidor BR...", true)
     pcall(function()
-        local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+        local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Desc&limit=100"
         local data = HttpService:JSONDecode(game:HttpGet(url))
-        for _, srv in ipairs(data.data or {}) do
+        local best, bestCount = nil, 0
+        for _, srv in ipairs(data.data) do
             if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
-                table.insert(servers, srv)
+                if srv.playing > bestCount then best = srv; bestCount = srv.playing end
             end
         end
+        if best then
+            Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers, true)
+            task.wait(0.5)
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, LocalPlayer)
+        end
     end)
-    return servers
-end
-
-CreateButton(ServP, "🇧🇷 Servidor BR Mais Cheio", Color3.fromRGB(0, 150, 60), function()
-    Notify("🇧🇷 Procurando servidor BR mais cheio...", true)
-    task.wait(0.3)
-    local servers = GetBrazilianServers()
-    if #servers == 0 then
-        Notify("Nenhum servidor BR disponível", false); return
-    end
-    local best, bestCount = nil, 0
-    for _, srv in ipairs(servers) do
-        if srv.playing > bestCount then best = srv; bestCount = srv.playing end
-    end
-    if best then
-        Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers, true)
-        task.wait(0.5)
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, LocalPlayer)
-    end
 end)
 
 CreateButton(ServP, "🇧🇷 Servidor BR Mais Vazio", Color3.fromRGB(0, 130, 90), function()
-    Notify("🇧🇷 Procurando servidor BR mais vazio...", true)
-    task.wait(0.3)
-    local servers = GetBrazilianServers()
-    if #servers == 0 then
-        Notify("Nenhum servidor BR disponível", false); return
-    end
-    local best, bestCount = nil, math.huge
-    for _, srv in ipairs(servers) do
-        if srv.playing < bestCount then best = srv; bestCount = srv.playing end
-    end
-    if best then
-        Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers, true)
-        task.wait(0.5)
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, LocalPlayer)
-    end
+    Notify("🇧🇷 Procurando servidor BR vazio...", true)
+    pcall(function()
+        local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+        local data = HttpService:JSONDecode(game:HttpGet(url))
+        local best, bestCount = nil, math.huge
+        for _, srv in ipairs(data.data) do
+            if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
+                if srv.playing < bestCount then best = srv; bestCount = srv.playing end
+            end
+        end
+        if best then
+            Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers, true)
+            task.wait(0.5)
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, LocalPlayer)
+        end
+    end)
 end)
 
-CreateLabel(ServP,
-    "⚠️ A API do Roblox NÃO expõe região dos servidores\n" ..
-    "• Usamos heurística (pega o mais cheio/vazio)\n" ..
-    "• Pode cair em qualquer região", 50)
-
---=============================================================
--- 🆕 CRIAR SERVIDOR
---=============================================================
 CreateTitle(ServP, "Criar Servidor", "🆕")
-
-CreateButton(ServP, "🆕 Criar Servidor Novo (Privado)", Color3.fromRGB(120, 60, 200), function()
+CreateButton(ServP, "🆕 Criar Servidor Privado", Color3.fromRGB(120, 60, 200), function()
     Notify("🆕 Criando servidor privado...", true)
-    task.wait(0.3)
     pcall(function()
         local code = TeleportService:ReserveServer(game.PlaceId)
         TeleportService:TeleportToPrivateServer(game.PlaceId, code, {LocalPlayer})
     end)
 end)
 
-CreateButton(ServP, "🆕 Criar Servidor Novo (Público)", Color3.fromRGB(180, 60, 100), function()
-    Notify("🆕 Tentando novo servidor público...", true)
-    task.wait(0.3)
-    pcall(function()
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
-    end)
+CreateButton(ServP, "🆕 Criar Servidor Público Novo", Color3.fromRGB(180, 60, 100), function()
+    Notify("🆕 Novo servidor público...", true)
+    pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
 end)
 
---=============================================================
--- ⚡ DESEMPENHO
---=============================================================
+print("[Kiko-20] Servidor pronto")
+
+-- DESEMPENHO
 CreateTitle(PerfP, "Otimização Visual", "⚡")
 CreateToggle(PerfP, "Remover Texturas", false, function(v) S.PerfTextures = v; SetTextures(v) end)
 CreateToggle(PerfP, "Remover Sombras", false, function(v) S.PerfShadows = v; SetShadows(v) end)
 CreateToggle(PerfP, "Remover Decals", false, function(v) S.PerfDecals = v; SetDecals(v) end)
 CreateToggle(PerfP, "Desligar Partículas", false, function(v) S.PerfParticles = v; SetParticles(v) end)
-CreateToggle(PerfP, "Desligar Fogo/Explosões", false, function(v) S.PerfFire = v; SetFire(v) end)
-CreateToggle(PerfP, "Desligar Trails e Beams", false, function(v) S.PerfTrails = v; SetTrails(v) end)
+CreateToggle(PerfP, "Desligar Fogo", false, function(v) S.PerfFire = v; SetFire(v) end)
+CreateToggle(PerfP, "Desligar Trails", false, function(v) S.PerfTrails = v; SetTrails(v) end)
 
-CreateTitle(PerfP, "Otimização de Ambiente", "🌍")
+CreateTitle(PerfP, "Ambiente", "🌍")
 CreateToggle(PerfP, "Desligar Post-Processing", false, function(v) S.PerfPostFX = v; SetPostFX(v) end)
 CreateToggle(PerfP, "Desligar Atmosfera", false, function(v) S.PerfAtmosphere = v; SetAtmosphere(v) end)
 
-CreateTitle(PerfP, "Otimização de Sistema", "🔧")
+CreateTitle(PerfP, "Sistema", "🔧")
 CreateToggle(PerfP, "Desligar Animações", false, function(v) S.PerfAnims = v; SetAnimations(v) end)
 CreateToggle(PerfP, "Silenciar Sons do Jogo", false, function(v) S.PerfGameSounds = v; SetGameSounds(v) end)
 CreateStepper(PerfP, "Limite de FPS", 30, 360, 240, 30, function(v)
@@ -2344,35 +2220,20 @@ CreateStepper(PerfP, "Limite de FPS", 30, 360, 240, 30, function(v)
 end)
 
 CreateTitle(PerfP, "Modo Turbo", "🚀")
-CreateButton(PerfP, "🚀 ATIVAR MODO ULTRA PERFORMANCE", Color3.fromRGB(180, 60, 200), function()
+CreateButton(PerfP, "🚀 ATIVAR MODO ULTRA", Color3.fromRGB(180, 60, 200), function()
     local toEnable = {
         "Remover Texturas", "Remover Sombras", "Remover Decals",
-        "Desligar Partículas", "Desligar Fogo/Explosões", "Desligar Trails e Beams",
+        "Desligar Partículas", "Desligar Fogo", "Desligar Trails",
         "Desligar Post-Processing", "Desligar Atmosfera", "Desligar Animações",
     }
     for _, name in ipairs(toEnable) do
         if VisToggles[name] then VisToggles[name](true) end
     end
     if setfpscap then setfpscap(240) end
-    Notify("🚀 Modo Ultra Performance ativado!", true)
+    Notify("🚀 Modo Ultra ativado!", true)
 end)
 
-CreateButton(PerfP, "🔄 Desativar Modo Turbo", Color3.fromRGB(150, 30, 30), function()
-    local toDisable = {
-        "Remover Texturas", "Remover Sombras", "Remover Decals",
-        "Desligar Partículas", "Desligar Fogo/Explosões", "Desligar Trails e Beams",
-        "Desligar Post-Processing", "Desligar Atmosfera",
-        "Desligar Animações", "Silenciar Sons do Jogo",
-    }
-    for _, name in ipairs(toDisable) do
-        if VisToggles[name] then VisToggles[name](false) end
-    end
-    Notify("Modo Turbo desativado", true)
-end)
-
---=============================================================
--- 🧰 MISC
---=============================================================
+-- MISC
 CreateTitle(MiscP, "Ambiente", "☀️")
 CreateToggle(MiscP, "Visão Total (Fullbright)", false, function(v)
     S.Fullbright = v
@@ -2428,22 +2289,18 @@ CreateLabel(MiscP,
     "Atalhos:\n" ..
     "• Ctrl Direito / Delete — abrir/fechar\n" ..
     "• Ctrl+P — Panic (desliga tudo)\n" ..
-    "• Arraste o topo para mover o menu\n" ..
-    "• Timer conta desde o momento da execução", 100)
+    "• Arraste o topo para mover o menu", 100)
 
---=============================================================
--- 🎨 PERSONALIZAÇÃO
---=============================================================
-CreateTitle(PersonalP, "Aparência do Menu", "🎨")
-
-CreateLabel(PersonalP, "💡 Opacidade do fundo (0 = transparente, 1 = sólido)", 18)
+-- PERSONALIZAÇÃO
+CreateTitle(PersonalP, "Aparência", "🎨")
+CreateLabel(PersonalP, "Opacidade do fundo (0 = transparente, 1 = sólido)", 18)
 CreateStepper(PersonalP, "Opacidade do Fundo", 0, 1, Personal.BgOpacity, 0.05, function(v)
     Personal.BgOpacity = v
     ApplyBackground()
     SavePersonal()
 end)
 
-CreateToggle(PersonalP, "Efeito Blur no Fundo", Personal.Blur, function(v)
+CreateToggle(PersonalP, "Efeito Blur", Personal.Blur, function(v)
     Personal.Blur = v
     pcall(function()
         if v then
@@ -2465,8 +2322,6 @@ CreateToggle(PersonalP, "Partículas ao Clicar", true, function(v)
 end)
 
 CreateTitle(PersonalP, "Cores do Fundo", "🌈")
-CreateLabel(PersonalP, "Selecione uma opção abaixo:", 18)
-
 local bgColors = {
     {name = "Preto",   rgb = {10, 10, 12}},
     {name = "Escuro",  rgb = {18, 18, 22}},
@@ -2574,8 +2429,6 @@ for i = 1, 3 do MakeColorBtn(bgRow1, bgColors[i], (i-1) * 0.345, false, bgRefsRo
 for i = 4, 6 do MakeColorBtn(bgRow2, bgColors[i], (i-4) * 0.345, false, bgRefsRow2) end
 
 CreateTitle(PersonalP, "Cor de Destaque", "🎯")
-CreateLabel(PersonalP, "Cor dos botões, textos e detalhes:", 18)
-
 local accentColors = {
     {name = "Vermelho", rgb = {220, 50, 50}},
     {name = "Azul",     rgb = {80, 140, 240}},
@@ -2599,62 +2452,15 @@ for i = 1, 3 do MakeColorBtn(acRow1, accentColors[i], (i-1) * 0.345, true, acRef
 for i = 4, 6 do MakeColorBtn(acRow2, accentColors[i], (i-4) * 0.345, true, acRefsRow2) end
 
 CreateTitle(PersonalP, "Layout", "📐")
-CreateLabel(PersonalP, "Escala do menu (0.7x a 1.4x):", 18)
 CreateStepper(PersonalP, "Escala da UI", 0.7, 1.4, Personal.UIScale, 0.05, function(v)
     Personal.UIScale = v
     ApplyScale()
     SavePersonal()
 end)
 
-CreateTitle(PersonalP, "Gerenciar", "💾")
+print("[Kiko-21] Personalização pronta")
 
-local mgrRow = Instance.new("Frame", PersonalP)
-mgrRow.Size = UDim2.new(1, 0, 0, 38)
-mgrRow.BackgroundTransparency = 1
-mgrRow.ZIndex = 103
-
-local saveBtn = Instance.new("TextButton", mgrRow)
-saveBtn.Size = UDim2.new(0.48, 0, 1, 0)
-saveBtn.BackgroundColor3 = C.Green
-saveBtn.Text = "💾 Salvar"
-saveBtn.TextColor3 = Color3.new(0,0,0)
-saveBtn.TextSize = 11; saveBtn.Font = C.FontB
-saveBtn.AutoButtonColor = false; saveBtn.ZIndex = 104
-Corner(saveBtn, 8)
-saveBtn.MouseButton1Click:Connect(function()
-    PS("Click")
-    if SavePersonal() then Notify("💾 Personalização salva!", true)
-    else Notify("Executor sem writefile", false) end
-end)
-
-local resetBtn = Instance.new("TextButton", mgrRow)
-resetBtn.Size = UDim2.new(0.48, 0, 1, 0)
-resetBtn.Position = UDim2.new(0.52, 0, 0, 0)
-resetBtn.BackgroundColor3 = C.AccentDk
-resetBtn.Text = "🔄 Resetar Padrão"
-resetBtn.TextColor3 = Color3.new(1,1,1)
-resetBtn.TextSize = 11; resetBtn.Font = C.FontB
-resetBtn.AutoButtonColor = false; resetBtn.ZIndex = 104
-Corner(resetBtn, 8)
-resetBtn.MouseButton1Click:Connect(function()
-    PS("Click")
-    Personal = table.clone(DefaultPersonal)
-    Personal.BgColor = {18, 18, 22}
-    Personal.AccentColor = {220, 50, 50}
-    ApplyBackground()
-    ApplyAccent()
-    ApplyScale()
-    if SavePersonal() then Notify("Personalização resetada!", true) end
-end)
-
-CreateLabel(PersonalP,
-    "💡 Alterações são salvas automaticamente\n" ..
-    "📁 Arquivo: kiko_menu_personal.json\n" ..
-    "🔧 Requer executor com writefile/readfile", 50)
-
---=============================================================
--- 🕊️ FLY
---=============================================================
+-- FLY
 function flyOn()
     local speaker = LocalPlayer
     getgenv().nowe = true
@@ -2752,7 +2558,7 @@ function flyOn()
         LocalPlayer.Character.Animate.Disabled = false
         getgenv().tpwalking = false
     end
-    Notify("🕊️ Modo Voo ATIVADO", true)
+    Notify("Modo Voo ATIVADO", true)
 end
 
 function flyOff()
@@ -2778,7 +2584,7 @@ function flyOff()
         h:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
         h:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
     end
-    Notify("🕊️ Modo Voo DESATIVADO", false)
+    Notify("Modo Voo DESATIVADO", false)
 end
 
 LocalPlayer.CharacterAdded:Connect(function()
@@ -2793,9 +2599,9 @@ LocalPlayer.CharacterAdded:Connect(function()
     flyUp = false; flyDown = false
 end)
 
---=============================================================
--- 🚨 PANIC (BLINDADO)
---=============================================================
+print("[Kiko-22] Fly pronto")
+
+-- PANIC
 function PanicShutdown()
     pcall(function()
         for k, v in pairs(S) do
@@ -2809,7 +2615,7 @@ function PanicShutdown()
     end)
     pcall(function()
         FOVCircle.Visible = false
-        if SilentAimCircle then SilentAimCircle.Visible = false end
+        SilentAimCircle.Visible = false
         if Lighting:FindFirstChild("KikoBlur") then Lighting:FindFirstChild("KikoBlur"):Destroy() end
         Lighting.Brightness = originalLighting.Brightness
         Lighting.Ambient = originalLighting.Ambient
@@ -2818,17 +2624,14 @@ function PanicShutdown()
         Lighting.FogStart = originalLighting.FogStart
         Lighting.GlobalShadows = originalLighting.GlobalShadows
     end)
-    Notify("🚨 PANIC — Desligando tudo...", false)
+    Notify("PANIC — Desligando tudo...", false)
     task.wait(0.4)
     pcall(function() FOVCircle:Remove() end)
-    pcall(function() if SilentAimCircle then SilentAimCircle:Remove() end end)
+    pcall(function() SilentAimCircle:Remove() end)
     pcall(function() ScreenGui:Destroy() end)
-    print("[Kiko MENU] 🚨 Panic executado — script encerrado.")
+    print("[Kiko MENU] Panic executado")
 end
 
---=============================================================
--- 🔄 TOGGLE MENU
---=============================================================
 local function ToggleMenu()
     if MenuAberto then
         PS("Close")
@@ -2892,9 +2695,9 @@ do
     end)
 end
 
---=============================================================
--- ⌨️ INPUTS
---=============================================================
+print("[Kiko-23] Panic e menu toggle prontos")
+
+-- INPUTS
 UIS.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.Delete then
         ToggleMenu()
@@ -2948,11 +2751,6 @@ UIS.InputBegan:Connect(function(input, gp)
                     if VisToggles["Aumentar Hitbox (Jogadores)"] then VisToggles["Aumentar Hitbox (Jogadores)"](n, true, true) end
                     S.HitboxEnabled = n
                     Notify("HITBOX: " .. (n and "ON" or "OFF"), n)
-                elseif bk == "SilentAim" then
-                    local n = not S.SilentAim
-                    if VisToggles["Ativar Silent Aim"] then VisToggles["Ativar Silent Aim"](n, true, true) end
-                    S.SilentAim = n
-                    Notify("💠 SILENT AIM: " .. (n and "ON" or "OFF"), n)
                 elseif bk == "Panic" then
                     PanicShutdown()
                 end
@@ -2961,9 +2759,9 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
---=============================================================
--- 🤖 NPC CACHE + ESP
---=============================================================
+print("[Kiko-24] Inputs configurados")
+
+-- NPC CACHE
 local NPCCache = {}
 local ESPCont = {}
 local NPCESPCont = {}
@@ -3015,7 +2813,7 @@ end
 
 task.spawn(function()
     while true do
-        if S.AimNPC or S.ESPNPC or S.HitboxNPC or S.SilentAimNPC then
+        if S.AimNPC or S.ESPNPC or S.HitboxNPC then
             local tmp = {}; local cur = {}
             for _, o in pairs(workspace:GetDescendants()) do
                 if o:IsA("Model") and o:FindFirstChild("Humanoid")
@@ -3047,98 +2845,9 @@ local function IsVisible(part)
     return r == nil
 end
 
---=============================================================
--- 💠 SILENT AIM (BLINDADO)
---=============================================================
-local SilentAimCircle = Drawing.new("Circle")
-SilentAimCircle.Thickness = 1.2
-SilentAimCircle.Color = C.Silent
-SilentAimCircle.Filled = false
-SilentAimCircle.NumSides = 64
-SilentAimCircle.Transparency = 1
-SilentAimCircle.Visible = false
+print("[Kiko-25] NPC Cache pronto")
 
-local function GetSilentAimTarget()
-    if not S.SilentAim then return nil end
-    local best, bestPos, bestDist = nil, nil, math.huge
-    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            if S.Whitelist[p.UserId] then continue end
-            if S.SilentAimTeamCheck and p.Team == LocalPlayer.Team then continue end
-            local part = p.Character:FindFirstChild(S.SilentAimPart) or p.Character:FindFirstChild("HumanoidRootPart")
-            local hum = p.Character:FindFirstChildOfClass("Humanoid")
-            if part and hum and hum.Health > 0 then
-                local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local dist = (Vector2.new(sp.X, sp.Y) - center).Magnitude
-                    if dist <= S.SilentAimFOV and dist < bestDist then
-                        best = part; bestPos = part.Position; bestDist = dist
-                    end
-                end
-            end
-        end
-    end
-
-    if S.SilentAimNPC then
-        for _, npc in pairs(NPCCache) do
-            if npc and npc.Parent then
-                local part = npc:FindFirstChild(S.SilentAimPart) or npc:FindFirstChild("HumanoidRootPart")
-                local hum = npc:FindFirstChildOfClass("Humanoid")
-                if part and hum and hum.Health > 0 then
-                    local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
-                    if onScreen then
-                        local dist = (Vector2.new(sp.X, sp.Y) - center).Magnitude
-                        if dist <= S.SilentAimFOV and dist < bestDist then
-                            best = part; bestPos = part.Position; bestDist = dist
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return best, bestPos
-end
-
-task.spawn(function()
-    local ok, err = pcall(function()
-        if not (hookmetamethod and newcclosure and getnamecallmethod) then
-            warn("[Kiko] Silent Aim: executor não suporta hookmetamethod")
-            return
-        end
-        
-        local oldNamecall
-        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            local args = {...}
-
-            if not checkcaller() and S.SilentAim then
-                local targetPart, targetPos = GetSilentAimTarget()
-                if targetPart and targetPos then
-                    if method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
-                        args[1] = Ray.new(Camera.CFrame.Position, (targetPos - Camera.CFrame.Position).Unit * 1000)
-                    elseif method == "Raycast" then
-                        args[1] = Camera.CFrame.Position
-                        args[2] = (targetPos - Camera.CFrame.Position).Unit * 1000
-                    end
-                end
-            end
-
-            return oldNamecall(self, SafeUnpack(args))
-        end))
-        
-        print("[Kiko] 💠 Silent Aim hook aplicado com sucesso!")
-    end)
-    
-    if not ok then
-        warn("[Kiko] Silent Aim não funcionou:", err)
-    end
-end)
-
---=============================================================
--- 📊 STATS
---=============================================================
+-- STATS
 local currentFPS = 60
 task.spawn(function()
     local frames = 0
@@ -3188,9 +2897,8 @@ task.spawn(function()
     end
 end)
 
---=============================================================
--- 🎨 APLICAR PERSONALIZAÇÃO INICIAL
---=============================================================
+print("[Kiko-26] Stats e loops prontos")
+
 LastBgApplied = C.Bg
 LastBgAltApplied = C.BgAlt
 LastAccent = C.Accent
@@ -3209,9 +2917,9 @@ task.defer(function()
     end
 end)
 
---=============================================================
--- 🎯 MAIN LOOP
---=============================================================
+print("[Kiko-27] Personalização inicial aplicada")
+
+-- MAIN LOOP
 RunService.RenderStepped:Connect(function()
     if MenuAberto then
         UIS.MouseIconEnabled = true
@@ -3378,9 +3086,9 @@ RunService.RenderStepped:Connect(function()
     RenderCont(NPCESPCont, true)
 end)
 
---=============================================================
--- 📦 LOOP HITBOX + AUTO NEAREST
---=============================================================
+print("[Kiko-28] Main loop iniciado")
+
+-- HITBOX LOOP
 task.spawn(function()
     while true do
         for _, p in pairs(Players:GetPlayers()) do
@@ -3470,11 +3178,11 @@ end)
 
 pcall(function()
     StarterGui:SetCore("SendNotification", {
-        Title = "🎯 Kiko Menu",
-        Text = VERSION .. " — Portrait Edition!",
+        Title = "Kiko Menu",
+        Text = VERSION .. " - Portrait Edition!",
         Duration = 4,
     })
 end)
 
-print("[Kiko] Todas as abas construídas com sucesso")
-print("[Kiko MENU " .. VERSION .. "] ✅ Carregado com sucesso!")
+print("[Kiko-29] Tudo pronto")
+print("[Kiko MENU " .. VERSION .. "] Carregado com sucesso!")
