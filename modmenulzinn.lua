@@ -3366,7 +3366,7 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification", {
         Title = "🎯 Kiko Menu",
-        Text = VERSION .. " — Portrait Edition!",
+        Text = VERSION .. " — Portrait Edition!!!",
         Duration = 4,
     })
 end)
