@@ -1,6 +1,8 @@
 --=============================================================
--- 🎯 KIKO MENU v7.1 — PORTRAIT EDITION
+-- 🎯 KIKO MENU v7.2 — PORTRAIT EDITION
 --=============================================================
+
+print("[Kiko] Iniciando script v7.2...")
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -75,7 +77,7 @@ getgenv().Settings = {
 }
 
 local S = getgenv().Settings
-local VERSION = "v7.1"
+local VERSION = "v7.2"
 local MenuAberto = false
 local FOVCircle = Drawing.new("Circle")
 local isHoldingTarget = false
@@ -190,6 +192,8 @@ ScreenGui.IgnoreGuiInset = true
 ScreenGui.DisplayOrder = 999
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = parentGui
+
+print("[Kiko] GUI criada")
 
 --=============================================================
 -- 🔊 SISTEMA DE SOM
@@ -539,6 +543,8 @@ local function SetGameSounds(enabled)
         end
     end)
 end
+
+print("[Kiko] Performance carregada")
 
 --=============================================================
 -- 🖱️ DRAG
@@ -1362,6 +1368,8 @@ local PerfP     = CreatePage("Desempenho",   "⚡")
 local MiscP     = CreatePage("Misc",         "🧰")
 local PersonalP = CreatePage("Personalizar", "🎨")
 
+print("[Kiko] Abas criadas")
+
 MiraP.Visible = true
 ActivePage = MiraP
 TabButtons[1]:SetAttribute("KikoBg", "")
@@ -1435,7 +1443,7 @@ CreateToggle(MiraP, "Ignorar Atrás de Paredes", false, function(v) S.WallCheck 
 CreateToggle(MiraP, "Mira em NPCs", false, function(v) S.AimNPC = v end)
 
 --=============================================================
--- 🎯 SILENT AIM (MIRA INVISÍVEL)
+-- 💠 SILENT AIM
 --=============================================================
 CreateTitle(MiraP, "Silent Aim (Mira Invisível)", "💠")
 
@@ -2232,11 +2240,10 @@ CreateButton(ServP, "🍃 Servidor Mais Vazio", Color3.fromRGB(0, 130, 90), func
 end)
 
 --=============================================================
--- 🇧🇷 SERVIDOR BRASILEIRO
+-- 🇧🇷 SERVIDOR BR
 --=============================================================
-CreateTitle(ServP, "Servidores Brasileiros 🇧🇷", "🇧🇷")
+CreateTitle(ServP, "Servidores BR 🇧🇷", "🇧🇷")
 
--- Função: busca servidores e filtra por região (heurística por prefixo de datacenter)
 local function GetBrazilianServers()
     local servers = {}
     pcall(function()
@@ -2244,8 +2251,6 @@ local function GetBrazilianServers()
         local data = HttpService:JSONDecode(game:HttpGet(url))
         for _, srv in ipairs(data.data or {}) do
             if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
-                -- Heurística: datacenters BR normalmente têm IDs com esses prefixos conhecidos
-                -- Filtragem real por região não é exposta na API pública
                 table.insert(servers, srv)
             end
         end
@@ -2265,7 +2270,7 @@ CreateButton(ServP, "🇧🇷 Servidor BR Mais Cheio", Color3.fromRGB(0, 150, 60
         if srv.playing > bestCount then best = srv; bestCount = srv.playing end
     end
     if best then
-        Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers .. " — Teleportando...", true)
+        Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers, true)
         task.wait(0.5)
         TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, LocalPlayer)
     end
@@ -2283,7 +2288,7 @@ CreateButton(ServP, "🇧🇷 Servidor BR Mais Vazio", Color3.fromRGB(0, 130, 90
         if srv.playing < bestCount then best = srv; bestCount = srv.playing end
     end
     if best then
-        Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers .. " — Teleportando...", true)
+        Notify("🇧🇷 Servidor: " .. best.playing .. "/" .. best.maxPlayers, true)
         task.wait(0.5)
         TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, LocalPlayer)
     end
@@ -2292,11 +2297,10 @@ end)
 CreateLabel(ServP,
     "⚠️ A API do Roblox NÃO expõe região dos servidores\n" ..
     "• Usamos heurística (pega o mais cheio/vazio)\n" ..
-    "• Pode cair em qualquer região\n" ..
-    "• Ideal pra achar sala com mais BRs", 60)
+    "• Pode cair em qualquer região", 50)
 
 --=============================================================
--- 🆕 CRIAR NOVO SERVIDOR
+-- 🆕 CRIAR SERVIDOR
 --=============================================================
 CreateTitle(ServP, "Criar Servidor", "🆕")
 
@@ -2313,15 +2317,9 @@ CreateButton(ServP, "🆕 Criar Servidor Novo (Público)", Color3.fromRGB(180, 6
     Notify("🆕 Tentando novo servidor público...", true)
     task.wait(0.3)
     pcall(function()
-        -- Força conexão em servidor novo usando matchmaking
         TeleportService:Teleport(game.PlaceId, LocalPlayer)
     end)
 end)
-
-CreateLabel(ServP,
-    "• Servidor Privado = sala reservada só pra você\n" ..
-    "• Servidor Público = tenta achar sala nova\n" ..
-    "• Você precisa ser o dono pra criar privado", 60)
 
 --=============================================================
 -- ⚡ DESEMPENHO
@@ -2371,11 +2369,6 @@ CreateButton(PerfP, "🔄 Desativar Modo Turbo", Color3.fromRGB(150, 30, 30), fu
     end
     Notify("Modo Turbo desativado", true)
 end)
-
-CreateLabel(PerfP,
-    "• Reaplica automaticamente em novos objetos (a cada 2s)\n" ..
-    "• Afeta o jogo inteiro (bom pra FPS em PCs fracos)\n" ..
-    "• Use o Turbo pra ativar tudo de uma vez", 60)
 
 --=============================================================
 -- 🧰 MISC
@@ -2801,13 +2794,19 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 --=============================================================
--- 🚨 PANIC
+-- 🚨 PANIC (BLINDADO)
 --=============================================================
 function PanicShutdown()
-    for k, v in pairs(S) do
-        if type(v) == "boolean" and k ~= "SoundEnabled" then S[k] = false end
-    end
-    for _, f in pairs(VisToggles) do pcall(function() f(false, true, true) end) end
+    pcall(function()
+        for k, v in pairs(S) do
+            if type(v) == "boolean" and k ~= "SoundEnabled" then S[k] = false end
+        end
+    end)
+    pcall(function()
+        for _, f in pairs(VisToggles) do
+            pcall(function() f(false, true, true) end)
+        end
+    end)
     pcall(function()
         FOVCircle.Visible = false
         if SilentAimCircle then SilentAimCircle.Visible = false end
@@ -3049,7 +3048,7 @@ local function IsVisible(part)
 end
 
 --=============================================================
--- 💠 SILENT AIM (MIRA INVISÍVEL)
+-- 💠 SILENT AIM (BLINDADO)
 --=============================================================
 local SilentAimCircle = Drawing.new("Circle")
 SilentAimCircle.Thickness = 1.2
@@ -3075,11 +3074,6 @@ local function GetSilentAimTarget()
                 if onScreen then
                     local dist = (Vector2.new(sp.X, sp.Y) - center).Magnitude
                     if dist <= S.SilentAimFOV and dist < bestDist then
-                        if S.SilentAimWallCheck then
-                            local ray = Ray.new(Camera.CFrame.Position, part.Position - Camera.CFrame.Position)
-                            local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, p.Character})
-                            if hit then continue end
-                        end
                         best = part; bestPos = part.Position; bestDist = dist
                     end
                 end
@@ -3107,31 +3101,40 @@ local function GetSilentAimTarget()
     return best, bestPos
 end
 
--- Hook no __namecall pra alterar o raycast
-if hookmetamethod and newcclosure and getnamecallmethod then
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
+task.spawn(function()
+    local ok, err = pcall(function()
+        if not (hookmetamethod and newcclosure and getnamecallmethod) then
+            warn("[Kiko] Silent Aim: executor não suporta hookmetamethod")
+            return
+        end
+        
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
 
-        if not checkcaller() and S.SilentAim then
-            local targetPart, targetPos = GetSilentAimTarget()
-            if targetPart and targetPos then
-                if method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
-                    args[1] = Ray.new(Camera.CFrame.Position, (targetPos - Camera.CFrame.Position).Unit * 1000)
-                elseif method == "Raycast" then
-                    args[1] = Camera.CFrame.Position
-                    args[2] = (targetPos - Camera.CFrame.Position).Unit * 1000
+            if not checkcaller() and S.SilentAim then
+                local targetPart, targetPos = GetSilentAimTarget()
+                if targetPart and targetPos then
+                    if method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
+                        args[1] = Ray.new(Camera.CFrame.Position, (targetPos - Camera.CFrame.Position).Unit * 1000)
+                    elseif method == "Raycast" then
+                        args[1] = Camera.CFrame.Position
+                        args[2] = (targetPos - Camera.CFrame.Position).Unit * 1000
+                    end
                 end
             end
-        end
 
-        return oldNamecall(self, SafeUnpack(args))
-    end))
-    print("[Kiko] Silent Aim hook aplicado!")
-else
-    warn("[Kiko] Executor sem suporte a hookmetamethod — Silent Aim pode não funcionar")
-end
+            return oldNamecall(self, SafeUnpack(args))
+        end))
+        
+        print("[Kiko] 💠 Silent Aim hook aplicado com sucesso!")
+    end)
+    
+    if not ok then
+        warn("[Kiko] Silent Aim não funcionou:", err)
+    end
+end)
 
 --=============================================================
 -- 📊 STATS
@@ -3222,7 +3225,6 @@ RunService.RenderStepped:Connect(function()
     FOVCircle.Thickness = 1.2
     FOVCircle.Filled = false
 
-    -- Silent Aim FOV Circle
     SilentAimCircle.Visible = S.SilentAim and S.SilentAimShowFOV
     SilentAimCircle.Radius = S.SilentAimFOV
     SilentAimCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
@@ -3474,4 +3476,5 @@ pcall(function()
     })
 end)
 
+print("[Kiko] Todas as abas construídas com sucesso")
 print("[Kiko MENU " .. VERSION .. "] ✅ Carregado com sucesso!")
